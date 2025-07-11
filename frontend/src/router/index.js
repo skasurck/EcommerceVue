@@ -4,6 +4,7 @@ import Productos from '../views/Productos.vue'
 import NuevoProducto from '../views/NuevoProducto.vue'
 import Registro from '../views/Registro.vue'
 import Login from '../views/Login.vue'
+import ProductView from '../views/ProductView.vue'
 
 const routes = [
   {
@@ -31,7 +32,12 @@ const routes = [
     path: '/login',
     name: 'login',
     component: Login
-  }
+  },
+  {
+    path: '/producto/:id',
+    name: 'producto',
+    component: ProductView
+  },
 ]
 
 const router = createRouter({
