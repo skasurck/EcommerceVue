@@ -17,4 +17,36 @@ api.interceptors.request.use(config => {
   return config
 })
 
+// Interceptor de respuesta para manejar expiración
+api.interceptors.response.use(
+  response => response,
+  async error => {
+    const originalRequest = error.config
+    if (
+      error.response &&
+      error.response.status === 401 &&
+      !originalRequest._retry
+    ) {
+      originalRequest._retry = true
+      try {
+        const refresh = localStorage.getItem('refresh')
+        const res = await axios.post('http://localhost:8000/api/token/refresh/', {
+          refresh: refresh
+        })
+
+        localStorage.setItem('access', res.data.access)
+        originalRequest.headers.Authorization = `Bearer ${res.data.access}`
+        return api(originalRequest)
+      } catch (err) {
+        console.error('Error al refrescar token', err)
+        localStorage.removeItem('access')
+        localStorage.removeItem('refresh')
+        window.location.href = '/login'
+        return Promise.reject(err)
+      }
+    }
+    return Promise.reject(error)
+  }
+)
+
 export default api

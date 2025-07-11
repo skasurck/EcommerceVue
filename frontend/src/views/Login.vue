@@ -12,11 +12,15 @@
 
 <script setup>
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import api from '../axios'
+import { useAuthStore } from '../stores/auth'
 
 const username = ref('')
 const password = ref('')
 const error = ref('')
+const router = useRouter()
+const auth = useAuthStore()
 
 const login = async () => {
   try {
@@ -24,16 +28,16 @@ const login = async () => {
       username: username.value,
       password: password.value
     })
-    localStorage.setItem('access', res.data.access)
-    localStorage.setItem('refresh', res.data.refresh)
+    await auth.login(res.data.access, res.data.refresh)
     error.value = ''
-    alert('Login exitoso')
+    router.push('/productos') // o donde quieras redirigir
   } catch (err) {
     console.error(err)
     error.value = 'Credenciales inválidas'
   }
 }
 </script>
+
 <style scoped>
 h2 {
   text-align: center;
