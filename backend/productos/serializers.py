@@ -1,37 +1,173 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from .models import Producto
+from .models import Producto, ImagenProducto, PrecioEscalonado, Categoria, Marca, ValorAtributo
 
-class ProductoSerializer(serializers.ModelSerializer):
-    imagen = serializers.ImageField(required=False)
+# ──────────── CATEGORÍA ────────────
+class CategoriaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Categoria
+        fields = '__all__'
+
+# ──────────── MARCA ────────────
+class MarcaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Marca
+        fields = '__all__'
+
+# ──────────── ATRIBUTOS ────────────
+class ValorAtributoSerializer(serializers.ModelSerializer):
+    atributo = serializers.StringRelatedField()
 
     class Meta:
-        model = Producto
-        fields = '__all__' 
+        model = ValorAtributo
+        fields = ['id', 'atributo', 'valor']
 
-    def validate_precio(self, value):
+# ──────────── GALERÍA ────────────
+class ImagenProductoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ImagenProducto
+        fields = ['id', 'imagen']
+
+# ──────────── PRECIOS ESCALONADOS ────────────
+class PrecioEscalonadoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PrecioEscalonado
+        fields = ['id', 'cantidad_minima', 'precio_unitario']
+
+# ──────────── PRODUCTO ────────────
+class ProductoSerializer(serializers.ModelSerializer):
+    imagen_principal = serializers.ImageField(required=False)
+    categoria = serializers.PrimaryKeyRelatedField(queryset=Categoria.objects.all(), required=False)
+    marca = serializers.PrimaryKeyRelatedField(queryset=Marca.objects.all(), required=False)
+    atributos = serializers.PrimaryKeyRelatedField(queryset=ValorAtributo.objects.all(), many=True, required=False)
+    # Añadir galería de imágenes
+    galeria = serializers.ListField(
+        child=serializers.ImageField(),
+        write_only=True,
+        required=False
+    ) 
+    galeria_read = ImagenProductoSerializer(many=True, read_only=True, source='galeria')
+    stock = serializers.IntegerField(default=0, required=False)
+    precios_escalonados = PrecioEscalonadoSerializer(many=True, read_only=True, source='precios_escalonados')
+    miniatura_url = serializers.SerializerMethodField()
+    class Meta:
+        model = Producto
+        fields = [
+            'id', 'nombre', 'descripcion_corta', 'descripcion_larga',
+            'precio_normal', 'precio_rebajado', 'sku', 'imagen_principal',
+            'miniatura_url','estado_inventario', 'disponible',
+            'visibilidad', 'estado', 'categoria', 'marca', 'atributos',
+            'galeria','galeria_read','stock', 'precios_escalonados'
+        ]
+    # Método para obtener la URL de la miniatura
+    def get_miniatura_url(self, obj):
+        if obj.miniatura and hasattr(obj.miniatura, 'url'):
+            return obj.miniatura.url
+        return None
+
+    # Validación del precio
+    def validate_precio_normal(self, value):
         if value <= 0:
             raise serializers.ValidationError("El precio debe ser mayor a 0.")
         return value
-    
-    # Validación de imagen
-    def validate_imagen(self, image):
-        if not image:
-            return image          # opcional, puede venir vacío
 
-        # 1. Extensión / formato
+    # Validación de la imagen
+    def validate_imagen_principal(self, image):
+        if not image:
+            return image  # Imagen es opcional
+
         formatos_permitidos = ['image/jpeg', 'image/png', 'image/webp']
-        if image.content_type not in formatos_permitidos:
+        if hasattr(image, 'content_type') and image.content_type not in formatos_permitidos:
             raise serializers.ValidationError("Solo se permiten JPG, PNG o WEBP.")
 
-        # 2. Tamaño (máx 10 MB)
-        max_size = 10 * 1024 * 1024   # 10 MB
-        if image.size > max_size:
+        if image.size > 10 * 1024 * 1024:
             raise serializers.ValidationError("La imagen supera los 10 MB.")
-
+        
         return image
+    # Crear el producto y las imágenes de galería
+    def create(self, validated_data):
+        galeria_imagenes = self.context['request'].FILES.getlist('galeria')
+        precios_data = validated_data.pop('precios_escalonados', [])
 
-class ProductoSerializer(serializers.ModelSerializer):
+        producto = Producto.objects.create(**validated_data)
+
+        # Guardar imágenes de galería (si vienen)
+        for imagen in galeria_imagenes:
+            ImagenProducto.objects.create(producto=producto, imagen=imagen)
+
+        # Guardar precios escalonados (si vienen)
+        for precio in precios_data:
+            PrecioEscalonado.objects.create(producto=producto, **precio)
+
+        return producto
+    
+    def update(self, instance, validated_data):
+        precios_data = validated_data.pop('precios_escalonados', [])
+        galeria_imagenes = self.context['request'].FILES.getlist('galeria')
+
+        # Actualiza campos del producto
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        # Elimina los precios actuales y los vuelve a crear
+        instance.precios_escalonados.all().delete()
+        for precio in precios_data:
+            PrecioEscalonado.objects.create(producto=instance, **precio)
+
+        # Opcional: eliminar galería y agregar nuevas si las mandas
+        for imagen in galeria_imagenes:
+            ImagenProducto.objects.create(producto=instance, imagen=imagen)
+
+        return instance
+    
+    def validate_precios_escalonados(self, value):
+        cantidades = set()
+        for item in value:
+            cantidad = item.get('cantidad_minima')
+            precio = item.get('precio_unitario')
+
+            if cantidad in cantidades:
+                raise serializers.ValidationError(f"Ya se definió un precio para {cantidad} unidades.")
+            if cantidad <= 0:
+                raise serializers.ValidationError("La cantidad mínima debe ser mayor a 0.")
+            if precio <= 0:
+                raise serializers.ValidationError("El precio unitario debe ser mayor a 0.")
+            
+            cantidades.add(cantidad)
+        return value
+    
+    def validate(self, attrs):
+        stock = attrs.get('stock', None)
+        estado = attrs.get('estado_inventario', None)
+
+        if stock == 0 and estado != 'agotado':
+            raise serializers.ValidationError({
+                'estado_inventario': 'Si el stock es 0, el estado de inventario debe ser "agotado".'
+            })
+
+        if stock > 0 and estado != 'en_existencia':
+            raise serializers.ValidationError({
+                'estado_inventario': 'Si hay stock disponible, el estado debe ser "en existencia".'
+            })
+
+        return attrs
+
+    
+class ImagenProductoCreateSerializer(serializers.ModelSerializer):
     class Meta:
-        model  = Producto
-        fields = ['id', 'nombre', 'descripcion', 'precio', 'imagen', 'disponible']
+        model = ImagenProducto
+        fields = ['id', 'producto', 'imagen']
+    
+    def validate_imagen(self, image):
+        if not image:
+            raise serializers.ValidationError("La imagen es obligatoria.")
+
+        formatos_permitidos = ['image/jpeg', 'image/png', 'image/webp']
+        if hasattr(image, 'content_type') and image.content_type not in formatos_permitidos:
+            raise serializers.ValidationError("Formato inválido. Usa JPG, PNG o WEBP.")
+
+        if image.size > 10 * 1024 * 1024:
+            raise serializers.ValidationError("La imagen supera los 10 MB.")
+        
+        return image

@@ -1,16 +1,126 @@
 from django.db import models
-from django.core.validators import MinValueValidator
+from PIL import Image, ImageOps
+from io import BytesIO
+from django.core.files.base import ContentFile
 
-class Producto(models.Model):
+# ──────────── CATEGORÍAS ────────────
+class Categoria(models.Model):
     nombre = models.CharField(max_length=100)
-    descripcion = models.TextField()
-    precio = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        validators=[MinValueValidator(0.01)]  # ✅ no permite precios negativos o cero
-    )
-    disponible = models.BooleanField(default=True)
-    imagen = models.ImageField(upload_to='productos/', null=True, blank=True)  # Nuevo campo
+    slug = models.SlugField(unique=True)
 
     def __str__(self):
         return self.nombre
+
+# ──────────── MARCAS ────────────
+class Marca(models.Model):
+    nombre = models.CharField(max_length=100)
+
+    def __str__(self):
+        return self.nombre
+
+# ──────────── ATRIBUTOS ────────────
+class Atributo(models.Model):
+    nombre = models.CharField(max_length=100)
+
+    def __str__(self):
+        return self.nombre
+
+class ValorAtributo(models.Model):
+    atributo = models.ForeignKey(Atributo, on_delete=models.CASCADE)
+    valor = models.CharField(max_length=100)
+
+    def __str__(self):
+        return f"{self.atributo.nombre}: {self.valor}"
+
+# ──────────── PRODUCTOS ────────────
+class Producto(models.Model):
+    nombre = models.CharField(max_length=100)
+    descripcion_corta = models.TextField(null=True, blank=True)
+    descripcion_larga = models.TextField(null=True, blank=True)  # Se permite HTML desde el frontend
+    precio_normal = models.DecimalField(max_digits=10, decimal_places=2)
+    precio_rebajado = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    sku = models.CharField(max_length=100, unique=True, null=True, blank=True)
+    imagen_principal = models.ImageField(upload_to='productos/', null=True, blank=True)
+    miniatura = models.ImageField(upload_to='productos/miniaturas/', null=True, blank=True, editable=False)
+    disponible = models.BooleanField(default=True)
+    estado_inventario = models.CharField(max_length=20, choices=[
+        ('en_existencia', 'En existencia'),
+        ('agotado', 'Agotado')
+    ], default='en_existencia')
+    visibilidad = models.BooleanField(default=True)  # Público o privado
+    estado = models.CharField(max_length=20, choices=[
+        ('borrador', 'Borrador'),
+        ('publicado', 'Publicado')
+    ], default='borrador')
+    categoria = models.ForeignKey(Categoria, on_delete=models.SET_NULL, null=True, blank=True)
+    marca = models.ForeignKey(Marca, on_delete=models.SET_NULL, null=True, blank=True)
+    atributos = models.ManyToManyField(ValorAtributo, blank=True)
+    stock = models.PositiveIntegerField(default=0)
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+
+        # Validación del estado de inventario según el stock
+        if self.stock == 0 and self.estado_inventario != 'agotado':
+            self.estado_inventario = 'agotado'
+            super().save(update_fields=['estado_inventario'])
+
+        elif self.stock > 0 and self.estado_inventario != 'en_existencia':
+            self.estado_inventario = 'en_existencia'
+            super().save(update_fields=['estado_inventario'])
+
+        # Procesamiento de miniatura (forzamos regeneración siempre)
+        if self.imagen_principal and self.pk:
+            try:
+                img = Image.open(self.imagen_principal)
+
+                # Convertir a RGB si es PNG o tiene canal alpha
+                if img.mode in ("RGBA", "P"):
+                    img = img.convert("RGB")
+
+                # Crear fondo blanco cuadrado
+                fondo = Image.new('RGB', (200, 200), (255, 255, 255))
+
+                # Redimensionar manteniendo proporción
+                img.thumbnail((200, 200), Image.ANTIALIAS)
+
+                # Centrar la imagen dentro del fondo
+                x = (200 - img.width) // 2
+                y = (200 - img.height) // 2
+                fondo.paste(img, (x, y))
+
+                # Guardar como archivo en memoria
+                buffer = BytesIO()
+                fondo.save(buffer, format='JPEG')
+                thumb_file = ContentFile(buffer.getvalue())
+
+                # Guardar miniatura (si ya existe, sobreescribe)
+                self.miniatura.save(f'{self.pk}_miniatura.jpg', thumb_file, save=False)
+
+                super().save(update_fields=['miniatura'])
+
+            except Exception as e:
+                print(f"Error al generar miniatura: {e}")
+
+    def __str__(self):
+        return self.nombre
+
+# ──────────── GALERÍA DE IMÁGENES ────────────
+class ImagenProducto(models.Model):
+    producto = models.ForeignKey(Producto, on_delete=models.CASCADE, related_name='galeria')
+    imagen = models.ImageField(upload_to='productos/galeria/')
+
+    def __str__(self):
+        return f"Imagen de {self.producto.nombre}"
+
+# ──────────── PRECIOS ESCALONADOS ────────────
+class PrecioEscalonado(models.Model):
+    producto = models.ForeignKey(Producto, on_delete=models.CASCADE, related_name='precios_escalonados')
+    cantidad_minima = models.PositiveIntegerField()
+    precio_unitario = models.DecimalField(max_digits=10, decimal_places=2)
+
+    class Meta:
+        unique_together = ('producto', 'cantidad_minima')
+
+    def __str__(self):
+        return f"{self.producto.nombre} - desde {self.cantidad_minima} u. a ${self.precio_unitario} c/u"

@@ -10,14 +10,20 @@
         :key="producto.id"
         class="bg-white border border-gray-200 rounded-lg shadow hover:shadow-xl transition duration-200 overflow-hidden"
       >
-        <img
-          v-if="producto.imagen"
-          :src="producto.imagen"
-          alt="Imagen del producto"
-          class="ImagenProducto w-full h-48 object-cover"
-        />
+        <RouterLink :to="`/producto/${producto.id}`">
+          <img
+            v-if="producto.imagen"
+            :src="producto.imagen"
+            alt="Imagen del producto"
+            class="ImagenProducto w-full h-48 object-cover hover:brightness-90 transition"
+          />
+        </RouterLink>
         <div class="p-4">
-          <h2 class="text-lg font-bold">{{ producto.nombre }}</h2>
+          <h2 class="text-lg font-bold">
+            <RouterLink :to="`/producto/${producto.id}`" class="text-blue-700 hover:underline">
+              {{ producto.nombre }}
+            </RouterLink>
+          </h2>
           <p class="text-blue-600 font-semibold">
             ${{ Number(producto.precio).toFixed(2) }}
           </p>
@@ -31,6 +37,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { obtenerProductos } from '../services/api.js'
+import { RouterLink } from 'vue-router'
 
 const productos = ref([])
 
