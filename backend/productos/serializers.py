@@ -61,10 +61,11 @@ class ProductoSerializer(serializers.ModelSerializer):
         ]
     # Método para obtener la URL de la miniatura
     def get_miniatura_url(self, obj):
+        request = self.context.get('request')
         if obj.miniatura and hasattr(obj.miniatura, 'url'):
-            return obj.miniatura.url
+            url = obj.miniatura.url
+            return request.build_absolute_uri(url) if request else url
         return None
-
     # Validación del precio
     def validate_precio_normal(self, value):
         if value <= 0:

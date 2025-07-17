@@ -16,15 +16,16 @@ class ImagenProductoInline(admin.TabularInline):
 
 @admin.register(Producto)
 class ProductoAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'precio_normal', 'precio_rebajado', 'estado_inventario')
+    list_display = ('miniatura_preview','nombre', 'precio_normal', 'precio_rebajado', 'estado_inventario')
     list_filter = ('estado', 'visibilidad', 'estado_inventario', 'categoria', 'marca')
     search_fields = ('nombre', 'sku')
     readonly_fields = ('miniatura_preview',)
     inlines = [PrecioEscalonadoInline, ImagenProductoInline]  # 👈 Añade ambos aquí
 
     def miniatura_preview(self, obj):
-        if obj.miniatura:
-            return format_html('<img src="{}" width="50" height="50" style="object-fit:cover;" />', obj.miniatura.url)
+        print("MINIATURA URL:", obj.miniatura.url if obj.miniatura else "NO HAY")
+        if obj.miniatura and hasattr(obj.miniatura, 'url'):
+            return format_html('<img src="{}" width="50" height="50" />', obj.miniatura.url)
         return "Sin miniatura"
     
     miniatura_preview.short_description = 'Miniatura'

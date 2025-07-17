@@ -2,6 +2,8 @@ from django.db import models
 from PIL import Image, ImageOps
 from io import BytesIO
 from django.core.files.base import ContentFile
+from django.utils.crypto import get_random_string
+import os
 
 # ──────────── CATEGORÍAS ────────────
 class Categoria(models.Model):
@@ -58,50 +60,45 @@ class Producto(models.Model):
     stock = models.PositiveIntegerField(default=0)
 
     def save(self, *args, **kwargs):
+        is_new = self.pk is None
         super().save(*args, **kwargs)
 
-        # Validación del estado de inventario según el stock
+        # Validación automática del estado de inventario según el stock
         if self.stock == 0 and self.estado_inventario != 'agotado':
             self.estado_inventario = 'agotado'
             super().save(update_fields=['estado_inventario'])
-
         elif self.stock > 0 and self.estado_inventario != 'en_existencia':
             self.estado_inventario = 'en_existencia'
             super().save(update_fields=['estado_inventario'])
 
-        # Procesamiento de miniatura (forzamos regeneración siempre)
-        if self.imagen_principal and self.pk:
+        # Regenerar miniatura si hay imagen principal
+        if self.imagen_principal:
             try:
                 img = Image.open(self.imagen_principal)
 
-                # Convertir a RGB si es PNG o tiene canal alpha
                 if img.mode in ("RGBA", "P"):
                     img = img.convert("RGB")
 
-                # Crear fondo blanco cuadrado
                 fondo = Image.new('RGB', (200, 200), (255, 255, 255))
+                img.thumbnail((200, 200), Image.Resampling.LANCZOS)
 
-                # Redimensionar manteniendo proporción
-                img.thumbnail((200, 200), Image.ANTIALIAS)
-
-                # Centrar la imagen dentro del fondo
                 x = (200 - img.width) // 2
                 y = (200 - img.height) // 2
                 fondo.paste(img, (x, y))
 
-                # Guardar como archivo en memoria
                 buffer = BytesIO()
                 fondo.save(buffer, format='JPEG')
                 thumb_file = ContentFile(buffer.getvalue())
 
-                # Guardar miniatura (si ya existe, sobreescribe)
                 self.miniatura.save(f'{self.pk}_miniatura.jpg', thumb_file, save=False)
-
                 super().save(update_fields=['miniatura'])
 
-            except Exception as e:
-                print(f"Error al generar miniatura: {e}")
+                print(f"✅ MINIATURA GENERADA para producto {self.pk}")
 
+            except Exception as e:
+                print(f"[Error] No se pudo generar miniatura: {e}")
+
+         # Solo genera miniatura si hay imagen y ya existe 
     def __str__(self):
         return self.nombre
 
