@@ -15,6 +15,7 @@
 <script setup>
 import { ref } from 'vue'
 import api from '../axios'
+defineOptions({ name: 'RegisterView' })
 
 const username = ref('')
 const email = ref('')

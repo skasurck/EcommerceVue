@@ -74,6 +74,8 @@ class Producto(models.Model):
         # Regenerar miniatura si hay imagen principal
         if self.imagen_principal:
             try:
+                # Asegurarse de abrir desde la ruta final en disco
+                self.imagen_principal.open()
                 img = Image.open(self.imagen_principal)
 
                 if img.mode in ("RGBA", "P"):

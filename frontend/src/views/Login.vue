@@ -15,6 +15,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../axios'
 import { useAuthStore } from '../stores/auth'
+defineOptions({ name: 'LoginView' })
 
 const username = ref('')
 const password = ref('')

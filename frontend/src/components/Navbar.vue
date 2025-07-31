@@ -26,6 +26,7 @@
 <script setup>
 import { RouterLink, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+defineOptions({ name: 'AppNavbar' })
 
 const auth = useAuthStore()
 const router = useRouter()

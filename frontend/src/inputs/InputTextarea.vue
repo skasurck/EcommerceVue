@@ -14,7 +14,7 @@
 <script setup>
 import InputLabel from './InputLabel.vue'
 
-const props = defineProps({
+defineProps({
   modelValue: String,
   label: String,
   required: Boolean,
@@ -22,5 +22,5 @@ const props = defineProps({
   rows: { type: Number, default: 3 }
 })
 
-const emit = defineEmits(['update:modelValue'])
+defineEmits(['update:modelValue'])
 </script>

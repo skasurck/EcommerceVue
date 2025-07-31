@@ -1,4 +1,7 @@
 // stores/productos.js
+import { defineStore } from 'pinia'
+import { obtenerProducto } from '../services/api.js'
+
 export const useProductoStore = defineStore('producto', {
   state: () => ({ cache: {} }),
   actions: {

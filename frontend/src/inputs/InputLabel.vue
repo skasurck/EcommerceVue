@@ -7,7 +7,7 @@
 </template>
 
 <script setup>
-const props = defineProps({
+defineProps({
   label: String,
   required: Boolean,
   error: String

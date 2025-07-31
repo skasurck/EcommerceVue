@@ -1,6 +1,7 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
 from .models import Producto, ImagenProducto, PrecioEscalonado, Categoria, Marca, ValorAtributo
+import json
 
 # ──────────── CATEGORÍA ────────────
 class CategoriaSerializer(serializers.ModelSerializer):
@@ -93,7 +94,14 @@ class ProductoSerializer(serializers.ModelSerializer):
         imagen_principal = request.FILES.get('imagen_principal')  # 👈 Extrae imagen principal
         miniatura = request.FILES.get('miniatura')  # 👈 Si también mandas miniatura por separado
 
-        precios_data = validated_data.pop('precios_escalonados', [])
+        precios_data = []
+        # Extraer precios escalonados del cuerpo de la petición (vienen como JSON)
+        for valor in request.data.getlist('precios_escalonados'):
+            try:
+                precios_data.append(json.loads(valor))
+            except Exception:
+                pass
+        precios_data.extend(validated_data.pop('precios_escalonados', []))
         atributos_data = validated_data.pop('atributos', [])
         # Evitar pasar la galería como argumento directo a Producto.objects.create
         validated_data.pop('galeria', None)
@@ -132,9 +140,16 @@ class ProductoSerializer(serializers.ModelSerializer):
 
     
     def update(self, instance, validated_data):
-        precios_data = validated_data.pop('precios_escalonados', [])
-        galeria_imagenes = self.context['request'].FILES.getlist('galeria')
-
+        request = self.context['request']
+        precios_data = []
+        for valor in request.data.getlist('precios_escalonados'):
+            try:
+                precios_data.append(json.loads(valor))
+            except Exception:
+                pass
+        precios_data.extend(validated_data.pop('precios_escalonados', []))
+        galeria_imagenes = request.FILES.getlist('galeria')
+        
         # Actualiza campos del producto
         for attr, value in validated_data.items():
             setattr(instance, attr, value)

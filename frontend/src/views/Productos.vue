@@ -38,6 +38,7 @@
 import { ref, onMounted } from 'vue'
 import { obtenerProductos } from '../services/api.js'
 import { RouterLink } from 'vue-router'
+defineOptions({ name: 'ProductosView' })
 
 const productos = ref([])
 

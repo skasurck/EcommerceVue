@@ -11,11 +11,11 @@
 </template>
 
 <script setup>
-const props = defineProps({
+defineProps({
   modelValue: Boolean,
   label: String,
   id: String
 })
 
-const emit = defineEmits(['update:modelValue'])
+defineEmits(['update:modelValue'])
 </script>
