@@ -60,7 +60,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
 import api from '../axios'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
@@ -79,10 +79,17 @@ const auth = useAuthStore()
 const producto = reactive({
   nombre: '', descripcion_corta: '', descripcion_larga: '',
   precio_normal: 0, precio_rebajado: null, sku: '', imagen_principal: null,
-  galeria: [], stock: 0, estado_inventario: 'en_existencia', disponible: true,
+  galeria: [], stock: 0, estado_inventario: 'agotado', disponible: true,
   visibilidad: true, estado: 'borrador', categoria: null, marca: null,
   atributos: [], precios_escalonados: []
 })
+
+watch(
+  () => producto.stock,
+  (nuevoStock) => {
+    producto.estado_inventario = nuevoStock > 0 ? 'en_existencia' : 'agotado'
+  }
+)
 
 const categorias = ref([])
 const marcas = ref([])

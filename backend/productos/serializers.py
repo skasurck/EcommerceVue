@@ -96,9 +96,13 @@ class ProductoSerializer(serializers.ModelSerializer):
         precios_data = validated_data.pop('precios_escalonados', [])
         atributos_data = validated_data.pop('atributos', [])
 
+        imagen_principal = validated_data.pop('imagen_principal', None)
+        miniatura = validated_data.pop('miniatura', None)
+
         # Crea el producto sin imagen_principal ni miniatura aún
         producto = Producto.objects.create(
         imagen_principal=imagen_principal,
+        miniatura=miniatura,
             **validated_data
         )
 
