@@ -1,196 +1,126 @@
 <template>
-  <div class="max-w-md mx-auto p-6 bg-white rounded-lg shadow">
-    <h2 class="text-xl font-bold mb-4">Crear nuevo producto</h2>
+  <div class="max-w-2xl mx-auto p-6 bg-white rounded shadow">
+    <h2 class="text-2xl font-bold mb-6">Crear producto completo</h2>
 
     <form @submit.prevent="crearProducto" class="space-y-4">
       <!-- Nombre -->
-      <div>
-        <label class="block text-sm font-medium mb-1">Nombre *</label>
-        <input
-          v-model.trim="producto.nombre"
-          class="w-full p-2 border rounded"
-          :class="{'border-red-500': errores.nombre}"
-          autocomplete="off"
-          required
-        />
-        <p v-if="errores.nombre" class="text-xs text-red-600">{{ errores.nombre }}</p>
-      </div>
+      <InputText v-model="producto.nombre" label="Nombre *" required />
 
-      <!-- Descripción -->
-      <div>
-        <label class="block text-sm font-medium mb-1">Descripción</label>
-        <textarea
-          v-model.trim="producto.descripcion"
-          class="w-full p-2 border rounded resize-none"
-          rows="3"
-        />
-      </div>
+      <!-- Descripciones -->
+      <InputTextarea v-model="producto.descripcion_corta" label="Descripción corta" />
+      <InputTextarea v-model="producto.descripcion_larga" label="Descripción larga (HTML permitido)" />
 
-      <!-- Precio -->
-      <div>
-        <label class="block text-sm font-medium mb-1">Precio (MXN) *</label>
-        <input
-          v-model.number="producto.precio"
-          type="number"
-          step="0.01"
-          min="0"
-          class="w-full p-2 border rounded"
-          :class="{'border-red-500': errores.precio}"
-          required
-        />
-        <p v-if="errores.precio" class="text-xs text-red-600">{{ errores.precio }}</p>
-      </div>
+      <!-- Precios -->
+      <InputNumber v-model="producto.precio_normal" label="Precio normal (MXN) *" prop="precio_normal" />
+      <InputNumber v-model="producto.precio_rebajado" label="Precio rebajado (MXN)" />
+
+      <!-- SKU -->
+      <InputText v-model="producto.sku" label="SKU" />
+
+      <!-- Imagen principal -->
+      <ImageUpload label="Imagen principal" @cambio="e => producto.imagen_principal = e" />
+
+      <!-- Galería -->
+      <ImageUpload label="Galería de imágenes" :multiple="true" @cambio="e => producto.galeria = e" />
+
+      <!-- Stock -->
+      <InputNumber v-model="producto.stock" label="Stock" />
+
+      <!-- Estado inventario -->
+      <SelectInput v-model="producto.estado_inventario" label="Estado de inventario" :options="['en_existencia', 'agotado']" />
 
       <!-- Disponible -->
-      <div class="flex items-center space-x-2">
-        <input v-model="producto.disponible" type="checkbox" id="disp" />
-        <label for="disp">Disponible</label>
-      </div>
+      <SwitchInput v-model="producto.disponible" label="Disponible" />
 
-      <!-- Imagen -->
-      <div>
-        <label class="block text-sm font-medium mb-1">Imagen (máx 10 MB)</label>
-        <input type="file" accept="image/*" @change="manejarImagen" />
-        <p v-if="errores.imagen" class="text-xs text-red-600">{{ errores.imagen }}</p>
+      <!-- Visibilidad -->
+      <SwitchInput v-model="producto.visibilidad" label="Visible al público" />
 
-        <!-- Vista previa -->
-        <div v-if="previewUrl" class="mt-2">
-          <img :src="previewUrl" alt="Preview" class="imagePrevi w-40 h-40 object-cover rounded border" />
-        </div>
-      </div>
+      <!-- Estado publicación -->
+      <SelectInput v-model="producto.estado" label="Estado" :options="['borrador', 'publicado']" />
 
-      <!-- Botón -->
-      <button
-        type="submit"
-        class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded disabled:opacity-50"
-        :disabled="subiendo"
-      >
-        {{ subiendo ? 'Subiendo…' : 'Guardar' }}
+      <!-- Categoría -->
+      <SelectInput v-model="producto.categoria" label="Categoría" :options="categorias" option-label="nombre" option-value="id" />
+
+      <!-- Marca -->
+      <SelectInput v-model="producto.marca" label="Marca" :options="marcas" option-label="nombre" option-value="id" />
+
+      <!-- Atributos -->
+      <MultiCheckbox v-model="producto.atributos" label="Atributos" :options="atributos" option-label="valor" option-value="id" />
+
+      <!-- Precios escalonados -->
+      <EscalonadoInput v-model="producto.precios_escalonados" />
+
+      <button class="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded">
+        Guardar producto
       </button>
     </form>
 
-    <!-- Mensaje -->
     <p v-if="mensaje" class="mt-4 text-green-600">{{ mensaje }}</p>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import api from '../axios'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import InputLabel from '../inputs/InputLabel.vue'
+import InputText from '../inputs/InputText.vue'
+import InputTextarea from '../inputs/InputTextarea.vue'
+import InputNumber from '../inputs/InputNumber.vue'
+import SelectInput from '../inputs/SelectInput.vue'
+import SwitchInput from '../inputs/SwitchInput.vue'
+import ImageUpload from '../inputs/ImageUpload.vue'
+import MultiCheckbox from '../inputs/MultiCheckbox.vue'
+import EscalonadoInput from '../inputs/EscalonadoInput.vue'
 
-const auth = useAuthStore()
 const router = useRouter()
-
-// Estado del formulario
+const auth = useAuthStore()
 const producto = reactive({
-  nombre: '',
-  descripcion: '',
-  precio: 0,
-  disponible: true
+  nombre: '', descripcion_corta: '', descripcion_larga: '',
+  precio_normal: 0, precio_rebajado: null, sku: '', imagen_principal: null,
+  galeria: [], stock: 0, estado_inventario: 'en_existencia', disponible: true,
+  visibilidad: true, estado: 'borrador', categoria: null, marca: null,
+  atributos: [], precios_escalonados: []
 })
-const imagenFile = ref(null)
-const previewUrl = ref(null)
 
-// Manejo de errores y estado
-const errores = reactive({})
+const categorias = ref([])
+const marcas = ref([])
+const atributos = ref([])
 const mensaje = ref('')
-const subiendo = ref(false)
-// ────────── VALIDACIONES ──────────
 
-// ────────── MANEJADORES ──────────
-const manejarImagen = (e) => {
-  const file = e.target.files[0]
-  errores.imagen = ''
+onMounted(async () => {
+  const [catRes, marcaRes, attrRes] = await Promise.all([
+    api.get('categorias/'), api.get('marcas/'), api.get('atributos/')
+  ])
+  categorias.value = catRes.data
+  marcas.value = marcaRes.data
+  atributos.value = attrRes.data
+})
 
-  if (!file) {
-    imagenFile.value = null
-    previewUrl.value = null
-    return
-  }
-  const extension = file.name.split('.').pop().toLowerCase()
-  if (!['jpg', 'jpeg', 'png', 'webp'].includes(extension)) {
-    errores.imagen = 'Extensión de archivo no permitida.'
-    imagenFile.value = null
-    previewUrl.value = null
-    return
-  }
-  
-  const extensionesPermitidas = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
-  
-  if (!extensionesPermitidas.includes(file.type)) {
-    errores.imagen = 'Formato no permitido. Usa JPG, PNG o WEBP.'
-    imagenFile.value = null
-    previewUrl.value = null
-    return
-  }
-
-  if (file.size > 10 * 1024 * 1024) {
-    errores.imagen = 'La imagen supera los 10 MB.'
-    imagenFile.value = null
-    previewUrl.value = null
-    return
-  }
-
-  imagenFile.value = file
-  previewUrl.value = URL.createObjectURL(file)
-}
-
-const validar = () => {
-  errores.nombre = producto.nombre ? '' : 'El nombre es obligatorio.'
-  errores.precio = producto.precio > 0 ? '' : 'El precio debe ser mayor a 0.'
-  // imagen opcional: ya se validó tamaño arriba
-  return !errores.nombre && !errores.precio && !errores.imagen
-}
-
-const limpiarFormulario = () => {
-  producto.nombre = ''
-  producto.descripcion = ''
-  producto.precio = 0
-  producto.disponible = true
-  imagenFile.value = null
-  previewUrl.value = null
-}
+console.log(categorias.value, marcas.value, atributos.value)
 
 const crearProducto = async () => {
-  mensaje.value = ''
-
-  // 1. Verifica sesión
-  if (!auth.isLoggedIn) {
-    router.push('/login')
-    return
-  }
-
-  // 2. Valida campos
-  if (!validar()) return
-
-  // 3. Construye FormData
   const formData = new FormData()
-  formData.append('nombre', producto.nombre)
-  formData.append('descripcion', producto.descripcion)
-  formData.append('precio', Number(producto.precio)) // 👈 Esto en lugar de producto.precio directo
-  formData.append('disponible', producto.disponible)
-  if (imagenFile.value) formData.append('imagen', imagenFile.value)
-
-  // 4. POST
+  Object.entries(producto).forEach(([k, v]) => {
+    if (k === 'atributos') v.forEach(id => formData.append('atributos', id))
+    else if (k === 'precios_escalonados') {
+      v.forEach(p => formData.append('precios_escalonados', JSON.stringify(p)))
+    }
+    else if (k === 'galeria') v.forEach(f => formData.append('galeria', f))
+    else if (v !== null) formData.append(k, v)
+  })
   try {
-    subiendo.value = true
-    await api.post('productos/', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    })
-    mensaje.value = 'Producto creado con éxito'
-    limpiarFormulario()
-    // Opcional: actualizar lista o redirigir
+    await api.post('productos/', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
+    mensaje.value = 'Producto guardado correctamente'
     router.push('/productos')
   } catch (err) {
     console.error(err)
-    mensaje.value = 'Hubo un error al guardar'
-  } finally {
-    subiendo.value = false
+    mensaje.value = 'Error al guardar producto'
   }
 }
 </script>
+
 <style scoped>
 h2 {
   color: #333;

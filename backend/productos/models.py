@@ -104,11 +104,18 @@ class Producto(models.Model):
 
 # ──────────── GALERÍA DE IMÁGENES ────────────
 class ImagenProducto(models.Model):
-    producto = models.ForeignKey(Producto, on_delete=models.CASCADE, related_name='galeria')
+    producto = models.ForeignKey(Producto, related_name='galeria', on_delete=models.CASCADE)
     imagen = models.ImageField(upload_to='productos/galeria/')
 
     def __str__(self):
         return f"Imagen de {self.producto.nombre}"
+
+    def vista_previa(self):
+        if self.imagen:
+            return format_html('<img src="{}" width="60" height="60" />', self.imagen.url)
+        return "Sin imagen"
+
+    vista_previa.short_description = "Vista previa"
 
 # ──────────── PRECIOS ESCALONADOS ────────────
 class PrecioEscalonado(models.Model):

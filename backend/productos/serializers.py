@@ -48,7 +48,7 @@ class ProductoSerializer(serializers.ModelSerializer):
     ) 
     galeria_read = ImagenProductoSerializer(many=True, read_only=True, source='galeria')
     stock = serializers.IntegerField(default=0, required=False)
-    precios_escalonados = PrecioEscalonadoSerializer(many=True, read_only=True, source='precios_escalonados')
+    precios_escalonados = PrecioEscalonadoSerializer(many=True, read_only=True)
     miniatura_url = serializers.SerializerMethodField()
     class Meta:
         model = Producto
@@ -86,21 +86,44 @@ class ProductoSerializer(serializers.ModelSerializer):
         
         return image
     # Crear el producto y las imágenes de galería
-    def create(self, validated_data):
-        galeria_imagenes = self.context['request'].FILES.getlist('galeria')
+    def create(self, validated_data): 
+        request = self.context['request']
+        
+        galeria_imagenes = request.FILES.getlist('galeria')
+        imagen_principal = request.FILES.get('imagen_principal')  # 👈 Extrae imagen principal
+        miniatura = request.FILES.get('miniatura')  # 👈 Si también mandas miniatura por separado
+
         precios_data = validated_data.pop('precios_escalonados', [])
+        atributos_data = validated_data.pop('atributos', [])
 
-        producto = Producto.objects.create(**validated_data)
+        # Crea el producto sin imagen_principal ni miniatura aún
+        producto = Producto.objects.create(
+        imagen_principal=imagen_principal,
+            **validated_data
+        )
 
-        # Guardar imágenes de galería (si vienen)
+        # Asignar imagen principal y miniatura si existen
+        if imagen_principal:
+            producto.imagen_principal = imagen_principal
+
+        if miniatura:
+            producto.miniatura = miniatura
+
+        producto.save()  # 👈 Muy importante
+
+        # Relación ManyToMany
+        producto.atributos.set(atributos_data)
+
+        # Galería de imágenes
         for imagen in galeria_imagenes:
             ImagenProducto.objects.create(producto=producto, imagen=imagen)
 
-        # Guardar precios escalonados (si vienen)
+        # Precios escalonados
         for precio in precios_data:
             PrecioEscalonado.objects.create(producto=producto, **precio)
 
         return producto
+
     
     def update(self, instance, validated_data):
         precios_data = validated_data.pop('precios_escalonados', [])

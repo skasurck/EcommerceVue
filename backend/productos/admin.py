@@ -19,7 +19,7 @@ class ProductoAdmin(admin.ModelAdmin):
     list_display = ('miniatura_preview','nombre', 'precio_normal', 'precio_rebajado', 'estado_inventario')
     list_filter = ('estado', 'visibilidad', 'estado_inventario', 'categoria', 'marca')
     search_fields = ('nombre', 'sku')
-    readonly_fields = ('miniatura_preview',)
+    readonly_fields = ('miniatura_preview', 'imagen_principal_preview')
     inlines = [PrecioEscalonadoInline, ImagenProductoInline]  # 👈 Añade ambos aquí
 
     def miniatura_preview(self, obj):
@@ -29,8 +29,16 @@ class ProductoAdmin(admin.ModelAdmin):
         return "Sin miniatura"
     
     miniatura_preview.short_description = 'Miniatura'
+    
+    def imagen_principal_preview(self, obj):
+        if obj.imagen_principal and hasattr(obj.imagen_principal, 'url'):
+            return format_html('<img src="{}" width="100" height="100" />', obj.imagen_principal.url)
+        return "Sin imagen principal"
+
+    imagen_principal_preview.short_description = 'Imagen Principal'
 # Registro de modelos individuales
 admin.site.register(Categoria)
 admin.site.register(Marca)
 admin.site.register(Atributo)
 admin.site.register(ValorAtributo)
+admin.site.register(ImagenProducto)  
