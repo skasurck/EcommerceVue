@@ -95,6 +95,8 @@ class ProductoSerializer(serializers.ModelSerializer):
 
         precios_data = validated_data.pop('precios_escalonados', [])
         atributos_data = validated_data.pop('atributos', [])
+        # Evitar pasar la galería como argumento directo a Producto.objects.create
+        validated_data.pop('galeria', None)
 
         imagen_principal = validated_data.pop('imagen_principal', None)
         miniatura = validated_data.pop('miniatura', None)
