@@ -7,12 +7,12 @@ export const obtenerProductos = () => {
   return axios.get(`${API_BASE_URL}productos/`)
 }
 export const obtenerProducto = (id) =>
-    axios.get(`productos/${id}/`)
+    axios.get(`${API_BASE_URL}productos/${id}/`)
 
 // Carrito
-export const obtenerCarrito = () => axios.get('carrito/')
+export const obtenerCarrito = () => api.get('carrito/')
 export const agregarAlCarrito = (producto, cantidad = 1) =>
-  axios.post('carrito/', { producto, cantidad })
+  api.post('carrito/', { producto, cantidad })
 export const actualizarCarritoItem = (id, cantidad) =>
-  axios.patch(`carrito/${id}/`, { cantidad })
-export const eliminarCarritoItem = (id) => axios.delete(`carrito/${id}/`)
+   api.patch(`carrito/${id}/`, { cantidad })
+export const eliminarCarritoItem = (id) => api.delete(`carrito/${id}/`)
