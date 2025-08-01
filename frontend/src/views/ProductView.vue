@@ -23,6 +23,20 @@
               ${{ (+producto.precio_normal).toFixed(2) }}
             </span>
         </p>
+        <div class="mt-4 flex items-center space-x-2">
+          <input
+            type="number"
+            v-model.number="cantidad"
+            min="1"
+            class="w-20 border p-1 rounded"
+          />
+          <button
+            @click="agregar"
+            class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded"
+          >
+            Agregar al carrito
+          </button>
+        </div>
 
         <table
           v-if="producto.precios_escalonados && producto.precios_escalonados.length"
@@ -68,9 +82,18 @@ import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { obtenerProducto } from '../services/api'
 import { useHead } from '@vueuse/head'      // meta-tags (opcional)
+import { useCarritoStore } from '../stores/carrito'
 
 const route = useRoute()
 const producto = ref(null)
+const cantidad = ref(1)
+const carrito = useCarritoStore()
+
+const agregar = () => {
+  if (producto.value) {
+    carrito.agregar(producto.value.id, cantidad.value)
+  }
+}
 
 // Cargar producto
 onMounted(async () => {

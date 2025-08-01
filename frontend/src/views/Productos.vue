@@ -36,6 +36,12 @@
             </span>
           </p>
           <p class="text-sm text-gray-500">{{ producto.descripcion_corta }}</p>
+          <button
+            @click="agregar(producto.id)"
+            class="mt-2 bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded"
+          >
+            Agregar al carrito
+          </button>
         </div>
       </div>
     </div>
@@ -46,9 +52,15 @@
 import { ref, onMounted } from 'vue'
 import { obtenerProductos } from '../services/api.js'
 import { RouterLink } from 'vue-router'
+import { useCarritoStore } from '../stores/carrito'
 defineOptions({ name: 'ProductosView' })
 
 const productos = ref([])
+const carrito = useCarritoStore()
+
+const agregar = (id) => {
+  carrito.agregar(id)
+}
 
 onMounted(async () => {
   try {
