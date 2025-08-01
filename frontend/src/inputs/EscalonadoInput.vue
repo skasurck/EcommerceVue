@@ -28,5 +28,18 @@ function eliminar(i) {
   tiers.value.splice(i, 1)
 }
 
-watch(tiers, val => emit('update:modelValue', val), { deep: true })
+watch(
+  tiers,
+  val => {
+    // Ordenar por cantidad mínima
+    val.sort((a, b) => a.cantidad_minima - b.cantidad_minima)
+    for (let i = 1; i < val.length; i++) {
+      if (val[i].precio_unitario > val[i - 1].precio_unitario) {
+        val[i].precio_unitario = val[i - 1].precio_unitario
+      }
+    }
+    emit('update:modelValue', val)
+  },
+  { deep: true }
+)
 </script>

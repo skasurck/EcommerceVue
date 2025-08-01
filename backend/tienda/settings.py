@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'productos.apps.ProductosConfig',
     'usuarios',
+    'carrito',
 ]
 
 MIDDLEWARE = [

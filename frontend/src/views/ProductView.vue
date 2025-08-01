@@ -5,18 +5,49 @@
         <h1 class="text-2xl font-bold mb-4">{{ producto.nombre }}</h1>
 
         <img
-          v-if="producto.imagen"
-          :src="producto.imagen"
+          v-if="producto.imagen_principal"
+          :src="producto.imagen_principal"
           class="w-full max-h-96 object-cover rounded shadow"
           :alt="`Imagen de ${producto.nombre}`"
           loading="lazy"
         />
 
         <p class="text-blue-600 text-xl font-semibold my-4">
-          ${{ (+producto.precio).toFixed(2) }}
+            <span v-if="producto.precio_rebajado">
+            <span class="line-through mr-2 text-gray-500">
+              ${{ (+producto.precio_normal).toFixed(2) }}
+            </span>
+              ${{ (+producto.precio_rebajado).toFixed(2) }}
+            </span>
+            <span v-else>
+              ${{ (+producto.precio_normal).toFixed(2) }}
+            </span>
         </p>
 
-        <p class="text-gray-700 whitespace-pre-line">{{ producto.descripcion }}</p>
+        <table
+          v-if="producto.precios_escalonados && producto.precios_escalonados.length"
+          class="mt-4 w-full border-collapse text-sm"
+        >
+          <thead>
+            <tr class="bg-gray-100">
+              <th class="border p-2 text-left">Desde </th>
+              <th class="border p-2 text-left">Precio unitario </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="tier in producto.precios_escalonados"
+              :key="tier.id"
+            >
+              <td class="border p-2">{{ tier.cantidad_minima }}</td>
+              <td class="border p-2">
+                ${{ (+tier.precio_unitario).toFixed(2) }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <p class="text-gray-700 whitespace-pre-line">{{ producto.descripcion_larga }}</p>
       </div>
     </template>
 
@@ -51,7 +82,7 @@ onMounted(async () => {
     useHead({
       title: data.nombre,
       meta: [
-        { name: 'description', content: data.descripcion.slice(0, 155) }
+        { name: 'description', content: (data.descripcion_larga || '').slice(0, 155) }
       ]
     })
   } catch (e) {

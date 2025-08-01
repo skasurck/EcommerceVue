@@ -63,8 +63,6 @@
 import { ref, reactive, onMounted, watch } from 'vue'
 import api from '../axios'
 import { useRouter } from 'vue-router'
-import { useAuthStore } from '../stores/auth'
-import InputLabel from '../inputs/InputLabel.vue'
 import InputText from '../inputs/InputText.vue'
 import InputTextarea from '../inputs/InputTextarea.vue'
 import InputNumber from '../inputs/InputNumber.vue'
@@ -75,7 +73,6 @@ import MultiCheckbox from '../inputs/MultiCheckbox.vue'
 import EscalonadoInput from '../inputs/EscalonadoInput.vue'
 
 const router = useRouter()
-const auth = useAuthStore()
 const producto = reactive({
   nombre: '', descripcion_corta: '', descripcion_larga: '',
   precio_normal: 0, precio_rebajado: null, sku: '', imagen_principal: null,
@@ -88,6 +85,24 @@ watch(
   () => producto.stock,
   (nuevoStock) => {
     producto.estado_inventario = nuevoStock > 0 ? 'en_existencia' : 'agotado'
+  }
+)
+
+watch(
+  () => producto.precio_normal,
+  (nuevo) => {
+    if (producto.precio_rebajado !== null && producto.precio_rebajado > nuevo) {
+      producto.precio_rebajado = nuevo
+    }
+  }
+)
+
+watch(
+  () => producto.precio_rebajado,
+  (nuevo) => {
+    if (nuevo !== null && nuevo > producto.precio_normal) {
+      producto.precio_rebajado = producto.precio_normal
+    }
   }
 )
 

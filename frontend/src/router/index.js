@@ -5,6 +5,7 @@ import NuevoProducto from '../views/NuevoProducto.vue'
 import Registro from '../views/Registro.vue'
 import Login from '../views/Login.vue'
 import ProductView from '../views/ProductView.vue'
+import CarritoView from '../views/CarritoView.vue'
 
 const routes = [
   {
@@ -37,6 +38,12 @@ const routes = [
     path: '/producto/:id',
     name: 'producto',
     component: ProductView
+  },
+  {
+    path: '/carrito',
+    name: 'carrito',
+    component: CarritoView,
+    meta: { requiereAuth: true }
   },
 ]
 

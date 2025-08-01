@@ -167,24 +167,42 @@ class ProductoSerializer(serializers.ModelSerializer):
         return instance
     
     def validate_precios_escalonados(self, value):
+        """Valida que no existan cantidades repetidas y que los precios sigan un
+        orden lógico (a mayor cantidad, menor o igual precio)."""
+
         cantidades = set()
-        for item in value:
+        # Ordenamos por cantidad para verificar la lógica de precios
+        tiers = sorted(value, key=lambda x: x.get('cantidad_minima', 0))
+        precio_anterior = None
+
+        for item in tiers:
             cantidad = item.get('cantidad_minima')
             precio = item.get('precio_unitario')
 
             if cantidad in cantidades:
-                raise serializers.ValidationError(f"Ya se definió un precio para {cantidad} unidades.")
+                raise serializers.ValidationError(
+                    f"Ya se definió un precio para {cantidad} unidades.")
             if cantidad <= 0:
-                raise serializers.ValidationError("La cantidad mínima debe ser mayor a 0.")
+                raise serializers.ValidationError(
+                    "La cantidad mínima debe ser mayor a 0.")
             if precio <= 0:
-                raise serializers.ValidationError("El precio unitario debe ser mayor a 0.")
-            
+                raise serializers.ValidationError(
+                    "El precio unitario debe ser mayor a 0.")
+
+            if precio_anterior is not None and precio > precio_anterior:
+                raise serializers.ValidationError(
+                    "Cada nuevo precio debe ser menor o igual al anterior.")
+
+            precio_anterior = precio            
             cantidades.add(cantidad)
-        return value
+
+        return tiers
     
     def validate(self, attrs):
         stock = attrs.get('stock', None)
         estado = attrs.get('estado_inventario', None)
+        precio_normal = attrs.get('precio_normal', getattr(self.instance, 'precio_normal', None))
+        precio_rebajado = attrs.get('precio_rebajado', getattr(self.instance, 'precio_rebajado', None))
 
         if stock == 0 and estado != 'agotado':
             raise serializers.ValidationError({
@@ -194,6 +212,11 @@ class ProductoSerializer(serializers.ModelSerializer):
         if stock > 0 and estado != 'en_existencia':
             raise serializers.ValidationError({
                 'estado_inventario': 'Si hay stock disponible, el estado debe ser "en existencia".'
+            })
+        
+        if precio_rebajado is not None and precio_normal is not None and precio_rebajado > precio_normal:
+            raise serializers.ValidationError({
+                'precio_rebajado': 'El precio rebajado no puede ser mayor al precio normal.'
             })
 
         return attrs

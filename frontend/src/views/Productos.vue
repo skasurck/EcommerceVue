@@ -12,8 +12,8 @@
       >
         <RouterLink :to="`/producto/${producto.id}`">
           <img
-            v-if="producto.imagen"
-            :src="producto.imagen"
+            v-if="producto.miniatura_url || producto.imagen_principal"
+            :src="producto.miniatura_url || producto.imagen_principal"
             alt="Imagen del producto"
             class="ImagenProducto w-full h-48 object-cover hover:brightness-90 transition"
           />
@@ -24,10 +24,18 @@
               {{ producto.nombre }}
             </RouterLink>
           </h2>
-          <p class="text-blue-600 font-semibold">
-            ${{ Number(producto.precio).toFixed(2) }}
+          <p class="text-blue-600 font-semibold">        
+           <span v-if="producto.precio_rebajado">
+              <span class="line-through mr-1 text-gray-500">
+                ${{ Number(producto.precio_normal).toFixed(2) }}
+              </span>
+              ${{ Number(producto.precio_rebajado).toFixed(2) }}
+            </span>
+            <span v-else>
+              ${{ Number(producto.precio_normal).toFixed(2) }}
+            </span>
           </p>
-          <p class="text-sm text-gray-500">{{ producto.descripcion }}</p>
+          <p class="text-sm text-gray-500">{{ producto.descripcion_corta }}</p>
         </div>
       </div>
     </div>

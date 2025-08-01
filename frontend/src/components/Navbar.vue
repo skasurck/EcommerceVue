@@ -3,6 +3,7 @@
     <div class="flex items-center space-x-4">
       <RouterLink to="/" class="text-xl font-bold text-cyan-400 hover:text-white">🛒 MiTienda</RouterLink>
       <RouterLink to="/productos" class="hover:text-cyan-300">Productos</RouterLink>
+      <RouterLink v-if="auth.isLoggedIn" to="/carrito" class="hover:text-cyan-300">Carrito</RouterLink>
       <RouterLink v-if="auth.isLoggedIn" to="/nuevo-producto" class="hover:text-cyan-300">Nuevo Producto</RouterLink>
     </div>
 
