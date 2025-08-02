@@ -59,10 +59,12 @@
 
 <script setup>
 import { onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { useCarritoStore } from '../stores/carrito'
 import IconTrash from '../components/icons/IconTrash.vue'
 
 defineOptions({ name: 'CarritoView' })
+const router = useRouter()
 const carrito = useCarritoStore()
 
 onMounted(() => {
@@ -97,6 +99,6 @@ const cambiar = (item, cantidad) => {
   }
 }
 const finalizarCompra = () => {
-  alert('Procesar compra...')
+  router.push('/checkout')
 }
 </script>
