@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     'productos.apps.ProductosConfig',
     'usuarios',
     'carrito',
+    'pedidos',
 ]
 
 MIDDLEWARE = [
