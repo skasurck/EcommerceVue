@@ -21,6 +21,12 @@
           <p class="font-semibold">Subtotal: ${{ subtotalItem(item).toFixed(2) }}</p>
         </div>
         <div class="flex items-center space-x-2">
+          <input
+            type="number"
+            v-model.number="item.cantidad"
+            min="0"
+            class="w-20 border p-1 rounded"
+          />
           <button @click="cambiar(item, item.cantidad - 1)" class="px-2 py-1 bg-gray-200 rounded">
             -
           </button>
