@@ -8,8 +8,11 @@
       <div
         v-for="producto in productos"
         :key="producto.id"
-        class="bg-white border border-gray-200 rounded-lg shadow hover:shadow-xl transition duration-200 overflow-hidden"
+        class="relative bg-white border border-gray-200 rounded-lg shadow hover:shadow-xl transition duration-200 overflow-hidden"
       >
+        <div v-if="producto.stock <= 0" class="absolute top-0 left-0 bg-red-600 text-white text-xs px-2 py-1">
+          Agotado
+        </div>
         <RouterLink :to="`/producto/${producto.id}`">
           <img
             v-if="producto.miniatura_url || producto.imagen_principal"
@@ -37,11 +40,13 @@
           </p>
           <p class="text-sm text-gray-500">{{ producto.descripcion_corta }}</p>
           <button
+            v-if="producto.stock > 0"
             @click="agregar(producto.id)"
             class="mt-2 bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded"
           >
             Agregar al carrito
           </button>
+          <p v-else class="mt-2 text-red-600 font-semibold">Producto no disponible</p>
         </div>
       </div>
     </div>

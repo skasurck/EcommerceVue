@@ -1,6 +1,13 @@
 <template>
   <div class="max-w-3xl mx-auto p-4">
     <h1 class="text-2xl font-bold mb-4">Tu carrito</h1>
+    <div
+      v-if="carrito.reservaExpira"
+      class="mb-4 p-2 bg-yellow-100 text-yellow-800 rounded"
+    >
+      Reservado temporalmente en tu carrito.
+      Tiempo restante: {{ minutos }}:{{ segundos }}
+    </div>
     <div v-if="carrito.items.length === 0">El carrito está vacío.</div>
     <div v-else class="space-y-4">
        <div
@@ -64,16 +71,52 @@
 </template>
 
 <script setup>
-import { onMounted, computed } from 'vue'
+import { onMounted, computed, ref, watch, onUnmounted } from 'vue'
 import { useCarritoStore } from '../stores/carrito'
 import IconTrash from '../components/icons/IconTrash.vue'
 
 defineOptions({ name: 'CarritoView' })
 const carrito = useCarritoStore()
 
-onMounted(() => {
-  carrito.cargar()
+const tiempoRestante = ref(0)
+let timer
+
+const actualizarTiempo = () => {
+  if (!carrito.reservaExpira) return
+  const diff = new Date(carrito.reservaExpira) - Date.now()
+  if (diff <= 0) {
+    tiempoRestante.value = 0
+    clearInterval(timer)
+    carrito.cargar()
+  } else {
+    tiempoRestante.value = Math.floor(diff / 1000)
+  }
+}
+
+onMounted(async () => {
+  await carrito.cargar()
+  if (carrito.reservaExpira) {
+    actualizarTiempo()
+    timer = setInterval(actualizarTiempo, 1000)
+  }
 })
+
+watch(
+  () => carrito.reservaExpira,
+  () => {
+    clearInterval(timer)
+    if (carrito.reservaExpira) {
+      actualizarTiempo()
+      timer = setInterval(actualizarTiempo, 1000)
+    }
+  }
+)
+
+onUnmounted(() => clearInterval(timer))
+
+const minutos = computed(() => Math.floor(tiempoRestante.value / 60))
+const segundos = computed(() => ('0' + (tiempoRestante.value % 60)).slice(-2))
+
 const COSTO_ENVIO = 79
 
 const precioUnitario = (item) => {

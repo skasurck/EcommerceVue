@@ -3,7 +3,13 @@
     <div class="flex items-center space-x-4">
       <RouterLink to="/" class="text-xl font-bold text-cyan-400 hover:text-white">🛒 MiTienda</RouterLink>
       <RouterLink to="/productos" class="hover:text-cyan-300">Productos</RouterLink>
-      <RouterLink v-if="auth.isLoggedIn" to="/carrito" class="hover:text-cyan-300">Carrito</RouterLink>
+      <RouterLink v-if="auth.isLoggedIn" to="/carrito" class="relative hover:text-cyan-300">
+        <span class="text-2xl">🛒</span>
+        <span
+          v-if="carrito.totalCantidad"
+          class="absolute -top-1 -right-2 bg-fuchsia-600 text-white rounded-full text-xs px-1"
+        >{{ carrito.totalCantidad }}</span>
+      </RouterLink>
       <RouterLink v-if="auth.isLoggedIn" to="/nuevo-producto" class="hover:text-cyan-300">Nuevo Producto</RouterLink>
     </div>
 
@@ -26,14 +32,32 @@
 
 <script setup>
 import { RouterLink, useRouter } from 'vue-router'
+import { onMounted, watch } from 'vue'
 import { useAuthStore } from '../stores/auth'
+import { useCarritoStore } from '../stores/carrito'
 defineOptions({ name: 'AppNavbar' })
 
 const auth = useAuthStore()
+const carrito = useCarritoStore()
 const router = useRouter()
+
+onMounted(() => {
+  if (auth.isLoggedIn) carrito.cargar()
+})
+watch(
+  () => auth.isLoggedIn,
+  (val) => {
+    if (val) carrito.cargar()
+    else {
+      carrito.items = []
+      carrito.reservaExpira = null
+    }
+  }
+)
 
 const logout = () => {
   auth.logout()
   router.push('/login')
 }
 </script>
+
