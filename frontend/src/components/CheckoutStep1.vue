@@ -8,32 +8,32 @@
       </select>
     </div>
     <form @submit.prevent="onSubmit" class="flex flex-col gap-2">
-      <input v-model="values.nombre" placeholder="Nombre" />
+      <input v-model="nombre" placeholder="Nombre" />
       <span class="error">{{ errors.nombre }}</span>
-      <input v-model="values.apellidos" placeholder="Apellidos" />
+      <input v-model="apellidos" placeholder="Apellidos" />
       <span class="error">{{ errors.apellidos }}</span>
-      <input v-model="values.email" placeholder="Email" />
+      <input v-model="email" placeholder="Email" />
       <span class="error">{{ errors.email }}</span>
-      <input v-model="values.nombre_empresa" placeholder="Nombre empresa" />
-      <input v-model="values.calle" placeholder="Calle" />
+      <input v-model="nombre_empresa" placeholder="Nombre empresa" />
+      <input v-model="calle" placeholder="Calle" />
       <span class="error">{{ errors.calle }}</span>
-      <input v-model="values.numero_exterior" placeholder="Número exterior" />
+      <input v-model="numero_exterior" placeholder="Número exterior" />
       <span class="error">{{ errors.numero_exterior }}</span>
-      <input v-model="values.numero_interior" placeholder="Número interior" />
-      <input v-model="values.colonia" placeholder="Colonia" />
+      <input v-model="numero_interior" placeholder="Número interior" />
+      <input v-model="colonia" placeholder="Colonia" />
       <span class="error">{{ errors.colonia }}</span>
-      <input v-model="values.ciudad" placeholder="Ciudad o alcaldía" />
+      <input v-model="ciudad" placeholder="Ciudad o alcaldía" />
       <span class="error">{{ errors.ciudad }}</span>
-      <input v-model="values.pais" placeholder="País" />
+      <input v-model="pais" placeholder="País" />
       <span class="error">{{ errors.pais }}</span>
-      <input v-model="values.estado" placeholder="Estado" />
+      <input v-model="estado" placeholder="Estado" />
       <span class="error">{{ errors.estado }}</span>
-      <input v-model="values.codigo_postal" placeholder="Código postal" />
+      <input v-model="codigo_postal" placeholder="Código postal" />
       <span class="error">{{ errors.codigo_postal }}</span>
-      <input v-model="values.telefono" placeholder="Teléfono" />
+      <input v-model="telefono" placeholder="Teléfono" />
       <span class="error">{{ errors.telefono }}</span>
-      <textarea v-model="values.referencias" placeholder="Referencias"></textarea>
-      <label><input type="checkbox" v-model="values.save" /> Guardar dirección</label>
+      <textarea v-model="referencias" placeholder="Referencias"></textarea>
+      <label><input type="checkbox" v-model="save" /> Guardar dirección</label>
       <button type="submit">Continuar</button>
     </form>
   </div>
@@ -63,10 +63,26 @@ const schema = yup.object({
   telefono: yup.string().required(),
 });
 
-const { values, errors, handleSubmit, setValues } = useForm({
+const { errors, handleSubmit, setValues, defineField } = useForm({
   validationSchema: schema,
-  initialValues: store.direccion,
+  initialValues: { ...store.direccion },
 });
+
+const [nombre] = defineField('nombre');
+const [apellidos] = defineField('apellidos');
+const [email] = defineField('email');
+const [nombre_empresa] = defineField('nombre_empresa');
+const [calle] = defineField('calle');
+const [numero_exterior] = defineField('numero_exterior');
+const [numero_interior] = defineField('numero_interior');
+const [colonia] = defineField('colonia');
+const [ciudad] = defineField('ciudad');
+const [pais] = defineField('pais');
+const [estado] = defineField('estado');
+const [codigo_postal] = defineField('codigo_postal');
+const [telefono] = defineField('telefono');
+const [referencias] = defineField('referencias');
+const [save] = defineField('save');
 
 const direcciones = ref([]);
 const seleccionada = ref(null);
