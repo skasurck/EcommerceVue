@@ -58,7 +58,7 @@ const onSubmit = () => {
   emit('next');
 };
 
-const subtotal = computed(() => carrito.subtotal);
-const envio = computed(() => metodo.value?.costo || 0);
+const subtotal = computed(() => Number(carrito.subtotal));
+const envio = computed(() => Number(metodo.value?.costo ?? 0));
 const total = computed(() => subtotal.value + envio.value);
 </script>

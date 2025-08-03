@@ -69,7 +69,7 @@ const finalizar = async () => {
   }
 };
 
-const subtotal = computed(() => carrito.subtotal);
-const envio = computed(() => store.metodoEnvio?.costo || 0);
+const subtotal = computed(() => Number(carrito.subtotal));
+const envio = computed(() => Number(store.metodoEnvio?.costo ?? 0));
 const total = computed(() => subtotal.value + envio.value);
 </script>
