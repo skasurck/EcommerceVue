@@ -90,6 +90,7 @@ const seleccionarDireccion = () => {
 
 const onSubmit = handleSubmit((vals) => {
   store.direccion = { ...vals };
+  store.step = 2;
   emit('next');
 });
 </script>

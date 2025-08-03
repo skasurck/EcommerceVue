@@ -38,6 +38,7 @@ onMounted(async () => {
 const onSubmit = () => {
   store.metodoEnvio = metodo.value;
   store.indicaciones = indicaciones.value;
+  store.step = 3;
   emit('next');
 };
 </script>
