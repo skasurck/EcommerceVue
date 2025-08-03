@@ -1,2 +1,30 @@
+# Entornos virtuales
+venv/
 backend/venv/
+
+# Archivos de Python compilados
 __pycache__/
+*.py[cod]
+*.so
+
+# Archivos de base de datos SQLite
+db.sqlite3
+
+# Archivos de entorno
+.env
+
+# Archivos de log
+*.log
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# Archivos de configuración de editores
+.vscode/
+
+# Node/Vue
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.*.local

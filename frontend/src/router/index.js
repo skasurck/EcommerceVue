@@ -6,6 +6,7 @@ import Registro from '../views/Registro.vue'
 import Login from '../views/Login.vue'
 import ProductView from '../views/ProductView.vue'
 import CarritoView from '../views/CarritoView.vue'
+import CheckoutView from '../views/CheckoutView.vue'
 
 const routes = [
   {
@@ -43,6 +44,12 @@ const routes = [
     path: '/carrito',
     name: 'carrito',
     component: CarritoView,
+    meta: { requiereAuth: true }
+  },
+  {
+    path: '/checkout',
+    name: 'checkout',
+    component: CheckoutView,
     meta: { requiereAuth: true }
   },
 ]
