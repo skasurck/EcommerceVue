@@ -44,7 +44,22 @@ class Pedido(models.Model):
     metodo_envio = models.ForeignKey(MetodoEnvio, on_delete=models.PROTECT)
     metodo_pago = models.CharField(max_length=20, choices=METODO_PAGO_CHOICES)
     indicaciones = models.TextField(blank=True)
+    subtotal = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    costo_envio = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    datos_pago = models.JSONField(blank=True, default=dict)
     creado = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"Pedido #{self.id}"
+
+
+class PedidoItem(models.Model):
+    pedido = models.ForeignKey(Pedido, related_name='items', on_delete=models.CASCADE)
+    producto = models.ForeignKey('productos.Producto', on_delete=models.PROTECT)
+    cantidad = models.PositiveIntegerField()
+    precio_unitario = models.DecimalField(max_digits=10, decimal_places=2)
+    subtotal = models.DecimalField(max_digits=10, decimal_places=2)
+
+    def __str__(self):
+        return f"{self.cantidad} x {self.producto.nombre}"

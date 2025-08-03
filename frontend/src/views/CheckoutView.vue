@@ -8,11 +8,15 @@
 
 <script setup>
 import { useCheckoutStore } from '../stores/checkout';
+import { useCarritoStore } from '../stores/carrito';
 import CheckoutStep1 from '../components/CheckoutStep1.vue';
 import CheckoutStep2 from '../components/CheckoutStep2.vue';
 import CheckoutStep3 from '../components/CheckoutStep3.vue';
 
 const store = useCheckoutStore();
+const carrito = useCarritoStore();
+
+carrito.cargar();
 
 const onComplete = () => {
   alert('Pedido creado');

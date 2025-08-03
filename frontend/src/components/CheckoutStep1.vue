@@ -36,18 +36,34 @@
       <label><input type="checkbox" v-model="save" /> Guardar dirección</label>
       <button type="submit">Continuar</button>
     </form>
+    <div class="mt-4 p-4 border rounded">
+      <div class="flex justify-between">
+        <span>Subtotal</span>
+        <span>${{ subtotal.toFixed(2) }}</span>
+      </div>
+      <div class="flex justify-between">
+        <span>Envío</span>
+        <span>${{ envio.toFixed(2) }}</span>
+      </div>
+      <div class="flex justify-between font-bold">
+        <span>Total</span>
+        <span>${{ total.toFixed(2) }}</span>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useForm } from 'vee-validate';
 import * as yup from 'yup';
 import { useCheckoutStore } from '../stores/checkout';
+import { useCarritoStore } from '../stores/carrito';
 import { obtenerDirecciones } from '../services/checkout';
 
 const emit = defineEmits(['next']);
 const store = useCheckoutStore();
+const carrito = useCarritoStore();
 
 const schema = yup.object({
   nombre: yup.string().required(),
@@ -109,6 +125,10 @@ const onSubmit = handleSubmit((vals) => {
   store.step = 2;
   emit('next');
 });
+
+const subtotal = computed(() => carrito.subtotal);
+const envio = computed(() => store.metodoEnvio?.costo || 0);
+const total = computed(() => subtotal.value + envio.value);
 </script>
 
 <style scoped>

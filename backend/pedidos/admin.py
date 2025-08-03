@@ -1,5 +1,6 @@
 from django.contrib import admin
-from .models import Direccion, MetodoEnvio, Pedido
+from django.contrib import admin
+from .models import Direccion, MetodoEnvio, Pedido, PedidoItem
 
 
 @admin.register(Direccion)
@@ -12,6 +13,12 @@ class MetodoEnvioAdmin(admin.ModelAdmin):
     list_display = ("nombre", "costo")
 
 
+class PedidoItemInline(admin.TabularInline):
+    model = PedidoItem
+    extra = 0
+
+
 @admin.register(Pedido)
 class PedidoAdmin(admin.ModelAdmin):
-    list_display = ("id", "user", "metodo_envio", "metodo_pago", "creado")
+    list_display = ("id", "user", "metodo_envio", "metodo_pago", "total", "creado")
+    inlines = [PedidoItemInline]
