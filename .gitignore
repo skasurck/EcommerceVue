@@ -1,1 +1,30 @@
+# Entornos virtuales
+venv/
 backend/venv/
+
+# Archivos de Python compilados
+__pycache__/
+*.py[cod]
+*.so
+
+# Archivos de base de datos SQLite
+db.sqlite3
+
+# Archivos de entorno (opcional)
+.env
+
+# Archivos de log
+*.log
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# Archivos de VSCode
+.vscode/
+
+# Node/Vue (si tienes frontend con Vue en carpeta `frontend`)
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.*.local
