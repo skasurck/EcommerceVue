@@ -15,8 +15,7 @@
         </div>
         <RouterLink :to="`/producto/${producto.id}`">
           <img
-            v-if="producto.miniatura_url || producto.imagen_principal"
-            :src="producto.miniatura_url || producto.imagen_principal"
+            :src="producto.miniatura_url || producto.imagen_principal || 'https://via.placeholder.com/150'"
             alt="Imagen del producto"
             class="ImagenProducto w-full h-48 object-cover hover:brightness-90 transition"
           />

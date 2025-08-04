@@ -8,8 +8,7 @@
         </h1>
 
         <img
-          v-if="producto.imagen_principal"
-          :src="producto.imagen_principal"
+          :src="producto.imagen_principal || 'https://via.placeholder.com/150'"
           class="w-full max-h-96 object-cover rounded shadow"
           :alt="`Imagen de ${producto.nombre}`"
           loading="lazy"

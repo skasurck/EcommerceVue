@@ -17,10 +17,10 @@ export const useCarritoStore = defineStore('carrito', {
       return precio
     },
     totalCantidad: (state) => state.items.reduce((s, i) => s + i.cantidad, 0),
-  },
-    subtotal() {
-      return this.items.reduce((sum, i) => sum + this.precioUnitario(i) * i.cantidad, 0)
+    subtotal(state) {
+      return state.items.reduce((sum, i) => sum + this.precioUnitario(i) * i.cantidad, 0)
     },
+  },
   actions: {
     async cargar() {
       const res = await api.get('carrito/')
@@ -28,8 +28,13 @@ export const useCarritoStore = defineStore('carrito', {
       this.reservaExpira = res.data[0]?.reserva_expira || null
     },
     async agregar(producto, cantidad = 1) {
-      await api.post('carrito/', { producto, cantidad })
-      await this.cargar()
+      const existente = this.items.find(i => i.producto.id === producto)
+      if (existente) {
+        await this.actualizar(existente.id, existente.cantidad + cantidad)
+      } else {
+        await api.post('carrito/', { producto, cantidad })
+        await this.cargar()
+      }
     },
     async actualizar(id, cantidad) {
       await api.patch(`carrito/${id}/`, { cantidad })

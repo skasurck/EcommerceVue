@@ -16,8 +16,7 @@
         class="flex items-center justify-between border p-2 rounded"
       >
         <img
-          v-if="item.producto.miniatura_url || item.producto.imagen_principal"
-          :src="item.producto.miniatura_url || item.producto.imagen_principal"
+          :src="item.producto.miniatura_url || item.producto.imagen_principal || 'https://via.placeholder.com/150'"
           class="w-16 h-16 object-cover rounded mr-4"
           alt="Miniatura"
         />

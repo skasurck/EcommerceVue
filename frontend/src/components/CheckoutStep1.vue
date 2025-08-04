@@ -39,15 +39,15 @@
     <div class="mt-4 p-4 border rounded">
       <div class="flex justify-between">
         <span>Subtotal</span>
-        <span>${{ subtotal.toFixed(2) }}</span>
+        <span>${{ (subtotal ?? 0).toFixed(2) }}</span>
       </div>
       <div class="flex justify-between">
         <span>Envío</span>
-        <span>${{ envio.toFixed(2) }}</span>
+        <span>${{ (envio ?? 0).toFixed(2) }}</span>
       </div>
       <div class="flex justify-between font-bold">
         <span>Total</span>
-        <span>${{ total.toFixed(2) }}</span>
+        <span>${{ (total ?? 0).toFixed(2) }}</span>
       </div>
     </div>
   </div>

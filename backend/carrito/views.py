@@ -13,14 +13,37 @@ class CartItemViewSet(viewsets.ModelViewSet):
         return CartItem.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):
+        """Add items to the cart merging with existing ones.
+
+        The original implementation always attempted to create a new
+        ``CartItem`` which triggered an ``IntegrityError`` when the same
+        user tried to add the same product twice (the model has a
+        ``unique_together`` constraint on ``user`` and ``producto``).  This
+        method now checks if an item for the given product already exists and
+        simply increases its quantity instead of creating a duplicate.
+        """
+
         self._clear_expired()
         producto = serializer.validated_data['producto']
         cantidad = serializer.validated_data.get('cantidad', 1)
+
         if producto.stock < cantidad:
             raise serializers.ValidationError('No hay suficiente stock disponible')
+
+        item, created = CartItem.objects.get_or_create(
+            user=self.request.user, producto=producto, defaults={'cantidad': 0}
+        )
+
+        if created:
+            item.cantidad = cantidad
+        else:
+            item.cantidad += cantidad
+
+        item.save()
+        serializer.instance = item  # ensure response uses the updated item
+
         producto.stock -= cantidad
         producto.save()
-        serializer.save(user=self.request.user)
         self._update_reservation()
 
     def perform_update(self, serializer):
