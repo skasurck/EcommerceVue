@@ -37,6 +37,7 @@
       <button type="button" @click="emit('back')">Atrás</button>
       <button type="button" @click="finalizar">Finalizar</button>
     </div>
+    <p v-if="error" class="text-red-600 mt-2">{{ error }}</p>
   </div>
 </template>
 
@@ -50,22 +51,25 @@ const emit = defineEmits(['back', 'complete']);
 const store = useCheckoutStore();
 const carrito = useCarritoStore();
 const metodoPago = ref(store.metodoPago || 'transferencia');
+const error = ref('');
 
 const finalizar = async () => {
   store.metodoPago = metodoPago.value;
+  const { save, ...direccion } = store.direccion;
+  error.value = '';
   try {
     await crearPedido({
-      direccion: store.direccion,
+      direccion,
       metodo_envio: store.metodoEnvio?.id,
       metodo_pago: store.metodoPago,
       indicaciones: store.indicaciones,
-      save_address: store.direccion.save,
+      save_address: save,
     });
     await carrito.cargar();
     emit('complete');
     store.reset();
   } catch (e) {
-    console.error(e);
+    error.value = e.response?.data?.detail || 'No se pudo crear el pedido';
   }
 };
 
