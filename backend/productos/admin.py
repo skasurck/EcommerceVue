@@ -16,7 +16,7 @@ class ImagenProductoInline(admin.TabularInline):
 
 @admin.register(Producto)
 class ProductoAdmin(admin.ModelAdmin):
-    list_display = ('miniatura_preview','nombre', 'precio_normal', 'precio_rebajado', 'estado_inventario')
+    list_display = ('miniatura_preview','nombre', 'precio_normal', 'precio_rebajado', 'stock', 'estado_inventario')
     list_filter = ('estado', 'visibilidad', 'estado_inventario', 'categoria', 'marca')
     search_fields = ('nombre', 'sku')
     readonly_fields = ('miniatura_preview', 'imagen_principal_preview')
