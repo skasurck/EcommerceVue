@@ -30,6 +30,7 @@
             type="number"
             v-model.number="cantidad"
             min="1"
+            :max="producto.stock"
             class="w-20 border p-1 rounded"
             :disabled="producto.stock <= 0"
           />
@@ -89,7 +90,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { obtenerProducto } from '../services/api'
 import { useHead } from '@vueuse/head'      // meta-tags (opcional)
@@ -100,11 +101,21 @@ const producto = ref(null)
 const cantidad = ref(1)
 const carrito = useCarritoStore()
 
-const agregar = () => {
+const agregar = async () => {
   if (producto.value) {
-    carrito.agregar(producto.value, cantidad.value)
+    const qty = cantidad.value
+    await carrito.agregar(producto.value, qty)
+    producto.value.stock = Math.max(producto.value.stock - qty, 0)
+    cantidad.value = producto.value.stock > 0 ? 1 : 0
   }
 }
+
+watch(cantidad, (val) => {
+  if (producto.value) {
+    if (val > producto.value.stock) cantidad.value = producto.value.stock
+    else if (val < 1) cantidad.value = 1
+  }
+})
 
 // Cargar producto
 onMounted(async () => {

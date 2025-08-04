@@ -30,8 +30,9 @@ export const useCarritoStore = defineStore('carrito', {
     async agregar(producto, cantidad = 1) {
       if (!producto || producto.stock <= 0) return
       const existente = this.items.find(i => i.producto.id === producto.id)
+      const max = producto.stock + (existente?.cantidad || 0)
       const nuevaCantidad = (existente?.cantidad || 0) + cantidad
-      if (nuevaCantidad > producto.stock) return
+      if (nuevaCantidad > max) return
       if (existente) {
         await this.actualizar(existente.id, nuevaCantidad)
       } else {
@@ -42,7 +43,8 @@ export const useCarritoStore = defineStore('carrito', {
     async actualizar(id, cantidad) {
       const item = this.items.find(i => i.id === id)
       if (!item) return
-      if (cantidad > item.producto.stock) return
+      const max = item.producto.stock + item.cantidad
+      if (cantidad > max) return
       await api.patch(`carrito/${id}/`, { cantidad })
       await this.cargar()
     },

@@ -46,7 +46,8 @@ class PedidoSerializer(serializers.ModelSerializer):
         save_address = validated_data.pop('save_address', False)
         user = request.user if request and request.user.is_authenticated else None
 
-        if items_data is None:
+        items_from_cart = items_data is None
+        if items_from_cart:
             if user:
                 cart_items = CartItem.objects.filter(user=user)
                 if not cart_items.exists():
@@ -71,7 +72,7 @@ class PedidoSerializer(serializers.ModelSerializer):
                 )
                 producto = Producto.objects.select_for_update().get(pk=producto_id)
                 cantidad = item['cantidad']
-                if producto.stock < cantidad:
+                if not items_from_cart and producto.stock < cantidad:
                     raise ValidationError(f'Stock insuficiente para {producto.nombre}')
 
                 precio = producto.precio_rebajado or producto.precio_normal
@@ -87,8 +88,9 @@ class PedidoSerializer(serializers.ModelSerializer):
                     precio_unitario=precio,
                     subtotal=item_subtotal,
                 )
-                producto.stock -= cantidad
-                producto.save(update_fields=['stock'])
+                if not items_from_cart:
+                    producto.stock -= cantidad
+                    producto.save(update_fields=['stock'])
                 subtotal += item_subtotal
 
             pedido.subtotal = subtotal

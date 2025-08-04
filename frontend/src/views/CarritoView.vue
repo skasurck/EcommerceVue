@@ -32,10 +32,12 @@
         <div class="flex items-center space-x-2">
           <input
             type="number"
-            v-model.number="item.cantidad"
-            min="0"
+            :value="item.cantidad"
+            min="1"
+            :max="item.cantidad + item.producto.stock"
             class="w-20 border p-1 rounded"
             :disabled="item.producto.stock <= 0"
+            @change="(e) => cambiar(item, +e.target.value)"
           />
           <button @click="cambiar(item, item.cantidad - 1)" class="px-2 py-1 bg-gray-200 rounded">
             -
@@ -43,7 +45,7 @@
           <button
             @click="cambiar(item, item.cantidad + 1)"
             class="px-2 py-1 bg-gray-200 rounded"
-            :disabled="item.cantidad >= item.producto.stock"
+            :disabled="item.producto.stock <= 0"
           >
             +
           </button>
@@ -148,9 +150,10 @@ const totalCarrito = computed(() => carrito.items.reduce((sum, i) => sum + subto
 const totalConEnvio = computed(() => totalCarrito.value + COSTO_ENVIO)
 
 const cambiar = (item, cantidad) => {
+  const max = item.cantidad + item.producto.stock
   if (cantidad <= 0) {
     carrito.eliminar(item.id)
-  } else if (cantidad <= item.producto.stock) {
+  } else if (cantidad <= max) {
     carrito.actualizar(item.id, cantidad)
   }
 }

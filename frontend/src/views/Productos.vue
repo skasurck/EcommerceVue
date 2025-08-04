@@ -68,8 +68,9 @@ defineOptions({ name: 'ProductosView' })
 const productos = ref([])
 const carrito = useCarritoStore()
 
-const agregar = (producto) => {
-  carrito.agregar(producto)
+const agregar = async (producto) => {
+  await carrito.agregar(producto)
+  producto.stock = Math.max(producto.stock - 1, 0)
 }
 
 onMounted(async () => {
