@@ -40,7 +40,13 @@
           >
             Agregar al carrito
           </button>
-          <p v-else class="text-red-600 font-semibold">Producto no disponible</p>
+          <button
+            v-else
+            disabled
+            class="bg-gray-400 text-white px-3 py-1 rounded cursor-not-allowed"
+          >
+            Agotado
+          </button>
         </div>
 
         <table
@@ -96,7 +102,7 @@ const carrito = useCarritoStore()
 
 const agregar = () => {
   if (producto.value) {
-    carrito.agregar(producto.value.id, cantidad.value)
+    carrito.agregar(producto.value, cantidad.value)
   }
 }
 

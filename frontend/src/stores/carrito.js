@@ -28,15 +28,21 @@ export const useCarritoStore = defineStore('carrito', {
       this.reservaExpira = res.data[0]?.reserva_expira || null
     },
     async agregar(producto, cantidad = 1) {
-      const existente = this.items.find(i => i.producto.id === producto)
+      if (!producto || producto.stock <= 0) return
+      const existente = this.items.find(i => i.producto.id === producto.id)
+      const nuevaCantidad = (existente?.cantidad || 0) + cantidad
+      if (nuevaCantidad > producto.stock) return
       if (existente) {
-        await this.actualizar(existente.id, existente.cantidad + cantidad)
+        await this.actualizar(existente.id, nuevaCantidad)
       } else {
-        await api.post('carrito/', { producto, cantidad })
+        await api.post('carrito/', { producto: producto.id, cantidad })
         await this.cargar()
       }
     },
     async actualizar(id, cantidad) {
+      const item = this.items.find(i => i.id === id)
+      if (!item) return
+      if (cantidad > item.producto.stock) return
       await api.patch(`carrito/${id}/`, { cantidad })
       await this.cargar()
     },

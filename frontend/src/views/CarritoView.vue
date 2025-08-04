@@ -21,7 +21,10 @@
           alt="Miniatura"
         />
         <div class="flex-1">
-          <p class="font-semibold">{{ item.producto.nombre }}</p>
+          <p class="font-semibold flex items-center space-x-2">
+            <span>{{ item.producto.nombre }}</span>
+            <span v-if="item.producto.stock <= 0" class="bg-red-600 text-white text-xs px-2 py-0.5 rounded">Agotado</span>
+          </p>
           <p class="text-sm">Cantidad: {{ item.cantidad }}</p>
           <p class="text-sm">Precio unitario: ${{ precioUnitario(item).toFixed(2) }}</p>
           <p class="font-semibold">Subtotal: ${{ subtotalItem(item).toFixed(2) }}</p>
@@ -32,11 +35,16 @@
             v-model.number="item.cantidad"
             min="0"
             class="w-20 border p-1 rounded"
+            :disabled="item.producto.stock <= 0"
           />
           <button @click="cambiar(item, item.cantidad - 1)" class="px-2 py-1 bg-gray-200 rounded">
             -
           </button>
-          <button @click="cambiar(item, item.cantidad + 1)" class="px-2 py-1 bg-gray-200 rounded">
+          <button
+            @click="cambiar(item, item.cantidad + 1)"
+            class="px-2 py-1 bg-gray-200 rounded"
+            :disabled="item.cantidad >= item.producto.stock"
+          >
             +
           </button>
           <button @click="carrito.eliminar(item.id)" class="text-red-500 hover:text-red-700">
@@ -142,7 +150,7 @@ const totalConEnvio = computed(() => totalCarrito.value + COSTO_ENVIO)
 const cambiar = (item, cantidad) => {
   if (cantidad <= 0) {
     carrito.eliminar(item.id)
-  } else {
+  } else if (cantidad <= item.producto.stock) {
     carrito.actualizar(item.id, cantidad)
   }
 }

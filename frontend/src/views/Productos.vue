@@ -40,12 +40,18 @@
           <p class="text-sm text-gray-500">{{ producto.descripcion_corta }}</p>
           <button
             v-if="producto.stock > 0"
-            @click="agregar(producto.id)"
+            @click="agregar(producto)"
             class="mt-2 bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded"
           >
             Agregar al carrito
           </button>
-          <p v-else class="mt-2 text-red-600 font-semibold">Producto no disponible</p>
+          <button
+            v-else
+            disabled
+            class="mt-2 bg-gray-400 text-white px-3 py-1 rounded cursor-not-allowed"
+          >
+            Agotado
+          </button>
         </div>
       </div>
     </div>
@@ -62,8 +68,8 @@ defineOptions({ name: 'ProductosView' })
 const productos = ref([])
 const carrito = useCarritoStore()
 
-const agregar = (id) => {
-  carrito.agregar(id)
+const agregar = (producto) => {
+  carrito.agregar(producto)
 }
 
 onMounted(async () => {
