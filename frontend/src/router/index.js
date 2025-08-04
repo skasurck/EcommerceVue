@@ -7,6 +7,7 @@ import Login from '../views/Login.vue'
 import ProductView from '../views/ProductView.vue'
 import CarritoView from '../views/CarritoView.vue'
 import CheckoutView from '../views/CheckoutView.vue'
+import MiCuenta from '../views/MiCuenta.vue'
 
 const routes = [
   {
@@ -50,6 +51,12 @@ const routes = [
     path: '/checkout',
     name: 'checkout',
     component: CheckoutView,
+    meta: { requiereAuth: true }
+  },
+  {
+    path: '/mi-cuenta',
+    name: 'mi-cuenta',
+    component: MiCuenta,
     meta: { requiereAuth: true }
   },
 ]

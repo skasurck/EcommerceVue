@@ -53,6 +53,7 @@ class PedidoSerializer(serializers.ModelSerializer):
         direccion_data = validated_data.pop('direccion')
         items_data = validated_data.pop('items', None)
         save_address = validated_data.pop('save_address', False)
+        validated_data.pop('user', None)
         user = request.user if request and request.user.is_authenticated else None
 
         items_from_cart = items_data is None
@@ -67,6 +68,7 @@ class PedidoSerializer(serializers.ModelSerializer):
 
         metodo_envio = validated_data['metodo_envio']
         with transaction.atomic():
+            direccion_data.pop('user', None)
             direccion = Direccion.objects.create(
                 user=user if save_address else None, **direccion_data
             )
