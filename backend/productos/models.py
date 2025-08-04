@@ -61,6 +61,17 @@ class Producto(models.Model):
 
     def save(self, *args, **kwargs):
         is_new = self.pk is None
+        old_imagen = None
+        old_miniatura = None
+
+        if not is_new:
+            try:
+                old = Producto.objects.only('imagen_principal', 'miniatura').get(pk=self.pk)
+                old_imagen = old.imagen_principal
+                old_miniatura = old.miniatura
+            except Producto.DoesNotExist:
+                pass
+
         super().save(*args, **kwargs)
 
         # Validación automática del estado de inventario según el stock
@@ -71,8 +82,12 @@ class Producto(models.Model):
             self.estado_inventario = 'en_existencia'
             super().save(update_fields=['estado_inventario'])
 
-        # Regenerar miniatura si hay imagen principal
+        regenerate = False
         if self.imagen_principal:
+            if is_new or self.imagen_principal != old_imagen or not old_miniatura:
+                regenerate = True
+
+        if regenerate:
             try:
                 # Asegurarse de abrir desde la ruta final en disco
                 self.imagen_principal.open()
@@ -100,7 +115,6 @@ class Producto(models.Model):
             except Exception as e:
                 print(f"[Error] No se pudo generar miniatura: {e}")
 
-         # Solo genera miniatura si hay imagen y ya existe 
     def __str__(self):
         return self.nombre
 
