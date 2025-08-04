@@ -2,7 +2,10 @@
   <Suspense>
     <template #default>
       <div class="max-w-3xl mx-auto p-4" v-if="producto">
-        <h1 class="text-2xl font-bold mb-4">{{ producto.nombre }}</h1>
+        <h1 class="text-2xl font-bold mb-4 flex items-center space-x-2">
+          <span>{{ producto.nombre }}</span>
+          <span v-if="producto.stock <= 0" class="bg-red-600 text-white text-xs px-2 py-1 rounded">Agotado</span>
+        </h1>
 
         <img
           v-if="producto.imagen_principal"
@@ -29,13 +32,16 @@
             v-model.number="cantidad"
             min="1"
             class="w-20 border p-1 rounded"
+            :disabled="producto.stock <= 0"
           />
           <button
+            v-if="producto.stock > 0"
             @click="agregar"
             class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded"
           >
             Agregar al carrito
           </button>
+          <p v-else class="text-red-600 font-semibold">Producto no disponible</p>
         </div>
 
         <table
@@ -113,3 +119,4 @@ onMounted(async () => {
   }
 })
 </script>
+

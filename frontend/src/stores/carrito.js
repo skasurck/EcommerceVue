@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import api from '../axios'
 
 export const useCarritoStore = defineStore('carrito', {
-  state: () => ({ items: [] }),
+  state: () => ({ items: [], reservaExpira: null }),
   getters: {
     precioUnitario: () => (item) => {
       if (!item.producto) return 0
@@ -16,14 +16,16 @@ export const useCarritoStore = defineStore('carrito', {
       }
       return precio
     },
+    totalCantidad: (state) => state.items.reduce((s, i) => s + i.cantidad, 0),
+  },
     subtotal() {
       return this.items.reduce((sum, i) => sum + this.precioUnitario(i) * i.cantidad, 0)
-    }
-  },
+    },
   actions: {
     async cargar() {
       const res = await api.get('carrito/')
       this.items = res.data
+      this.reservaExpira = res.data[0]?.reserva_expira || null
     },
     async agregar(producto, cantidad = 1) {
       await api.post('carrito/', { producto, cantidad })
@@ -35,7 +37,7 @@ export const useCarritoStore = defineStore('carrito', {
     },
     async eliminar(id) {
       await api.delete(`carrito/${id}/`)
-      this.items = this.items.filter(i => i.id !== id)
+      await this.cargar()
     },
   }
 })
