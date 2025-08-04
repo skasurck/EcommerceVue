@@ -1,4 +1,5 @@
 from decimal import Decimal
+from django.db import transaction
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from .models import Direccion, MetodoEnvio, Pedido, PedidoItem
@@ -54,32 +55,48 @@ class PedidoSerializer(serializers.ModelSerializer):
             else:
                 raise ValidationError('No hay productos para el pedido')
 
-        direccion = Direccion.objects.create(user=user if save_address else None, **direccion_data)
         metodo_envio = validated_data['metodo_envio']
-        pedido = Pedido.objects.create(user=user, direccion=direccion, **validated_data)
+        with transaction.atomic():
+            direccion = Direccion.objects.create(
+                user=user if save_address else None, **direccion_data
+            )
+            pedido = Pedido.objects.create(user=user, direccion=direccion, **validated_data)
 
-        subtotal = Decimal('0')
-        for item in items_data:
-            producto = item['producto'] if isinstance(item['producto'], Producto) else Producto.objects.get(pk=item['producto'])
-            cantidad = item['cantidad']
-            precio = producto.precio_rebajado or producto.precio_normal
-            tiers = producto.precios_escalonados.all()
-            for tier in tiers:
-                if cantidad >= tier.cantidad_minima and tier.precio_unitario < precio:
-                    precio = tier.precio_unitario
-            item_subtotal = precio * cantidad
-            PedidoItem.objects.create(pedido=pedido, producto=producto, cantidad=cantidad,
-                                      precio_unitario=precio, subtotal=item_subtotal)
-            producto.stock = producto.stock - cantidad
-            producto.save(update_fields=['stock'])
-            subtotal += item_subtotal
+            subtotal = Decimal('0')
+            for item in items_data:
+                producto_id = (
+                    item['producto'].id
+                    if isinstance(item['producto'], Producto)
+                    else item['producto']
+                )
+                producto = Producto.objects.select_for_update().get(pk=producto_id)
+                cantidad = item['cantidad']
+                if producto.stock < cantidad:
+                    raise ValidationError(f'Stock insuficiente para {producto.nombre}')
 
-        pedido.subtotal = subtotal
-        pedido.costo_envio = metodo_envio.costo
-        pedido.total = subtotal + metodo_envio.costo
-        pedido.save(update_fields=['subtotal', 'costo_envio', 'total'])
+                precio = producto.precio_rebajado or producto.precio_normal
+                tiers = producto.precios_escalonados.all()
+                for tier in tiers:
+                    if cantidad >= tier.cantidad_minima and tier.precio_unitario < precio:
+                        precio = tier.precio_unitario
+                item_subtotal = precio * cantidad
+                PedidoItem.objects.create(
+                    pedido=pedido,
+                    producto=producto,
+                    cantidad=cantidad,
+                    precio_unitario=precio,
+                    subtotal=item_subtotal,
+                )
+                producto.stock -= cantidad
+                producto.save(update_fields=['stock'])
+                subtotal += item_subtotal
 
-        if user:
-            CartItem.objects.filter(user=user).delete()
+            pedido.subtotal = subtotal
+            pedido.costo_envio = metodo_envio.costo
+            pedido.total = subtotal + metodo_envio.costo
+            pedido.save(update_fields=['subtotal', 'costo_envio', 'total'])
 
-        return pedido
+            if user:
+                CartItem.objects.filter(user=user).delete()
+
+            return pedido
