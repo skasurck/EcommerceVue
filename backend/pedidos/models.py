@@ -48,10 +48,47 @@ class Pedido(models.Model):
     costo_envio = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     datos_pago = models.JSONField(blank=True, default=dict)
+    estado = models.CharField(
+        max_length=20,
+        choices=[
+            ('pendiente', 'Pendiente'),
+            ('pagado', 'Pagado'),
+            ('confirmado', 'Confirmado'),
+            ('enviado', 'Enviado'),
+            ('cancelado', 'Cancelado'),
+        ],
+        default='pendiente',
+    )
+    stock_restaurado = models.BooleanField(default=False)
     creado = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"Pedido #{self.id}"
+
+    def save(self, *args, **kwargs):
+        estado_anterior = None
+        if self.pk:
+            try:
+                estado_anterior = Pedido.objects.get(pk=self.pk).estado
+            except Pedido.DoesNotExist:
+                pass
+        super().save(*args, **kwargs)
+
+        if (
+            self.estado == 'cancelado'
+            and estado_anterior in ['pagado', 'confirmado']
+            and not self.stock_restaurado
+        ):
+            for item in self.items.all():
+                producto = item.producto
+                producto.stock += item.cantidad
+                producto.save(update_fields=['stock'])
+            self.stock_restaurado = True
+            super().save(update_fields=['stock_restaurado'])
+            PedidoHistorial.objects.create(
+                pedido=self,
+                descripcion='Stock devuelto por cancelación',
+            )
 
 
 class PedidoItem(models.Model):
@@ -63,3 +100,12 @@ class PedidoItem(models.Model):
 
     def __str__(self):
         return f"{self.cantidad} x {self.producto.nombre}"
+
+
+class PedidoHistorial(models.Model):
+    pedido = models.ForeignKey(Pedido, related_name='historial', on_delete=models.CASCADE)
+    fecha = models.DateTimeField(auto_now_add=True)
+    descripcion = models.CharField(max_length=255)
+
+    def __str__(self):
+        return f"{self.fecha:%Y-%m-%d %H:%M} - {self.descripcion}"

@@ -15,6 +15,8 @@ class PedidoAPITests(APITestCase):
         self.metodo = MetodoEnvio.objects.create(nombre='Estafeta', costo=299)
         self.producto = Producto.objects.create(nombre='Prod', precio_normal=100, stock=5)
         CartItem.objects.create(user=self.user, producto=self.producto, cantidad=2)
+        self.producto.stock -= 2
+        self.producto.save()
 
     def test_crear_pedido_guarda_items_y_totales(self):
         url = reverse('pedido-list')
@@ -52,3 +54,42 @@ class PedidoAPITests(APITestCase):
         self.producto.refresh_from_db()
         self.assertEqual(self.producto.stock, 3)
         self.assertEqual(CartItem.objects.filter(user=self.user).count(), 0)
+
+    def test_cancelar_pedido_devuelve_stock(self):
+        url = reverse('pedido-list')
+        data = {
+            'direccion': {
+                'nombre': 'John',
+                'apellidos': 'Doe',
+                'email': 'john@example.com',
+                'calle': 'Calle 1',
+                'numero_exterior': '123',
+                'colonia': 'Centro',
+                'ciudad': 'CDMX',
+                'pais': 'MX',
+                'estado': 'CDMX',
+                'codigo_postal': '01010',
+                'telefono': '5555555555'
+            },
+            'metodo_envio': self.metodo.id,
+            'metodo_pago': 'transferencia',
+            'indicaciones': '',
+            'save_address': True
+        }
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        pedido = Pedido.objects.get(id=response.data['id'])
+        pedido.estado = 'pagado'
+        pedido.save()
+
+        pedido.estado = 'cancelado'
+        pedido.save()
+        self.producto.refresh_from_db()
+        self.assertEqual(self.producto.stock, 5)
+
+        pedido.estado = 'cancelado'
+        pedido.save()
+        self.producto.refresh_from_db()
+        self.assertEqual(self.producto.stock, 5)
+        pedido.refresh_from_db()
+        self.assertEqual(pedido.historial.filter(descripcion__icontains='Stock devuelto').count(), 1)

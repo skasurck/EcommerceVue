@@ -1,6 +1,5 @@
 from django.contrib import admin
-from django.contrib import admin
-from .models import Direccion, MetodoEnvio, Pedido, PedidoItem
+from .models import Direccion, MetodoEnvio, Pedido, PedidoItem, PedidoHistorial
 
 
 @admin.register(Direccion)
@@ -18,7 +17,13 @@ class PedidoItemInline(admin.TabularInline):
     extra = 0
 
 
+class PedidoHistorialInline(admin.TabularInline):
+    model = PedidoHistorial
+    extra = 0
+    readonly_fields = ("fecha", "descripcion")
+
+
 @admin.register(Pedido)
 class PedidoAdmin(admin.ModelAdmin):
-    list_display = ("id", "user", "metodo_envio", "metodo_pago", "total", "creado")
-    inlines = [PedidoItemInline]
+    list_display = ("id", "user", "metodo_envio", "metodo_pago", "estado", "total", "creado")
+    inlines = [PedidoItemInline, PedidoHistorialInline]

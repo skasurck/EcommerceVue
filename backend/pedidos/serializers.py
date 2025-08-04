@@ -2,7 +2,7 @@ from decimal import Decimal
 from django.db import transaction
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
-from .models import Direccion, MetodoEnvio, Pedido, PedidoItem
+from .models import Direccion, MetodoEnvio, Pedido, PedidoItem, PedidoHistorial
 from carrito.models import CartItem
 from productos.models import Producto
 
@@ -26,18 +26,27 @@ class PedidoItemSerializer(serializers.ModelSerializer):
         read_only_fields = ['precio_unitario', 'subtotal']
 
 
+class PedidoHistorialSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PedidoHistorial
+        fields = ['fecha', 'descripcion']
+
+
 class PedidoSerializer(serializers.ModelSerializer):
     direccion = DireccionSerializer()
     items = PedidoItemSerializer(many=True, write_only=True, required=False)
     detalles = PedidoItemSerializer(source='items', many=True, read_only=True)
     datos_pago = serializers.JSONField(required=False)
     save_address = serializers.BooleanField(write_only=True, required=False, default=False)
+    historial = PedidoHistorialSerializer(many=True, read_only=True)
 
     class Meta:
         model = Pedido
         fields = ['id', 'direccion', 'metodo_envio', 'metodo_pago', 'indicaciones',
-                  'subtotal', 'costo_envio', 'total', 'datos_pago', 'items', 'detalles', 'save_address', 'creado']
-        read_only_fields = ['id', 'creado', 'subtotal', 'costo_envio', 'total', 'detalles']
+                  'subtotal', 'costo_envio', 'total', 'datos_pago', 'items', 'detalles',
+                  'save_address', 'estado', 'historial', 'creado']
+        read_only_fields = ['id', 'creado', 'subtotal', 'costo_envio', 'total', 'detalles', 'historial']
+        extra_kwargs = {'estado': {'required': False}}
 
     def create(self, validated_data):
         request = self.context.get('request')
