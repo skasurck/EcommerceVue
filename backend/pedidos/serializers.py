@@ -16,13 +16,15 @@ class DireccionSerializer(serializers.ModelSerializer):
 class MetodoEnvioSerializer(serializers.ModelSerializer):
     class Meta:
         model = MetodoEnvio
-        fields = ['id', 'nombre', 'costo']
+        fields = ['id', 'nombre', 'costo', 'descripcion']
 
 
 class PedidoItemSerializer(serializers.ModelSerializer):
+    producto_nombre = serializers.CharField(source='producto.nombre', read_only=True)
+
     class Meta:
         model = PedidoItem
-        fields = ['producto', 'cantidad', 'precio_unitario', 'subtotal']
+        fields = ['producto', 'producto_nombre', 'cantidad', 'precio_unitario', 'subtotal']
         read_only_fields = ['precio_unitario', 'subtotal']
 
 
@@ -38,14 +40,18 @@ class PedidoSerializer(serializers.ModelSerializer):
     detalles = PedidoItemSerializer(source='items', many=True, read_only=True)
     datos_pago = serializers.JSONField(required=False)
     save_address = serializers.BooleanField(write_only=True, required=False, default=False)
+    metodo_envio_detalle = MetodoEnvioSerializer(source='metodo_envio', read_only=True)
+    metodo_pago_display = serializers.CharField(source='get_metodo_pago_display', read_only=True)
     historial = PedidoHistorialSerializer(many=True, read_only=True)
 
     class Meta:
         model = Pedido
-        fields = ['id', 'direccion', 'metodo_envio', 'metodo_pago', 'indicaciones',
-                  'subtotal', 'costo_envio', 'total', 'datos_pago', 'items', 'detalles',
-                  'save_address', 'estado', 'historial', 'creado']
-        read_only_fields = ['id', 'creado', 'subtotal', 'costo_envio', 'total', 'detalles', 'historial']
+        fields = ['id', 'direccion', 'metodo_envio', 'metodo_envio_detalle', 'metodo_pago',
+                  'metodo_pago_display', 'indicaciones', 'subtotal', 'costo_envio', 'total',
+                  'datos_pago', 'items', 'detalles', 'save_address', 'estado', 'historial',
+                  'creado']
+        read_only_fields = ['id', 'creado', 'subtotal', 'costo_envio', 'total', 'detalles',
+                            'historial', 'metodo_envio_detalle', 'metodo_pago_display']
         extra_kwargs = {'estado': {'required': False}}
 
     def create(self, validated_data):
