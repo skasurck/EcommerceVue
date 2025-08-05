@@ -107,6 +107,16 @@ onMounted(async () => {
   try {
     const { data } = await obtenerDirecciones();
     direcciones.value = data;
+    if (direcciones.value.length === 1) {
+      seleccionada.value = direcciones.value[0];
+      seleccionarDireccion();
+    } else {
+      const def = direcciones.value.find(d => d.predeterminada);
+      if (def) {
+        seleccionada.value = def;
+        seleccionarDireccion();
+      }
+    }
   } catch {
     direcciones.value = [];
   }
