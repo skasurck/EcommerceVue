@@ -14,7 +14,7 @@
 
     <div v-if="seccion === 'Resumen'" class="space-y-4">
       <div class="flex items-center space-x-4">
-        <img :src="profileImg" alt="Perfil" class="w-24 h-24 rounded-full" />
+        <img :src="profileImg" alt="Perfil" class="w-24 h-24 rounded-full img-perfil" />
         <div>
           <p class="font-semibold">{{ perfil.first_name }} {{ perfil.last_name }}</p>
           <p>{{ perfil.email }}</p>
@@ -251,3 +251,12 @@ onMounted(() => {
   cargarDatos()
 })
 </script>
+<style scoped>
+.img-perfil {
+  width: 48px; /* 24 * 4 */
+  height: 48px; /* 24 * 4 */
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #4f46e5; /* Indigo-600 */
+}
+</style>
