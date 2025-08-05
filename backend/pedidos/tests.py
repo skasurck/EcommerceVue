@@ -93,3 +93,33 @@ class PedidoAPITests(APITestCase):
         self.assertEqual(self.producto.stock, 5)
         pedido.refresh_from_db()
         self.assertEqual(pedido.historial.filter(descripcion__icontains='Stock devuelto').count(), 1)
+
+
+class DireccionUserPopulateTests(APITestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.user = User.objects.create_user(username='john', password='pass1234')
+        self.client.force_authenticate(self.user)
+
+    def test_crear_direccion_autocompleta_usuario(self):
+        url = reverse('direccion-list')
+        data = {
+            'nombre': 'Juan',
+            'apellidos': 'Pérez',
+            'email': 'juan@example.com',
+            'calle': 'Calle 1',
+            'numero_exterior': '1',
+            'colonia': 'Centro',
+            'ciudad': 'CDMX',
+            'pais': 'MX',
+            'estado': 'CDMX',
+            'codigo_postal': '01010',
+            'telefono': '5555555555',
+        }
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.first_name, 'Juan')
+        self.assertEqual(self.user.last_name, 'Pérez')
+        self.assertEqual(self.user.email, 'juan@example.com')
+        self.assertEqual(self.user.perfil.telefono, '5555555555')

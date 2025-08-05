@@ -45,11 +45,21 @@ class DireccionSerializer(serializers.ModelSerializer):
         if not user.last_name:
             user.last_name = direccion.apellidos
             updated_user.append('last_name')
+        if not user.email:
+            user.email = direccion.email
+            updated_user.append('email')
         if updated_user:
             user.save(update_fields=updated_user)
-        if perfil and not perfil.empresa:
-            perfil.empresa = direccion.nombre_empresa
-            perfil.save(update_fields=['empresa'])
+        if perfil:
+            updated_perfil = []
+            if not perfil.telefono:
+                perfil.telefono = direccion.telefono
+                updated_perfil.append('telefono')
+            if not perfil.empresa:
+                perfil.empresa = direccion.nombre_empresa
+                updated_perfil.append('empresa')
+            if updated_perfil:
+                perfil.save(update_fields=updated_perfil)
 
 
 class MetodoEnvioSerializer(serializers.ModelSerializer):
@@ -132,11 +142,21 @@ class PedidoSerializer(serializers.ModelSerializer):
                 if not user.last_name:
                     user.last_name = direccion.apellidos
                     updated_user.append('last_name')
+                if not user.email:
+                    user.email = direccion.email
+                    updated_user.append('email')
                 if updated_user:
                     user.save(update_fields=updated_user)
-                if perfil and not perfil.empresa:
-                    perfil.empresa = direccion.nombre_empresa
-                    perfil.save(update_fields=['empresa'])
+                if perfil:
+                    updated_perfil = []
+                    if not perfil.telefono:
+                        perfil.telefono = direccion.telefono
+                        updated_perfil.append('telefono')
+                    if not perfil.empresa:
+                        perfil.empresa = direccion.nombre_empresa
+                        updated_perfil.append('empresa')
+                    if updated_perfil:
+                        perfil.save(update_fields=updated_perfil)
             pedido = Pedido.objects.create(user=user, direccion=direccion, **validated_data)
 
             subtotal = Decimal('0')
