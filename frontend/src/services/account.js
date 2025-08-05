@@ -10,3 +10,4 @@ export const actualizarDireccion = (id, data) => api.put(`direcciones/${id}/`, d
 export const eliminarDireccion = (id) => api.delete(`direcciones/${id}/`)
 
 export const obtenerPedidos = () => api.get('pedidos/')
+export const obtenerPedido = (id) => api.get(`pedidos/${id}/`)
