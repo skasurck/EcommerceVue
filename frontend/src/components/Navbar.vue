@@ -11,6 +11,7 @@
         >{{ carrito.totalCantidad }}</span>
       </RouterLink>
       <RouterLink v-if="auth.isLoggedIn" to="/nuevo-producto" class="hover:text-cyan-300">Nuevo Producto</RouterLink>
+      <RouterLink v-if="auth.isLoggedIn" to="/mi-cuenta" class="hover:text-cyan-300">Mi Cuenta</RouterLink>
     </div>
 
     <div class="flex items-center space-x-4">
