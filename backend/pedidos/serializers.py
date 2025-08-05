@@ -5,6 +5,7 @@ from rest_framework.exceptions import ValidationError
 from .models import Direccion, MetodoEnvio, Pedido, PedidoItem, PedidoHistorial
 from carrito.models import CartItem
 from productos.models import Producto
+from usuarios.models import Perfil
 
 
 class DireccionSerializer(serializers.ModelSerializer):
@@ -37,7 +38,7 @@ class DireccionSerializer(serializers.ModelSerializer):
             direccion.save(update_fields=['predeterminada'])
 
     def _populate_profile(self, user, direccion):
-        perfil = getattr(user, 'perfil', None)
+        perfil, _ = Perfil.objects.get_or_create(user=user)
         updated_user = []
         if not user.first_name:
             user.first_name = direccion.nombre
@@ -50,16 +51,15 @@ class DireccionSerializer(serializers.ModelSerializer):
             updated_user.append('email')
         if updated_user:
             user.save(update_fields=updated_user)
-        if perfil:
-            updated_perfil = []
-            if not perfil.telefono:
-                perfil.telefono = direccion.telefono
-                updated_perfil.append('telefono')
-            if not perfil.empresa:
-                perfil.empresa = direccion.nombre_empresa
-                updated_perfil.append('empresa')
-            if updated_perfil:
-                perfil.save(update_fields=updated_perfil)
+        updated_perfil = []
+        if not perfil.telefono:
+            perfil.telefono = direccion.telefono
+            updated_perfil.append('telefono')
+        if not perfil.empresa:
+            perfil.empresa = direccion.nombre_empresa
+            updated_perfil.append('empresa')
+        if updated_perfil:
+            perfil.save(update_fields=updated_perfil)
 
 
 class MetodoEnvioSerializer(serializers.ModelSerializer):
@@ -134,7 +134,7 @@ class PedidoSerializer(serializers.ModelSerializer):
                     direccion.predeterminada = True
                     direccion.save(update_fields=['predeterminada'])
 
-                perfil = getattr(user, 'perfil', None)
+                perfil, _ = Perfil.objects.get_or_create(user=user)
                 updated_user = []
                 if not user.first_name:
                     user.first_name = direccion.nombre
@@ -147,16 +147,15 @@ class PedidoSerializer(serializers.ModelSerializer):
                     updated_user.append('email')
                 if updated_user:
                     user.save(update_fields=updated_user)
-                if perfil:
-                    updated_perfil = []
-                    if not perfil.telefono:
-                        perfil.telefono = direccion.telefono
-                        updated_perfil.append('telefono')
-                    if not perfil.empresa:
-                        perfil.empresa = direccion.nombre_empresa
-                        updated_perfil.append('empresa')
-                    if updated_perfil:
-                        perfil.save(update_fields=updated_perfil)
+                updated_perfil = []
+                if not perfil.telefono:
+                    perfil.telefono = direccion.telefono
+                    updated_perfil.append('telefono')
+                if not perfil.empresa:
+                    perfil.empresa = direccion.nombre_empresa
+                    updated_perfil.append('empresa')
+                if updated_perfil:
+                    perfil.save(update_fields=updated_perfil)
             pedido = Pedido.objects.create(user=user, direccion=direccion, **validated_data)
 
             subtotal = Decimal('0')

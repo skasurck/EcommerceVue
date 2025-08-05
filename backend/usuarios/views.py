@@ -8,6 +8,7 @@ from .serializers import (
     UserProfileSerializer,
     ChangePasswordSerializer,
 )
+from .models import Perfil
 
 
 class RegisterView(APIView):
@@ -23,10 +24,12 @@ class UserProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        Perfil.objects.get_or_create(user=request.user)
         serializer = UserProfileSerializer(request.user)
         return Response(serializer.data)
 
     def put(self, request):
+        Perfil.objects.get_or_create(user=request.user)
         serializer = UserProfileSerializer(request.user, data=request.data)
         if serializer.is_valid():
             serializer.save()

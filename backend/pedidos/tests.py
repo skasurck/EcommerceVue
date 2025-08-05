@@ -123,3 +123,72 @@ class DireccionUserPopulateTests(APITestCase):
         self.assertEqual(self.user.last_name, 'Pérez')
         self.assertEqual(self.user.email, 'juan@example.com')
         self.assertEqual(self.user.perfil.telefono, '5555555555')
+
+
+class DireccionDefaultTests(APITestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.user = User.objects.create_user(username='john2', password='pass1234')
+        self.client.force_authenticate(self.user)
+
+    def _crear_direccion(self, **kwargs):
+        data = {
+            'nombre': 'Juan',
+            'apellidos': 'Pérez',
+            'email': 'juan@example.com',
+            'calle': 'Calle 1',
+            'numero_exterior': '1',
+            'colonia': 'Centro',
+            'ciudad': 'CDMX',
+            'pais': 'MX',
+            'estado': 'CDMX',
+            'codigo_postal': '01010',
+            'telefono': '5555555555',
+        }
+        data.update(kwargs)
+        return self.client.post(reverse('direccion-list'), data, format='json')
+
+    def test_predeterminada_al_eliminar(self):
+        r1 = self._crear_direccion()
+        self.assertEqual(r1.status_code, status.HTTP_201_CREATED)
+        d1 = Direccion.objects.get(id=r1.data['id'])
+        self.assertTrue(d1.predeterminada)
+        r2 = self._crear_direccion(calle='Calle 2', numero_exterior='2')
+        self.assertEqual(r2.status_code, status.HTTP_201_CREATED)
+        d2 = Direccion.objects.get(id=r2.data['id'])
+        self.assertTrue(d1.predeterminada)
+        del_url = reverse('direccion-detail', args=[d1.id])
+        self.client.delete(del_url)
+        d2.refresh_from_db()
+        self.assertTrue(d2.predeterminada)
+
+
+class DireccionListFlagTests(APITestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.user = User.objects.create_user(username='john3', password='pass1234')
+        self.client.force_authenticate(self.user)
+
+    def test_lista_incluye_tiene_direccion(self):
+        url = reverse('direccion-list')
+        r = self.client.get(url)
+        self.assertEqual(r.status_code, status.HTTP_200_OK)
+        self.assertFalse(r.data['tiene_direccion'])
+        self.assertEqual(r.data['direcciones'], [])
+        data = {
+            'nombre': 'Juan',
+            'apellidos': 'Pérez',
+            'email': 'juan@example.com',
+            'calle': 'Calle 1',
+            'numero_exterior': '1',
+            'colonia': 'Centro',
+            'ciudad': 'CDMX',
+            'pais': 'MX',
+            'estado': 'CDMX',
+            'codigo_postal': '01010',
+            'telefono': '5555555555',
+        }
+        self.client.post(url, data, format='json')
+        r = self.client.get(url)
+        self.assertTrue(r.data['tiene_direccion'])
+        self.assertEqual(len(r.data['direcciones']), 1)

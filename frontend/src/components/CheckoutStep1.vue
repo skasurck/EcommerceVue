@@ -33,7 +33,7 @@
       <input v-model="telefono" placeholder="Teléfono" />
       <span class="error">{{ errors.telefono }}</span>
       <textarea v-model="referencias" placeholder="Referencias"></textarea>
-      <label><input type="checkbox" v-model="save" /> Guardar dirección</label>
+      <label v-if="!tieneDireccion"><input type="checkbox" v-model="save" /> Guardar dirección</label>
       <button type="submit">Continuar</button>
     </form>
     <div class="mt-4 p-4 border rounded">
@@ -102,13 +102,26 @@ const [save] = defineField('save');
 
 const direcciones = ref([]);
 const seleccionada = ref(null);
+const tieneDireccion = ref(false);
 
 onMounted(async () => {
   try {
     const { data } = await obtenerDirecciones();
-    direcciones.value = data;
+    direcciones.value = data.direcciones;
+    tieneDireccion.value = data.tiene_direccion;
+    if (direcciones.value.length === 1) {
+      seleccionada.value = direcciones.value[0];
+      seleccionarDireccion();
+    } else {
+      const def = direcciones.value.find(d => d.predeterminada);
+      if (def) {
+        seleccionada.value = def;
+        seleccionarDireccion();
+      }
+    }
   } catch {
     direcciones.value = [];
+    tieneDireccion.value = false;
   }
 });
 

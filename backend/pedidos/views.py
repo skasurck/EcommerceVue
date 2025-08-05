@@ -12,8 +12,27 @@ class DireccionViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return Direccion.objects.filter(user=self.request.user)
 
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({
+            "tiene_direccion": queryset.exists(),
+            "direcciones": serializer.data,
+        })
+
     def perform_create(self, serializer):
         serializer.save()
+
+    def perform_destroy(self, instance):
+        user = instance.user
+        was_default = instance.predeterminada
+        super().perform_destroy(instance)
+        if was_default:
+            restante = Direccion.objects.filter(user=user).first()
+            if restante:
+                Direccion.objects.filter(user=user).update(predeterminada=False)
+                restante.predeterminada = True
+                restante.save(update_fields=["predeterminada"])
 
 
 class MetodoEnvioViewSet(viewsets.ReadOnlyModelViewSet):

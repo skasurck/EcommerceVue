@@ -14,13 +14,15 @@
 
     <div v-if="seccion === 'Resumen'" class="space-y-4">
       <div class="flex items-center space-x-4">
-        <img :src="profileImg" alt="Perfil" class="w-24 h-24 rounded-full img-perfil" />
-        <div>
-          <p class="font-semibold">{{ perfil.first_name }} {{ perfil.last_name }}</p>
-          <p>{{ perfil.email }}</p>
-          <p>{{ perfil.perfil?.telefono }}</p>
-          <p v-if="perfil.perfil?.empresa">{{ perfil.perfil.empresa }}</p>
-        </div>
+        <img :src="profileImg" alt="Perfil" class="w-24 h-24 rounded-full" />
+        <form @submit.prevent="guardarPerfil" class="space-y-2">
+          <input v-model="perfil.first_name" placeholder="Nombre" class="border p-1 w-full" />
+          <input v-model="perfil.last_name" placeholder="Apellidos" class="border p-1 w-full" />
+          <input v-model="perfil.email" placeholder="Email" class="border p-1 w-full" />
+          <input v-model="perfil.perfil.telefono" placeholder="Teléfono" class="border p-1 w-full" />
+          <input v-model="perfil.perfil.empresa" placeholder="Empresa" class="border p-1 w-full" />
+          <button type="submit" class="bg-blue-500 text-white px-3 py-1">Guardar</button>
+        </form>
       </div>
       <div>
         <h2 class="font-semibold mb-2">Direcciones</h2>
@@ -28,34 +30,8 @@
           <li v-for="dir in direcciones" :key="dir.id" class="mb-1">
             {{ dir.calle }} {{ dir.numero_exterior }} - {{ dir.ciudad }}
             <span v-if="dir.predeterminada">(Predeterminada)</span>
-            <button class="ml-2 underline" @click="editarDireccion(dir)">Editar</button>
           </li>
         </ul>
-        <button class="underline mt-2" @click="nuevaDireccion">Agregar dirección</button>
-        <div v-if="mostrarFormDir" class="space-y-2 mt-2">
-          <input v-model="dirForm.nombre" placeholder="Nombre" class="border p-1 w-full" />
-          <input v-model="dirForm.apellidos" placeholder="Apellidos" class="border p-1 w-full" />
-          <input v-model="dirForm.email" placeholder="Email" class="border p-1 w-full" />
-          <input v-model="dirForm.nombre_empresa" placeholder="Empresa" class="border p-1 w-full" />
-          <input v-model="dirForm.calle" placeholder="Calle" class="border p-1 w-full" />
-          <input v-model="dirForm.numero_exterior" placeholder="Número exterior" class="border p-1 w-full" />
-          <input v-model="dirForm.numero_interior" placeholder="Número interior" class="border p-1 w-full" />
-          <input v-model="dirForm.colonia" placeholder="Colonia" class="border p-1 w-full" />
-          <input v-model="dirForm.ciudad" placeholder="Ciudad" class="border p-1 w-full" />
-          <input v-model="dirForm.estado" placeholder="Estado" class="border p-1 w-full" />
-          <input v-model="dirForm.pais" placeholder="País" class="border p-1 w-full" />
-          <input v-model="dirForm.codigo_postal" placeholder="Código postal" class="border p-1 w-full" />
-          <input v-model="dirForm.telefono" placeholder="Teléfono" class="border p-1 w-full" />
-          <textarea v-model="dirForm.referencias" placeholder="Referencias" class="border p-1 w-full"></textarea>
-          <label class="flex items-center space-x-2">
-            <input type="checkbox" v-model="dirForm.predeterminada" />
-            <span>Predeterminada</span>
-          </label>
-          <div class="space-x-2">
-            <button type="button" @click="guardarDireccion" class="bg-blue-500 text-white px-3 py-1">Guardar</button>
-            <button type="button" @click="mostrarFormDir = false" class="px-3 py-1 border">Cancelar</button>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -63,12 +39,13 @@
       <ul>
         <li v-for="pedido in pedidos" :key="pedido.id" class="mb-2">
           <button class="underline" @click="verPedido(pedido.id)">
-            Pedido #{{ pedido.id }} - Total: {{ pedido.total }}
+            Pedido #{{ pedido.id }} - Total: {{ pedido.total }} - Estado: {{ pedido.estado }}
           </button>
         </li>
       </ul>
       <div v-if="pedidoDetalle" class="border p-4">
         <h2 class="font-semibold mb-2">Detalle del pedido #{{ pedidoDetalle.id }}</h2>
+        <p class="mb-2">Total: {{ pedidoDetalle.total }} - Estado: {{ pedidoDetalle.estado }}</p>
         <div class="mb-2">
           <h3 class="font-medium">Productos</h3>
           <ul class="ml-4 list-disc">
@@ -89,6 +66,10 @@
           <h3 class="font-medium">Método de pago</h3>
           <p>{{ pedidoDetalle.metodo_pago_display }}</p>
         </div>
+        <div class="mb-2">
+          <h3 class="font-medium">Estado del pedido</h3>
+          <p>{{ pedidoDetalle.estado }}</p>
+        </div>
       </div>
     </div>
 
@@ -96,52 +77,34 @@
       <ul>
         <li v-for="dir in direcciones" :key="dir.id" class="mb-2">
           {{ dir.calle }} {{ dir.numero_exterior }} - {{ dir.ciudad }}
+          <span v-if="dir.predeterminada">(Predeterminada)</span>
+          <button class="ml-2 underline" @click="editarDireccion(dir)">Editar</button>
+          <button class="ml-2 text-red-600 underline" @click="borrarDireccion(dir.id)">Eliminar</button>
         </li>
       </ul>
-    </div>
-
-    <div v-if="seccion === 'Perfil'">
-      <form @submit.prevent="guardarPerfil" class="space-y-2">
-        <input v-model="perfil.first_name" placeholder="Nombre" class="border p-1 w-full" />
-        <input v-model="perfil.last_name" placeholder="Apellidos" class="border p-1 w-full" />
-        <input v-model="perfil.email" placeholder="Email" class="border p-1 w-full" />
-        <input v-model="perfil.perfil.telefono" placeholder="Teléfono" class="border p-1 w-full" />
-        <input v-model="perfil.perfil.empresa" placeholder="Empresa" class="border p-1 w-full" />
-        <button type="submit" class="bg-blue-500 text-white px-3 py-1">Guardar</button>
-      </form>
-      <div class="mt-4">
-        <h2 class="font-semibold mb-2">Direcciones</h2>
-        <ul>
-          <li v-for="dir in direcciones" :key="dir.id" class="mb-1">
-            {{ dir.calle }} {{ dir.numero_exterior }} - {{ dir.ciudad }}
-            <span v-if="dir.predeterminada">(Predeterminada)</span>
-            <button class="ml-2 underline" @click="editarDireccion(dir)">Editar</button>
-          </li>
-        </ul>
-        <button class="underline mt-2" @click="nuevaDireccion">Agregar dirección</button>
-        <div v-if="mostrarFormDir" class="space-y-2 mt-2">
-          <input v-model="dirForm.nombre" placeholder="Nombre" class="border p-1 w-full" />
-          <input v-model="dirForm.apellidos" placeholder="Apellidos" class="border p-1 w-full" />
-          <input v-model="dirForm.email" placeholder="Email" class="border p-1 w-full" />
-          <input v-model="dirForm.nombre_empresa" placeholder="Empresa" class="border p-1 w-full" />
-          <input v-model="dirForm.calle" placeholder="Calle" class="border p-1 w-full" />
-          <input v-model="dirForm.numero_exterior" placeholder="Número exterior" class="border p-1 w-full" />
-          <input v-model="dirForm.numero_interior" placeholder="Número interior" class="border p-1 w-full" />
-          <input v-model="dirForm.colonia" placeholder="Colonia" class="border p-1 w-full" />
-          <input v-model="dirForm.ciudad" placeholder="Ciudad" class="border p-1 w-full" />
-          <input v-model="dirForm.estado" placeholder="Estado" class="border p-1 w-full" />
-          <input v-model="dirForm.pais" placeholder="País" class="border p-1 w-full" />
-          <input v-model="dirForm.codigo_postal" placeholder="Código postal" class="border p-1 w-full" />
-          <input v-model="dirForm.telefono" placeholder="Teléfono" class="border p-1 w-full" />
-          <textarea v-model="dirForm.referencias" placeholder="Referencias" class="border p-1 w-full"></textarea>
-          <label class="flex items-center space-x-2">
-            <input type="checkbox" v-model="dirForm.predeterminada" />
-            <span>Predeterminada</span>
-          </label>
-          <div class="space-x-2">
-            <button type="button" @click="guardarDireccion" class="bg-blue-500 text-white px-3 py-1">Guardar</button>
-            <button type="button" @click="mostrarFormDir = false" class="px-3 py-1 border">Cancelar</button>
-          </div>
+      <button class="underline mt-2" @click="nuevaDireccion">Agregar dirección</button>
+      <div v-if="mostrarFormDir" class="space-y-2 mt-2">
+        <input v-model="dirForm.nombre" placeholder="Nombre" class="border p-1 w-full" />
+        <input v-model="dirForm.apellidos" placeholder="Apellidos" class="border p-1 w-full" />
+        <input v-model="dirForm.email" placeholder="Email" class="border p-1 w-full" />
+        <input v-model="dirForm.nombre_empresa" placeholder="Empresa" class="border p-1 w-full" />
+        <input v-model="dirForm.calle" placeholder="Calle" class="border p-1 w-full" />
+        <input v-model="dirForm.numero_exterior" placeholder="Número exterior" class="border p-1 w-full" />
+        <input v-model="dirForm.numero_interior" placeholder="Número interior" class="border p-1 w-full" />
+        <input v-model="dirForm.colonia" placeholder="Colonia" class="border p-1 w-full" />
+        <input v-model="dirForm.ciudad" placeholder="Ciudad" class="border p-1 w-full" />
+        <input v-model="dirForm.estado" placeholder="Estado" class="border p-1 w-full" />
+        <input v-model="dirForm.pais" placeholder="País" class="border p-1 w-full" />
+        <input v-model="dirForm.codigo_postal" placeholder="Código postal" class="border p-1 w-full" />
+        <input v-model="dirForm.telefono" placeholder="Teléfono" class="border p-1 w-full" />
+        <textarea v-model="dirForm.referencias" placeholder="Referencias" class="border p-1 w-full"></textarea>
+        <label class="flex items-center space-x-2">
+          <input type="checkbox" v-model="dirForm.predeterminada" />
+          <span>Predeterminada</span>
+        </label>
+        <div class="space-x-2">
+          <button type="button" @click="guardarDireccion" class="bg-blue-500 text-white px-3 py-1">Guardar</button>
+          <button type="button" @click="mostrarFormDir = false" class="px-3 py-1 border">Cancelar</button>
         </div>
       </div>
     </div>
@@ -167,17 +130,18 @@ import {
   obtenerPedido,
   crearDireccion,
   actualizarDireccion,
+  eliminarDireccion,
 } from '../services/account'
 
 import profileImg from '../assets/profile-placeholder.svg'
 
-const tabs = ['Resumen', 'Pedidos', 'Direcciones', 'Perfil', 'Cambiar contraseña']
+const tabs = ['Resumen', 'Pedidos', 'Direcciones', 'Cambiar contraseña']
 const seccion = ref('Resumen')
 
 const pedidos = ref([])
 const pedidoDetalle = ref(null)
 const direcciones = ref([])
-const perfil = ref({ perfil: {} })
+const perfil = ref({ perfil: { telefono: '', empresa: '' } })
 const password = ref({ old_password: '', new_password: '' })
 const dirForm = ref(null)
 const editandoDir = ref(null)
@@ -190,8 +154,9 @@ const cargarDatos = async () => {
     obtenerPerfil(),
   ])
   pedidos.value = ped.data
-  direcciones.value = dir.data
+  direcciones.value = dir.data.direcciones
   perfil.value = prof.data
+  perfil.value.perfil = perfil.value.perfil || { telefono: '', empresa: '' }
 }
 
 const guardarPerfil = async () => {
@@ -247,16 +212,12 @@ const guardarDireccion = async () => {
   await cargarDatos()
 }
 
+const borrarDireccion = async (id) => {
+  await eliminarDireccion(id)
+  await cargarDatos()
+}
+
 onMounted(() => {
   cargarDatos()
 })
 </script>
-<style scoped>
-.img-perfil {
-  width: 48px; /* 24 * 4 */
-  height: 48px; /* 24 * 4 */
-  border-radius: 50%;
-  object-fit: cover;
-  border: 2px solid #4f46e5; /* Indigo-600 */
-}
-</style>
