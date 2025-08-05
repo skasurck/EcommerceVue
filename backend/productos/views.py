@@ -1,29 +1,45 @@
-from rest_framework import viewsets
+from rest_framework import viewsets, permissions
 from .models import Producto, Categoria, Marca, ValorAtributo
 from .serializers import (
     ProductoSerializer,
     CategoriaSerializer,
     MarcaSerializer,
-    ValorAtributoSerializer
+    ValorAtributoSerializer,
 )
-from rest_framework.permissions import IsAuthenticatedOrReadOnly
+from usuarios.permissions import IsAdminOrSuperAdmin
 
 class ProductoViewSet(viewsets.ModelViewSet):
     queryset = Producto.objects.all()
     serializer_class = ProductoSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def get_permissions(self):
+        if self.action in ["create", "update", "partial_update", "destroy"]:
+            return [IsAdminOrSuperAdmin()]
+        return [permissions.AllowAny()]
 
 class CategoriaViewSet(viewsets.ModelViewSet):
     queryset = Categoria.objects.all()
     serializer_class = CategoriaSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def get_permissions(self):
+        if self.action in ["create", "update", "partial_update", "destroy"]:
+            return [IsAdminOrSuperAdmin()]
+        return [permissions.AllowAny()]
 
 class MarcaViewSet(viewsets.ModelViewSet):
     queryset = Marca.objects.all()
     serializer_class = MarcaSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def get_permissions(self):
+        if self.action in ["create", "update", "partial_update", "destroy"]:
+            return [IsAdminOrSuperAdmin()]
+        return [permissions.AllowAny()]
 
 class ValorAtributoViewSet(viewsets.ModelViewSet):
     queryset = ValorAtributo.objects.all()
     serializer_class = ValorAtributoSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def get_permissions(self):
+        if self.action in ["create", "update", "partial_update", "destroy"]:
+            return [IsAdminOrSuperAdmin()]
+        return [permissions.AllowAny()]

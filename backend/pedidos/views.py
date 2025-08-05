@@ -1,8 +1,10 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
+from rest_framework.pagination import PageNumberPagination
 from .models import Direccion, MetodoEnvio, Pedido
 from .serializers import DireccionSerializer, MetodoEnvioSerializer, PedidoSerializer
+from usuarios.permissions import IsAdminOrSuperAdmin
 
 
 class DireccionViewSet(viewsets.ModelViewSet):
@@ -44,12 +46,24 @@ class MetodoEnvioViewSet(viewsets.ReadOnlyModelViewSet):
 class PedidoViewSet(viewsets.ModelViewSet):
     serializer_class = PedidoSerializer
     permission_classes = [permissions.IsAuthenticated]
+    pagination_class = PageNumberPagination
+
+    def get_permissions(self):
+        if self.action in ["update", "partial_update", "destroy"]:
+            return [IsAdminOrSuperAdmin()]
+        return [permissions.IsAuthenticated()]
 
     def get_queryset(self):
         user = self.request.user
-        if user.is_staff:
-            return Pedido.objects.all()
-        return Pedido.objects.filter(user=user)
+        qs = (
+            Pedido.objects.all()
+            if hasattr(user, "perfil") and user.perfil.rol in ("admin", "super_admin")
+            else Pedido.objects.filter(user=user)
+        )
+        estado = self.request.query_params.get("estado")
+        if estado:
+            qs = qs.filter(estado=estado)
+        return qs.order_by("-creado")
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)

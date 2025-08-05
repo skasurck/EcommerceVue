@@ -8,6 +8,9 @@ import ProductView from '../views/ProductView.vue'
 import CarritoView from '../views/CarritoView.vue'
 import CheckoutView from '../views/CheckoutView.vue'
 import MiCuenta from '../views/MiCuenta.vue'
+import AccesoDenegado from '../views/AccesoDenegado.vue'
+import AdminPedidos from '../views/AdminPedidos.vue'
+import { useAuthStore } from '../stores/auth'
 
 const routes = [
   {
@@ -24,7 +27,7 @@ const routes = [
     path: '/nuevo-producto',
     name: 'nuevo-producto',
     component: NuevoProducto,
-    meta: { requiereAuth: true }
+    meta: { requiereAuth: true, roles: ['admin', 'super_admin'] }
   },
   {
     path: '/registro',
@@ -59,6 +62,17 @@ const routes = [
     component: MiCuenta,
     meta: { requiereAuth: true }
   },
+  {
+    path: '/admin/pedidos',
+    name: 'admin-pedidos',
+    component: AdminPedidos,
+    meta: { requiereAuth: true, roles: ['admin', 'super_admin'] }
+  },
+  {
+    path: '/acceso-denegado',
+    name: 'acceso-denegado',
+    component: AccesoDenegado
+  }
 ]
 
 const router = createRouter({
@@ -66,14 +80,23 @@ const router = createRouter({
   routes
 })
 
-// 🔐 Protección por ruta
-router.beforeEach((to, from, next) => {
+// 🔐 Protección por ruta y roles
+router.beforeEach(async (to, from, next) => {
   const token = localStorage.getItem('access')
+  const auth = useAuthStore()
   if (to.meta.requiereAuth && !token) {
-    next('/login')
-  } else {
-    next()
+    return next('/login')
   }
+  if (to.meta.roles) {
+    if (!auth.profile) {
+      await auth.fetchProfile()
+    }
+    const rol = auth.profile?.perfil?.rol
+    if (!to.meta.roles.includes(rol)) {
+      return next('/acceso-denegado')
+    }
+  }
+  next()
 })
 
 export default router
