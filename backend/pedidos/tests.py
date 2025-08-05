@@ -161,3 +161,34 @@ class DireccionDefaultTests(APITestCase):
         self.client.delete(del_url)
         d2.refresh_from_db()
         self.assertTrue(d2.predeterminada)
+
+
+class DireccionListFlagTests(APITestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.user = User.objects.create_user(username='john3', password='pass1234')
+        self.client.force_authenticate(self.user)
+
+    def test_lista_incluye_tiene_direccion(self):
+        url = reverse('direccion-list')
+        r = self.client.get(url)
+        self.assertEqual(r.status_code, status.HTTP_200_OK)
+        self.assertFalse(r.data['tiene_direccion'])
+        self.assertEqual(r.data['direcciones'], [])
+        data = {
+            'nombre': 'Juan',
+            'apellidos': 'Pérez',
+            'email': 'juan@example.com',
+            'calle': 'Calle 1',
+            'numero_exterior': '1',
+            'colonia': 'Centro',
+            'ciudad': 'CDMX',
+            'pais': 'MX',
+            'estado': 'CDMX',
+            'codigo_postal': '01010',
+            'telefono': '5555555555',
+        }
+        self.client.post(url, data, format='json')
+        r = self.client.get(url)
+        self.assertTrue(r.data['tiene_direccion'])
+        self.assertEqual(len(r.data['direcciones']), 1)

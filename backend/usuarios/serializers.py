@@ -27,7 +27,7 @@ class PerfilSerializer(serializers.ModelSerializer):
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
-    perfil = PerfilSerializer()
+    perfil = PerfilSerializer(required=False)
 
     class Meta:
         model = User
@@ -39,7 +39,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
-        perfil = instance.perfil
+        perfil, _ = Perfil.objects.get_or_create(user=instance)
         for attr, value in perfil_data.items():
             setattr(perfil, attr, value)
         perfil.save()

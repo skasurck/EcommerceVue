@@ -39,12 +39,13 @@
       <ul>
         <li v-for="pedido in pedidos" :key="pedido.id" class="mb-2">
           <button class="underline" @click="verPedido(pedido.id)">
-            Pedido #{{ pedido.id }} - Total: {{ pedido.total }}
+            Pedido #{{ pedido.id }} - Total: {{ pedido.total }} - Estado: {{ pedido.estado }}
           </button>
         </li>
       </ul>
       <div v-if="pedidoDetalle" class="border p-4">
         <h2 class="font-semibold mb-2">Detalle del pedido #{{ pedidoDetalle.id }}</h2>
+        <p class="mb-2">Total: {{ pedidoDetalle.total }} - Estado: {{ pedidoDetalle.estado }}</p>
         <div class="mb-2">
           <h3 class="font-medium">Productos</h3>
           <ul class="ml-4 list-disc">
@@ -64,6 +65,10 @@
         <div class="mb-2">
           <h3 class="font-medium">Método de pago</h3>
           <p>{{ pedidoDetalle.metodo_pago_display }}</p>
+        </div>
+        <div class="mb-2">
+          <h3 class="font-medium">Estado del pedido</h3>
+          <p>{{ pedidoDetalle.estado }}</p>
         </div>
       </div>
     </div>
@@ -149,7 +154,7 @@ const cargarDatos = async () => {
     obtenerPerfil(),
   ])
   pedidos.value = ped.data
-  direcciones.value = dir.data
+  direcciones.value = dir.data.direcciones
   perfil.value = prof.data
   perfil.value.perfil = perfil.value.perfil || { telefono: '', empresa: '' }
 }

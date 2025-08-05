@@ -12,6 +12,14 @@ class DireccionViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return Direccion.objects.filter(user=self.request.user)
 
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({
+            "tiene_direccion": queryset.exists(),
+            "direcciones": serializer.data,
+        })
+
     def perform_create(self, serializer):
         serializer.save()
 
