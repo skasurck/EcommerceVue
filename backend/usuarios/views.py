@@ -2,6 +2,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from .serializers import (
     RegisterSerializer,
@@ -9,6 +11,26 @@ from .serializers import (
     ChangePasswordSerializer,
 )
 from .models import Perfil
+
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    def validate(self, attrs):
+        data = super().validate(attrs)
+        token = data.pop("access")
+        data = {
+            "token": token,
+            "user": {
+                "id": self.user.id,
+                "nombre": self.user.first_name,
+                "email": self.user.email,
+                "rol": getattr(self.user.perfil, "rol", "")
+            }
+        }
+        return data
+
+
+class LoginView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer
 
 
 class RegisterView(APIView):

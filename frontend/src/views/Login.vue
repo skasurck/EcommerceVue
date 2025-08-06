@@ -25,13 +25,13 @@ const auth = useAuthStore()
 
 const login = async () => {
   try {
-    const res = await api.post('/token/', {
+    const res = await api.post('auth/login/', {
       username: username.value,
       password: password.value
     })
-    await auth.login(res.data.access, res.data.refresh)
+    auth.login(res.data.token, res.data.user)
     error.value = ''
-    router.push('/productos') // o donde quieras redirigir
+    router.push('/admin')
   } catch (err) {
     console.error(err)
     error.value = 'Credenciales inválidas'

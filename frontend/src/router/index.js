@@ -9,7 +9,13 @@ import CarritoView from '../views/CarritoView.vue'
 import CheckoutView from '../views/CheckoutView.vue'
 import MiCuenta from '../views/MiCuenta.vue'
 import AccesoDenegado from '../views/AccesoDenegado.vue'
+import AdminDashboard from '../views/AdminDashboard.vue'
+import AdminProductos from '../views/AdminProductos.vue'
 import AdminPedidos from '../views/AdminPedidos.vue'
+import AdminUsuarios from '../views/AdminUsuarios.vue'
+import AdminConfiguracion from '../views/AdminConfiguracion.vue'
+import MetodosPago from '../views/MetodosPago.vue'
+import MetodosEnvio from '../views/MetodosEnvio.vue'
 import { useAuthStore } from '../stores/auth'
 
 const routes = [
@@ -27,7 +33,7 @@ const routes = [
     path: '/nuevo-producto',
     name: 'nuevo-producto',
     component: NuevoProducto,
-    meta: { requiereAuth: true, roles: ['admin', 'super_admin'] }
+    meta: { requiresAuth: true, roles: ['admin', 'super_admin'] }
   },
   {
     path: '/registro',
@@ -48,25 +54,61 @@ const routes = [
     path: '/carrito',
     name: 'carrito',
     component: CarritoView,
-    meta: { requiereAuth: true }
+    meta: { requiresAuth: true }
   },
   {
     path: '/checkout',
     name: 'checkout',
     component: CheckoutView,
-    meta: { requiereAuth: true }
+    meta: { requiresAuth: true }
   },
   {
     path: '/mi-cuenta',
     name: 'mi-cuenta',
     component: MiCuenta,
-    meta: { requiereAuth: true }
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/admin',
+    name: 'admin',
+    component: AdminDashboard,
+    meta: { requiresAuth: true, roles: ['admin', 'super_admin'] }
+  },
+  {
+    path: '/admin/productos',
+    name: 'admin-productos',
+    component: AdminProductos,
+    meta: { requiresAuth: true, roles: ['admin', 'super_admin'] }
   },
   {
     path: '/admin/pedidos',
     name: 'admin-pedidos',
     component: AdminPedidos,
-    meta: { requiereAuth: true, roles: ['admin', 'super_admin'] }
+    meta: { requiresAuth: true, roles: ['admin', 'super_admin'] }
+  },
+  {
+    path: '/admin/usuarios',
+    name: 'admin-usuarios',
+    component: AdminUsuarios,
+    meta: { requiresAuth: true, roles: ['admin', 'super_admin'] }
+  },
+  {
+    path: '/admin/configuracion',
+    name: 'admin-configuracion',
+    component: AdminConfiguracion,
+    meta: { requiresAuth: true, roles: ['super_admin'] }
+  },
+  {
+    path: '/admin/configuracion/metodos-pago',
+    name: 'admin-configuracion-metodos-pago',
+    component: MetodosPago,
+    meta: { requiresAuth: true, roles: ['super_admin'] }
+  },
+  {
+    path: '/admin/configuracion/metodos-envio',
+    name: 'admin-configuracion-metodos-envio',
+    component: MetodosEnvio,
+    meta: { requiresAuth: true, roles: ['super_admin'] }
   },
   {
     path: '/acceso-denegado',
@@ -80,21 +122,13 @@ const router = createRouter({
   routes
 })
 
-// 🔐 Protección por ruta y roles
-router.beforeEach(async (to, from, next) => {
-  const token = localStorage.getItem('access')
+router.beforeEach((to, from, next) => {
   const auth = useAuthStore()
-  if (to.meta.requiereAuth && !token) {
+  if (to.meta.requiresAuth && !auth.isAuthenticated) {
     return next('/login')
   }
-  if (to.meta.roles) {
-    if (!auth.profile) {
-      await auth.fetchProfile()
-    }
-    const rol = auth.profile?.perfil?.rol
-    if (!to.meta.roles.includes(rol)) {
-      return next('/acceso-denegado')
-    }
+  if (to.meta.roles && !auth.hasAnyRole(to.meta.roles)) {
+    return next('/acceso-denegado')
   }
   next()
 })
