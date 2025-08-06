@@ -1,0 +1,140 @@
+<h2>Editar producto: {{ producto.nombre }}</h2>
+<form method="post" enctype="multipart/form-data" id="producto-form">
+  {% csrf_token %}
+  <p>
+    {{ form.nombre.label_tag }} {{ form.nombre }}
+  </p>
+  <p>
+    {{ form.descripcion_corta.label_tag }} {{ form.descripcion_corta }}
+  </p>
+  <p>
+    {{ form.descripcion_larga.label_tag }} {{ form.descripcion_larga }}
+  </p>
+  <p>
+    {{ form.precio_normal.label_tag }} {{ form.precio_normal }}
+  </p>
+  <p>
+    {{ form.precio_rebajado.label_tag }} {{ form.precio_rebajado }}
+  </p>
+  <p>
+    {{ form.sku.label_tag }} {{ form.sku }}
+  </p>
+  <p>
+    {% if producto.imagen_principal %}
+      <img src="{{ producto.imagen_principal.url }}" width="150" alt="Imagen actual">
+      <label>{{ form.eliminar_imagen }} Eliminar imagen actual</label>
+    {% endif %}
+    {{ form.imagen_principal }}
+    <img id="imagen-preview" style="max-width:150px; display:none;"/>
+  </p>
+  <p>
+    {{ form.categoria.label_tag }} {{ form.categoria }}
+  </p>
+  <p>
+    {{ form.categorias.label_tag }} {{ form.categorias }}
+  </p>
+  <p>
+    {{ form.marca.label_tag }} {{ form.marca }}
+  </p>
+  <p>
+    {{ form.stock.label_tag }} {{ form.stock }}
+  </p>
+  <p>
+    {{ form.estado_inventario.label_tag }} {{ form.estado_inventario }}
+  </p>
+  <p>
+    {{ form.disponible.label_tag }} {{ form.disponible }}
+  </p>
+  <p>
+    {{ form.visibilidad.label_tag }} {{ form.visibilidad }}
+  </p>
+  <p>
+    {{ form.estado.label_tag }} {{ form.estado }}
+  </p>
+
+  <h3>Atributos</h3>
+  <div id="atributos-container" data-options="{% for v in valores_atributo %}<option value='{{ v.id }}'>{{ v }}</option>{% endfor %}">
+    {% for val in producto.atributos.all %}
+      <div class="atributo-item">
+        <select name="atributos">
+          {% for v in valores_atributo %}
+            <option value="{{ v.id }}" {% if v.id == val.id %}selected{% endif %}>{{ v }}</option>
+          {% endfor %}
+        </select>
+        <button type="button" class="remove-atributo">Eliminar</button>
+      </div>
+    {% endfor %}
+  </div>
+  <button type="button" id="add-atributo">Añadir atributo</button>
+
+  <h3>Precios escalonados</h3>
+  <div id="precios-formset" data-empty-form="{{ formset.empty_form.as_p|escapejs }}">
+    {{ formset.management_form }}
+    {% for f in formset %}
+      <div class="precio-form">
+        {{ f.as_p }}
+        <button type="button" class="remove-precio">Eliminar</button>
+      </div>
+    {% endfor %}
+  </div>
+  <button type="button" id="add-precio">Añadir precio escalonado</button>
+
+  <p>
+    <button type="submit">Guardar</button>
+  </p>
+</form>
+
+<script>
+const inputImagen = document.getElementById('id_imagen_principal');
+const preview = document.getElementById('imagen-preview');
+if(inputImagen){
+  inputImagen.addEventListener('change', e => {
+    const file = e.target.files[0];
+    if(file){
+      preview.src = URL.createObjectURL(file);
+      preview.style.display = 'block';
+    }
+  });
+}
+
+const attrContainer = document.getElementById('atributos-container');
+const attrOptions = attrContainer.dataset.options;
+document.getElementById('add-atributo').addEventListener('click', () => {
+  const div = document.createElement('div');
+  div.className = 'atributo-item';
+  div.innerHTML = `<select name="atributos">${attrOptions}</select> <button type="button" class="remove-atributo">Eliminar</button>`;
+  attrContainer.appendChild(div);
+});
+attrContainer.addEventListener('click', e => {
+  if(e.target.classList.contains('remove-atributo')){
+    e.target.parentElement.remove();
+  }
+});
+
+const preciosDiv = document.getElementById('precios-formset');
+const emptyForm = preciosDiv.dataset.emptyForm;
+let formIndex = {{ formset.total_form_count }};
+document.getElementById('add-precio').addEventListener('click', () => {
+  const html = emptyForm.replace(/__prefix__/g, formIndex);
+  const div = document.createElement('div');
+  div.className = 'precio-form';
+  div.innerHTML = html + '<button type="button" class="remove-precio">Eliminar</button>';
+  preciosDiv.appendChild(div);
+  formIndex++;
+  document.getElementById('id_precios_escalonados-TOTAL_FORMS').value = formIndex;
+});
+preciosDiv.addEventListener('click', e => {
+  if(e.target.classList.contains('remove-precio')){
+    const formDiv = e.target.closest('.precio-form');
+    const delInput = formDiv.querySelector('input[id$="-DELETE"]');
+    if(delInput){
+      delInput.checked = true;
+      formDiv.style.display = 'none';
+    } else {
+      formDiv.remove();
+      formIndex--;
+      document.getElementById('id_precios_escalonados-TOTAL_FORMS').value = formIndex;
+    }
+  }
+});
+</script>

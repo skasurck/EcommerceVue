@@ -23,9 +23,11 @@ from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
 )
+from productos.views import editar_producto
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('productos/editar/<int:pk>/', editar_producto, name='editar_producto'),
     path('api/', include('productos.urls')),
     path('api/', include('usuarios.urls')),
     path('api/', include('carrito.urls')),

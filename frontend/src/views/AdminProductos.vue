@@ -70,7 +70,8 @@
               <button @click="cancelar(p)">Cancelar</button>
             </div>
             <div v-else>
-              <button @click="editar(p)">Editar</button>
+              <button @click="editar(p)">Edición rápida</button>
+              <a :href="`/productos/editar/${p.id}/`">Editar</a>
             </div>
           </td>
         </tr>
@@ -87,12 +88,13 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import api from '../axios'
 
 defineOptions({ name: 'AdminProductos' })
 
 const router = useRouter()
+const route = useRoute()
 const productos = ref([])
 const categorias = ref([])
 const marcas = ref([])
@@ -169,5 +171,9 @@ function nuevoProducto() {
 onMounted(async () => {
   await fetchFiltros()
   await fetchProductos()
+  if (route.query.actualizado) {
+    alert('Producto actualizado correctamente')
+    router.replace({ query: {} })
+  }
 })
 </script>
