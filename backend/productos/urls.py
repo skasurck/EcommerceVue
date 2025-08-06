@@ -4,15 +4,19 @@ from .views import (
     ProductoViewSet,
     CategoriaViewSet,
     MarcaViewSet,
+    AtributoViewSet,
     ValorAtributoViewSet,
     ImagenProductoViewSet,
+    PrecioEscalonadoViewSet,
 )
 
 router = DefaultRouter()
 router.register(r'productos', ProductoViewSet)
 router.register(r'categorias', CategoriaViewSet)
 router.register(r'marcas', MarcaViewSet)
+router.register(r'atributos-base', AtributoViewSet)
 router.register(r'atributos', ValorAtributoViewSet)
+router.register(r'precios-escalonados', PrecioEscalonadoViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),

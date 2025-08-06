@@ -6,6 +6,7 @@ from .models import (
     PrecioEscalonado,
     Categoria,
     Marca,
+    Atributo,
     ValorAtributo,
 )
 
@@ -22,12 +23,21 @@ class MarcaSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
+class AtributoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Atributo
+        fields = "__all__"
+
+
 class ValorAtributoSerializer(serializers.ModelSerializer):
-    atributo = serializers.StringRelatedField()
+    atributo = AtributoSerializer(read_only=True)
+    atributo_id = serializers.PrimaryKeyRelatedField(
+        queryset=Atributo.objects.all(), source="atributo", write_only=True
+    )
 
     class Meta:
         model = ValorAtributo
-        fields = ["id", "atributo", "valor"]
+        fields = ["id", "atributo", "atributo_id", "valor"]
 
 
 class ImagenProductoSerializer(serializers.ModelSerializer):

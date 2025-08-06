@@ -50,6 +50,7 @@
           <option :value="null">Sin categoría</option>
           <option v-for="c in categorias" :key="c.id" :value="c.id">{{ c.nombre }}</option>
         </select>
+        <button type="button" @click="showCatModal = true">Gestionar</button>
       </div>
       <div>
         <label>Categorías</label>
@@ -63,12 +64,14 @@
           <option :value="null">Sin marca</option>
           <option v-for="m in marcas" :key="m.id" :value="m.id">{{ m.nombre }}</option>
         </select>
+        <button type="button" @click="showMarcaModal = true">Gestionar</button>
       </div>
       <div>
         <label>Atributos</label>
         <select v-model="form.atributos" multiple>
-          <option v-for="a in atributos" :key="a.id" :value="a.id">{{ a.atributo }} - {{ a.valor }}</option>
+          <option v-for="a in atributos" :key="a.id" :value="a.id">{{ nombreAtributo(a) }} - {{ a.valor }}</option>
         </select>
+        <button type="button" @click="showAttrModal = true">Gestionar</button>
       </div>
       <div>
         <label>
@@ -106,8 +109,66 @@
         </table>
         <button type="button" @click="addTier">Añadir precio</button>
       </div>
-      <button type="submit">Guardar</button>
+      <button type="submit" :disabled="loading">Guardar</button>
+      <span v-if="loading">Guardando...</span>
     </form>
+
+    <!-- Modal Categorías -->
+    <div v-if="showCatModal" class="modal">
+      <div class="modal-content">
+        <h3>Categorías</h3>
+        <div v-for="c in categorias" :key="c.id">
+          <input v-model="c.nombre" />
+          <button type="button" @click="guardarCategoria(c)">Guardar</button>
+          <button type="button" @click="eliminarCategoria(c.id)">Eliminar</button>
+        </div>
+        <input v-model="nuevaCategoria" placeholder="Nueva categoría" />
+        <button type="button" @click="agregarCategoria">Agregar</button>
+        <button type="button" @click="showCatModal = false">Cerrar</button>
+      </div>
+    </div>
+
+    <!-- Modal Marcas -->
+    <div v-if="showMarcaModal" class="modal">
+      <div class="modal-content">
+        <h3>Marcas</h3>
+        <div v-for="m in marcas" :key="m.id">
+          <input v-model="m.nombre" />
+          <button type="button" @click="guardarMarca(m)">Guardar</button>
+          <button type="button" @click="eliminarMarca(m.id)">Eliminar</button>
+        </div>
+        <input v-model="nuevaMarca" placeholder="Nueva marca" />
+        <button type="button" @click="agregarMarca">Agregar</button>
+        <button type="button" @click="showMarcaModal = false">Cerrar</button>
+      </div>
+    </div>
+
+    <!-- Modal Atributos -->
+    <div v-if="showAttrModal" class="modal">
+      <div class="modal-content">
+        <h3>Atributos</h3>
+        <div v-for="a in atributos" :key="a.id">
+          <select v-model="a.atributo_id">
+            <option v-for="b in atributosBase" :key="b.id" :value="b.id">{{ b.nombre }}</option>
+          </select>
+          <input v-model="a.valor" />
+          <button type="button" @click="guardarValor(a)">Guardar</button>
+          <button type="button" @click="eliminarValor(a.id)">Eliminar</button>
+        </div>
+        <div>
+          <select v-model="nuevoValor.atributo_id">
+            <option v-for="b in atributosBase" :key="b.id" :value="b.id">{{ b.nombre }}</option>
+          </select>
+          <input v-model="nuevoValor.valor" placeholder="Valor" />
+          <button type="button" @click="agregarValor">Agregar valor</button>
+        </div>
+        <div>
+          <input v-model="nuevoAtributo" placeholder="Nuevo atributo" />
+          <button type="button" @click="agregarAtributo">Agregar atributo</button>
+        </div>
+        <button type="button" @click="showAttrModal = false">Cerrar</button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -146,7 +207,16 @@ const galeria = ref([])
 const categorias = ref([])
 const marcas = ref([])
 const atributos = ref([])
+const atributosBase = ref([])
 const preciosEscalonados = ref([])
+const showCatModal = ref(false)
+const showMarcaModal = ref(false)
+const showAttrModal = ref(false)
+const nuevaCategoria = ref('')
+const nuevaMarca = ref('')
+const nuevoValor = reactive({ atributo_id: null, valor: '' })
+const nuevoAtributo = ref('')
+const loading = ref(false)
 
 onMounted(async () => {
   await fetchOpciones()
@@ -154,14 +224,16 @@ onMounted(async () => {
 })
 
 async function fetchOpciones() {
-  const [catRes, marcaRes, attrRes] = await Promise.all([
+  const [catRes, marcaRes, attrRes, baseRes] = await Promise.all([
     api.get('categorias/'),
     api.get('marcas/'),
-    api.get('atributos/')
+    api.get('atributos/'),
+    api.get('atributos-base/')
   ])
   categorias.value = catRes.data
   marcas.value = marcaRes.data
-  atributos.value = attrRes.data
+  atributos.value = attrRes.data.map(v => ({ ...v, atributo_id: v.atributo.id }))
+  atributosBase.value = baseRes.data
 }
 
 async function fetchProducto() {
@@ -183,16 +255,17 @@ async function subirGaleria(e) {
   for (const file of files) {
     const fd = new FormData()
     fd.append('imagen', file)
-    await api.post(`productos/${id}/galeria/`, fd, {
+    const { data } = await api.post(`productos/${id}/galeria/`, fd, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
+    galeria.value.push(data)
   }
-  await fetchProducto()
+  e.target.value = ''
 }
 
 async function eliminarImagen(imgId) {
   await api.delete(`galeria/${imgId}/`)
-  await fetchProducto()
+  galeria.value = galeria.value.filter(i => i.id !== imgId)
 }
 
 function addTier() {
@@ -204,6 +277,12 @@ function removeTier(index) {
 }
 
 async function guardar() {
+  const cantidades = preciosEscalonados.value.map(t => t.cantidad_minima)
+  if (new Set(cantidades).size !== cantidades.length) {
+    alert('Cantidades mínimas duplicadas')
+    return
+  }
+
   const fd = new FormData()
   fd.append('nombre', form.nombre)
   fd.append('descripcion_corta', form.descripcion_corta || '')
@@ -229,11 +308,94 @@ async function guardar() {
     fd.append('imagen_principal', imagenPrincipal.value)
   }
 
-  await api.put(`productos/${id}/`, fd, {
-    headers: { 'Content-Type': 'multipart/form-data' }
+  loading.value = true
+  try {
+    await api.put(`productos/${id}/`, fd, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+    alert('Producto actualizado')
+    router.push('/admin/productos')
+  } finally {
+    loading.value = false
+  }
+}
+
+function slugify(str) {
+  return str.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+}
+
+function nombreAtributo(a) {
+  const base = atributosBase.value.find(b => b.id === a.atributo_id || b.id === a.atributo?.id)
+  return base ? base.nombre : ''
+}
+
+async function agregarCategoria() {
+  if (!nuevaCategoria.value) return
+  const slug = slugify(nuevaCategoria.value)
+  const { data } = await api.post('categorias/', { nombre: nuevaCategoria.value, slug })
+  categorias.value.push(data)
+  nuevaCategoria.value = ''
+}
+
+async function guardarCategoria(cat) {
+  const slug = slugify(cat.nombre)
+  await api.put(`categorias/${cat.id}/`, { nombre: cat.nombre, slug })
+}
+
+async function eliminarCategoria(id) {
+  await api.delete(`categorias/${id}/`)
+  categorias.value = categorias.value.filter(c => c.id !== id)
+  if (form.categoria === id) form.categoria = null
+  form.categorias = form.categorias.filter(c => c !== id)
+}
+
+async function agregarMarca() {
+  if (!nuevaMarca.value) return
+  const { data } = await api.post('marcas/', { nombre: nuevaMarca.value })
+  marcas.value.push(data)
+  nuevaMarca.value = ''
+}
+
+async function guardarMarca(m) {
+  await api.put(`marcas/${m.id}/`, { nombre: m.nombre })
+}
+
+async function eliminarMarca(id) {
+  await api.delete(`marcas/${id}/`)
+  marcas.value = marcas.value.filter(m => m.id !== id)
+  if (form.marca === id) form.marca = null
+}
+
+async function agregarAtributo() {
+  if (!nuevoAtributo.value) return
+  const { data } = await api.post('atributos-base/', { nombre: nuevoAtributo.value })
+  atributosBase.value.push(data)
+  nuevoAtributo.value = ''
+}
+
+async function agregarValor() {
+  if (!nuevoValor.atributo_id || !nuevoValor.valor) return
+  const { data } = await api.post('atributos/', {
+    atributo_id: nuevoValor.atributo_id,
+    valor: nuevoValor.valor
   })
-  alert('Producto actualizado')
-  router.push('/admin/productos')
+  data.atributo_id = data.atributo.id
+  atributos.value.push(data)
+  nuevoValor.atributo_id = null
+  nuevoValor.valor = ''
+}
+
+async function guardarValor(v) {
+  await api.put(`atributos/${v.id}/`, {
+    atributo_id: v.atributo_id,
+    valor: v.valor
+  })
+}
+
+async function eliminarValor(id) {
+  await api.delete(`atributos/${id}/`)
+  atributos.value = atributos.value.filter(a => a.id !== id)
+  form.atributos = form.atributos.filter(a => a !== id)
 }
 </script>
 

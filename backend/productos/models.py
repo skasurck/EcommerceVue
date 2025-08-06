@@ -3,6 +3,7 @@ from PIL import Image, ImageOps
 from io import BytesIO
 from django.core.files.base import ContentFile
 from django.utils.crypto import get_random_string
+from django.utils.html import format_html
 import os
 
 # ──────────── CATEGORÍAS ────────────
@@ -134,6 +135,11 @@ class ImagenProducto(models.Model):
         return "Sin imagen"
 
     vista_previa.short_description = "Vista previa"
+
+    def delete(self, *args, **kwargs):
+        if self.imagen:
+            self.imagen.delete(save=False)
+        super().delete(*args, **kwargs)
 
 # ──────────── PRECIOS ESCALONADOS ────────────
 class PrecioEscalonado(models.Model):

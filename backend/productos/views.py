@@ -4,13 +4,23 @@ from django.db.models import Q
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
-from .models import Producto, Categoria, Marca, ValorAtributo, ImagenProducto
+from .models import (
+    Producto,
+    Categoria,
+    Marca,
+    Atributo,
+    ValorAtributo,
+    ImagenProducto,
+    PrecioEscalonado,
+)
 from .serializers import (
     ProductoSerializer,
     CategoriaSerializer,
     MarcaSerializer,
+    AtributoSerializer,
     ValorAtributoSerializer,
     ImagenProductoSerializer,
+    PrecioEscalonadoSerializer,
 )
 from .forms import ProductoForm, PrecioEscalonadoFormSet
 from usuarios.permissions import IsAdminOrSuperAdmin
@@ -66,6 +76,17 @@ class MarcaViewSet(viewsets.ModelViewSet):
             return [IsAdminOrSuperAdmin()]
         return [permissions.AllowAny()]
 
+
+class AtributoViewSet(viewsets.ModelViewSet):
+    queryset = Atributo.objects.all()
+    serializer_class = AtributoSerializer
+
+    def get_permissions(self):
+        if self.action in ["create", "update", "partial_update", "destroy"]:
+            return [IsAdminOrSuperAdmin()]
+        return [permissions.AllowAny()]
+
+
 class ValorAtributoViewSet(viewsets.ModelViewSet):
     queryset = ValorAtributo.objects.all()
     serializer_class = ValorAtributoSerializer
@@ -93,6 +114,27 @@ class ImagenProductoViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action in ["create", "destroy"]:
+            return [IsAdminOrSuperAdmin()]
+        return [permissions.AllowAny()]
+
+
+class PrecioEscalonadoViewSet(viewsets.ModelViewSet):
+    queryset = PrecioEscalonado.objects.all()
+    serializer_class = PrecioEscalonadoSerializer
+
+    def get_queryset(self):
+        producto = self.request.query_params.get("producto")
+        if producto:
+            return self.queryset.filter(producto_id=producto)
+        return self.queryset
+
+    def perform_create(self, serializer):
+        producto_id = self.request.data.get("producto")
+        producto = get_object_or_404(Producto, pk=producto_id)
+        serializer.save(producto=producto)
+
+    def get_permissions(self):
+        if self.action in ["create", "update", "partial_update", "destroy"]:
             return [IsAdminOrSuperAdmin()]
         return [permissions.AllowAny()]
 
