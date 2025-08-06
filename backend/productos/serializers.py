@@ -1,241 +1,171 @@
-from django.contrib.auth.models import User
 from rest_framework import serializers
-from .models import Producto, ImagenProducto, PrecioEscalonado, Categoria, Marca, ValorAtributo
 import json
 
-# ──────────── CATEGORÍA ────────────
+from .models import (
+    Producto,
+    ImagenProducto,
+    PrecioEscalonado,
+    Categoria,
+    Marca,
+    Atributo,
+    ValorAtributo,
+)
+
+
 class CategoriaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Categoria
-        fields = '__all__'
+        fields = "__all__"
 
-# ──────────── MARCA ────────────
+
 class MarcaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Marca
-        fields = '__all__'
+        fields = "__all__"
 
-# ──────────── ATRIBUTOS ────────────
+
+class AtributoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Atributo
+        fields = "__all__"
+
+
 class ValorAtributoSerializer(serializers.ModelSerializer):
-    atributo = serializers.StringRelatedField()
+    atributo = AtributoSerializer(read_only=True)
+    atributo_id = serializers.PrimaryKeyRelatedField(
+        queryset=Atributo.objects.all(), source="atributo", write_only=True
+    )
 
     class Meta:
         model = ValorAtributo
-        fields = ['id', 'atributo', 'valor']
+        fields = ["id", "atributo", "atributo_id", "valor"]
 
-# ──────────── GALERÍA ────────────
+
 class ImagenProductoSerializer(serializers.ModelSerializer):
     class Meta:
         model = ImagenProducto
-        fields = ['id', 'imagen']
+        fields = ["id", "imagen"]
 
-# ──────────── PRECIOS ESCALONADOS ────────────
+
+class PrecioEscalonadoListSerializer(serializers.ListSerializer):
+    """Permite recibir una lista JSON cuando se envía vía FormData."""
+
+    def to_internal_value(self, data):
+        if isinstance(data, str):
+            try:
+                data = json.loads(data)
+            except json.JSONDecodeError:
+                data = []
+        elif isinstance(data, list) and data and isinstance(data[0], str):
+            parsed = []
+            for item in data:
+                try:
+                    parsed.append(json.loads(item))
+                except json.JSONDecodeError:
+                    continue
+            data = parsed
+        return super().to_internal_value(data)
+
+
 class PrecioEscalonadoSerializer(serializers.ModelSerializer):
+    # permitir ID para distinguir entre actualizaciones y creaciones
+    id = serializers.IntegerField(required=False)
+
     class Meta:
         model = PrecioEscalonado
-        fields = ['id', 'cantidad_minima', 'precio_unitario']
+        fields = ["id", "cantidad_minima", "precio_unitario"]
+        list_serializer_class = PrecioEscalonadoListSerializer
 
-# ──────────── PRODUCTO ────────────
+
 class ProductoSerializer(serializers.ModelSerializer):
+    categorias = serializers.PrimaryKeyRelatedField(
+        queryset=Categoria.objects.all(), many=True, required=False
+    )
+    atributos = serializers.PrimaryKeyRelatedField(
+        queryset=ValorAtributo.objects.all(), many=True, required=False
+    )
+    galeria = ImagenProductoSerializer(many=True, read_only=True)
+    precios_escalonados = PrecioEscalonadoSerializer(many=True, required=False)
     imagen_principal = serializers.ImageField(required=False)
-    categoria = serializers.PrimaryKeyRelatedField(queryset=Categoria.objects.all(), required=False)
-    marca = serializers.PrimaryKeyRelatedField(queryset=Marca.objects.all(), required=False)
-    atributos = serializers.PrimaryKeyRelatedField(queryset=ValorAtributo.objects.all(), many=True, required=False)
-    # Añadir galería de imágenes
-    galeria = serializers.ListField(
-        child=serializers.ImageField(),
-        write_only=True,
-        required=False
-    ) 
-    galeria_read = ImagenProductoSerializer(many=True, read_only=True, source='galeria')
-    stock = serializers.IntegerField(default=0, required=False)
-    precios_escalonados = PrecioEscalonadoSerializer(many=True, read_only=True)
-    miniatura_url = serializers.SerializerMethodField()
+
     class Meta:
         model = Producto
         fields = [
-            'id', 'nombre', 'descripcion_corta', 'descripcion_larga',
-            'precio_normal', 'precio_rebajado', 'sku', 'imagen_principal',
-            'miniatura_url','estado_inventario', 'disponible',
-            'visibilidad', 'estado', 'categoria', 'marca', 'atributos',
-            'galeria','galeria_read','stock', 'precios_escalonados'
+            "id",
+            "nombre",
+            "descripcion_corta",
+            "descripcion_larga",
+            "precio_normal",
+            "precio_rebajado",
+            "sku",
+            "imagen_principal",
+            "miniatura",
+            "disponible",
+            "estado_inventario",
+            "visibilidad",
+            "estado",
+            "categoria",
+            "categorias",
+            "marca",
+            "atributos",
+            "stock",
+            "fecha_creacion",
+            "galeria",
+            "precios_escalonados",
         ]
-    # Método para obtener la URL de la miniatura
-    def get_miniatura_url(self, obj):
-        request = self.context.get('request')
-        if obj.miniatura and hasattr(obj.miniatura, 'url'):
-            url = obj.miniatura.url
-            return request.build_absolute_uri(url) if request else url
-        return None
-    # Validación del precio
-    def validate_precio_normal(self, value):
-        if value <= 0:
-            raise serializers.ValidationError("El precio debe ser mayor a 0.")
+        read_only_fields = ["miniatura", "fecha_creacion"]
+
+    def validate_precios_escalonados(self, value):
+        cantidades = [tier["cantidad_minima"] for tier in value]
+        if len(cantidades) != len(set(cantidades)):
+            raise serializers.ValidationError("No se puede repetir cantidad_minima")
         return value
 
-    # Validación de la imagen
-    def validate_imagen_principal(self, image):
-        if not image:
-            return image  # Imagen es opcional
+    def create(self, validated_data):
+        precios_data = validated_data.pop("precios_escalonados", [])
+        categorias = validated_data.pop("categorias", [])
+        atributos = validated_data.pop("atributos", [])
 
-        formatos_permitidos = ['image/jpeg', 'image/png', 'image/webp']
-        if hasattr(image, 'content_type') and image.content_type not in formatos_permitidos:
-            raise serializers.ValidationError("Solo se permiten JPG, PNG o WEBP.")
+        producto = Producto.objects.create(**validated_data)
+        producto.categorias.set(categorias)
+        producto.atributos.set(atributos)
 
-        if image.size > 10 * 1024 * 1024:
-            raise serializers.ValidationError("La imagen supera los 10 MB.")
-        
-        return image
-    # Crear el producto y las imágenes de galería
-    def create(self, validated_data): 
-        request = self.context['request']
-        
-        galeria_imagenes = request.FILES.getlist('galeria')
-        imagen_principal = request.FILES.get('imagen_principal')  # 👈 Extrae imagen principal
-        miniatura = request.FILES.get('miniatura')  # 👈 Si también mandas miniatura por separado
-
-        precios_data = []
-        # Extraer precios escalonados del cuerpo de la petición (vienen como JSON)
-        for valor in request.data.getlist('precios_escalonados'):
-            try:
-                precios_data.append(json.loads(valor))
-            except Exception:
-                pass
-        precios_data.extend(validated_data.pop('precios_escalonados', []))
-        atributos_data = validated_data.pop('atributos', [])
-        # Evitar pasar la galería como argumento directo a Producto.objects.create
-        validated_data.pop('galeria', None)
-
-        imagen_principal = validated_data.pop('imagen_principal', None)
-        miniatura = validated_data.pop('miniatura', None)
-
-        # Crea el producto sin imagen_principal ni miniatura aún
-        producto = Producto.objects.create(
-        imagen_principal=imagen_principal,
-        miniatura=miniatura,
-            **validated_data
-        )
-
-        # Asignar imagen principal y miniatura si existen
-        if imagen_principal:
-            producto.imagen_principal = imagen_principal
-
-        if miniatura:
-            producto.miniatura = miniatura
-
-        producto.save()  # 👈 Muy importante
-
-        # Relación ManyToMany
-        producto.atributos.set(atributos_data)
-
-        # Galería de imágenes
-        for imagen in galeria_imagenes:
-            ImagenProducto.objects.create(producto=producto, imagen=imagen)
-
-        # Precios escalonados
-        for precio in precios_data:
-            PrecioEscalonado.objects.create(producto=producto, **precio)
+        for tier in precios_data:
+            tier = dict(tier)
+            tier.pop("id", None)
+            PrecioEscalonado.objects.create(producto=producto, **tier)
 
         return producto
 
-    
     def update(self, instance, validated_data):
-        request = self.context['request']
-        precios_data = []
-        for valor in request.data.getlist('precios_escalonados'):
-            try:
-                precios_data.append(json.loads(valor))
-            except Exception:
-                pass
-        precios_data.extend(validated_data.pop('precios_escalonados', []))
-        galeria_imagenes = request.FILES.getlist('galeria')
-        
-        # Actualiza campos del producto
+        precios_data = validated_data.pop("precios_escalonados", None)
+        categorias = validated_data.pop("categorias", None)
+        atributos = validated_data.pop("atributos", None)
+
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
 
-        # Elimina los precios actuales y los vuelve a crear
-        instance.precios_escalonados.all().delete()
-        for precio in precios_data:
-            PrecioEscalonado.objects.create(producto=instance, **precio)
-
-        # Opcional: eliminar galería y agregar nuevas si las mandas
-        for imagen in galeria_imagenes:
-            ImagenProducto.objects.create(producto=instance, imagen=imagen)
+        if categorias is not None:
+            instance.categorias.set(categorias)
+        if atributos is not None:
+            instance.atributos.set(atributos)
+        if precios_data is not None:
+            existentes = {p.id: p for p in instance.precios_escalonados.all()}
+            enviados = []
+            for tier in precios_data:
+                tier = dict(tier)
+                tier_id = tier.pop("id", None)
+                if tier_id and tier_id in existentes:
+                    obj = existentes[tier_id]
+                    obj.cantidad_minima = tier["cantidad_minima"]
+                    obj.precio_unitario = tier["precio_unitario"]
+                    obj.save()
+                    enviados.append(tier_id)
+                else:
+                    nuevo = PrecioEscalonado.objects.create(producto=instance, **tier)
+                    enviados.append(nuevo.id)
+            instance.precios_escalonados.exclude(id__in=enviados).delete()
 
         return instance
-    
-    def validate_precios_escalonados(self, value):
-        """Valida que no existan cantidades repetidas y que los precios sigan un
-        orden lógico (a mayor cantidad, menor o igual precio)."""
 
-        cantidades = set()
-        # Ordenamos por cantidad para verificar la lógica de precios
-        tiers = sorted(value, key=lambda x: x.get('cantidad_minima', 0))
-        precio_anterior = None
-
-        for item in tiers:
-            cantidad = item.get('cantidad_minima')
-            precio = item.get('precio_unitario')
-
-            if cantidad in cantidades:
-                raise serializers.ValidationError(
-                    f"Ya se definió un precio para {cantidad} unidades.")
-            if cantidad <= 0:
-                raise serializers.ValidationError(
-                    "La cantidad mínima debe ser mayor a 0.")
-            if precio <= 0:
-                raise serializers.ValidationError(
-                    "El precio unitario debe ser mayor a 0.")
-
-            if precio_anterior is not None and precio > precio_anterior:
-                raise serializers.ValidationError(
-                    "Cada nuevo precio debe ser menor o igual al anterior.")
-
-            precio_anterior = precio            
-            cantidades.add(cantidad)
-
-        return tiers
-    
-    def validate(self, attrs):
-        stock = attrs.get('stock', None)
-        estado = attrs.get('estado_inventario', None)
-        precio_normal = attrs.get('precio_normal', getattr(self.instance, 'precio_normal', None))
-        precio_rebajado = attrs.get('precio_rebajado', getattr(self.instance, 'precio_rebajado', None))
-
-        if stock == 0 and estado != 'agotado':
-            raise serializers.ValidationError({
-                'estado_inventario': 'Si el stock es 0, el estado de inventario debe ser "agotado".'
-            })
-
-        if stock > 0 and estado != 'en_existencia':
-            raise serializers.ValidationError({
-                'estado_inventario': 'Si hay stock disponible, el estado debe ser "en existencia".'
-            })
-        
-        if precio_rebajado is not None and precio_normal is not None and precio_rebajado > precio_normal:
-            raise serializers.ValidationError({
-                'precio_rebajado': 'El precio rebajado no puede ser mayor al precio normal.'
-            })
-
-        return attrs
-
-    
-class ImagenProductoCreateSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ImagenProducto
-        fields = ['id', 'producto', 'imagen']
-    
-    def validate_imagen(self, image):
-        if not image:
-            raise serializers.ValidationError("La imagen es obligatoria.")
-
-        formatos_permitidos = ['image/jpeg', 'image/png', 'image/webp']
-        if hasattr(image, 'content_type') and image.content_type not in formatos_permitidos:
-            raise serializers.ValidationError("Formato inválido. Usa JPG, PNG o WEBP.")
-
-        if image.size > 10 * 1024 * 1024:
-            raise serializers.ValidationError("La imagen supera los 10 MB.")
-        
-        return image

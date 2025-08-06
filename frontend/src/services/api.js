@@ -1,12 +1,7 @@
-// src/services/api.js
 import api from '../axios'
 
-const API_BASE_URL = 'http://127.0.0.1:8000/api/'
-
-export const obtenerProductos = () => {
-  return api.get(`${API_BASE_URL}productos/`)
-}
-export const obtenerProducto = (id) => api.get(`${API_BASE_URL}productos/${id}/`)
+export const obtenerProductos = (params = {}) => api.get('productos/', { params })
+export const obtenerProducto = (id) => api.get(`productos/${id}/`)
 
 // Carrito
 export const obtenerCarrito = () => api.get('carrito/')

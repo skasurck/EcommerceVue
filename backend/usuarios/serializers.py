@@ -23,7 +23,8 @@ class RegisterSerializer(serializers.ModelSerializer):
 class PerfilSerializer(serializers.ModelSerializer):
     class Meta:
         model = Perfil
-        fields = ["telefono", "empresa"]
+        fields = ["telefono", "empresa", "rol"]
+        read_only_fields = ["rol"]
 
 
 class UserProfileSerializer(serializers.ModelSerializer):

@@ -1,37 +1,36 @@
 import { defineStore } from 'pinia'
-import axios from '../axios'
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
-    isLoggedIn: !!localStorage.getItem('access'),
-    profile: null,
+    token: localStorage.getItem('token') || null,
+    user: localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')) : null,
+    isAuthenticated: !!localStorage.getItem('token'),
   }),
   actions: {
-    login(token, refresh) {
-      localStorage.setItem('access', token)
-      localStorage.setItem('refresh', refresh)
-      this.isLoggedIn = true
-      this.fetchProfile()
+    login(token, user) {
+      this.token = token
+      this.user = user
+      this.isAuthenticated = true
+      localStorage.setItem('token', token)
+      localStorage.setItem('user', JSON.stringify(user))
     },
     logout() {
-      localStorage.removeItem('access')
-      localStorage.removeItem('refresh')
-      this.isLoggedIn = false
-      this.profile = null
+      this.token = null
+      this.user = null
+      this.isAuthenticated = false
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
     },
-    async fetchProfile() {
-      try {
-        const res = await axios.get('profile/')
-        this.profile = res.data
-      } catch (err) {
-        console.error('Error cargando perfil:', err)
-      }
+    hasRole(role) {
+      return this.user?.rol === role
+    },
+    hasAnyRole(roles) {
+      return roles.includes(this.user?.rol)
     },
     checkLogin() {
-      this.isLoggedIn = !!localStorage.getItem('access')
-      if (this.isLoggedIn) {
-        this.fetchProfile()
-      }
+      this.token = localStorage.getItem('token') || null
+      this.user = localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')) : null
+      this.isAuthenticated = !!this.token
     }
-  },
+  }
 })

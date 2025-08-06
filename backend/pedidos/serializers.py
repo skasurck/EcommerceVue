@@ -197,3 +197,42 @@ class PedidoSerializer(serializers.ModelSerializer):
                 CartItem.objects.filter(user=user).delete()
 
             return pedido
+
+    def update(self, instance, validated_data):
+        direccion_data = validated_data.pop("direccion", None)
+        items_data = validated_data.pop("items", None)
+
+        if direccion_data:
+            for attr, value in direccion_data.items():
+                setattr(instance.direccion, attr, value)
+            instance.direccion.save()
+
+        if items_data is not None:
+            instance.items.all().delete()
+            subtotal = Decimal("0")
+            for item in items_data:
+                producto_id = (
+                    item["producto"].id
+                    if isinstance(item["producto"], Producto)
+                    else item["producto"]
+                )
+                producto = Producto.objects.get(pk=producto_id)
+                cantidad = item["cantidad"]
+                precio = producto.precio_rebajado or producto.precio_normal
+                item_subtotal = precio * cantidad
+                PedidoItem.objects.create(
+                    pedido=instance,
+                    producto=producto,
+                    cantidad=cantidad,
+                    precio_unitario=precio,
+                    subtotal=item_subtotal,
+                )
+                subtotal += item_subtotal
+            instance.subtotal = subtotal
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        instance.total = instance.subtotal + instance.costo_envio
+        instance.save()
+        return instance
