@@ -56,6 +56,14 @@ class PrecioEscalonadoListSerializer(serializers.ListSerializer):
                 data = json.loads(data)
             except json.JSONDecodeError:
                 data = []
+        elif isinstance(data, list) and data and isinstance(data[0], str):
+            parsed = []
+            for item in data:
+                try:
+                    parsed.append(json.loads(item))
+                except json.JSONDecodeError:
+                    continue
+            data = parsed
         return super().to_internal_value(data)
 
 
@@ -123,6 +131,8 @@ class ProductoSerializer(serializers.ModelSerializer):
         producto.atributos.set(atributos)
 
         for tier in precios_data:
+            tier = dict(tier)
+            tier.pop("id", None)
             PrecioEscalonado.objects.create(producto=producto, **tier)
 
         return producto
@@ -144,7 +154,8 @@ class ProductoSerializer(serializers.ModelSerializer):
             existentes = {p.id: p for p in instance.precios_escalonados.all()}
             enviados = []
             for tier in precios_data:
-                tier_id = tier.get("id")
+                tier = dict(tier)
+                tier_id = tier.pop("id", None)
                 if tier_id and tier_id in existentes:
                     obj = existentes[tier_id]
                     obj.cantidad_minima = tier["cantidad_minima"]

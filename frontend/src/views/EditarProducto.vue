@@ -101,7 +101,7 @@
       <div>
         <h3>Precios escalonados</h3>
         <table>
-          <tr v-for="(tier, index) in preciosEscalonados" :key="index">
+          <tr v-for="(tier, index) in preciosEscalonados" :key="tier.id || index">
             <td><input type="number" v-model.number="tier.cantidad_minima" /></td>
             <td><input type="number" step="0.01" v-model.number="tier.precio_unitario" /></td>
             <td><button type="button" @click="removeTier(index)">X</button></td>
@@ -277,7 +277,7 @@ async function eliminarImagen(imgId) {
 }
 
 function addTier() {
-  preciosEscalonados.value.push({ cantidad_minima: 0, precio_unitario: 0 })
+  preciosEscalonados.value.push({ id: null, cantidad_minima: 0, precio_unitario: 0 })
 }
 
 function removeTier(index) {

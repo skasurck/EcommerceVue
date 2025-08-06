@@ -1,3 +1,48 @@
-from django.test import TestCase
+from decimal import Decimal
+from django.urls import reverse
+from rest_framework.test import APITestCase
+from django.contrib.auth import get_user_model
 
-# Create your tests here.
+from .models import Producto, PrecioEscalonado
+
+
+class PrecioEscalonadoAPITests(APITestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.user = User.objects.create_user(username="admin", password="pass1234")
+        self.user.perfil.rol = "admin"
+        self.user.perfil.save()
+        self.client.force_authenticate(self.user)
+
+        self.producto = Producto.objects.create(
+            nombre="Prod",
+            precio_normal=100,
+            stock=10,
+        )
+        self.tier = PrecioEscalonado.objects.create(
+            producto=self.producto, cantidad_minima=5, precio_unitario=90
+        )
+
+    def test_actualizar_precios_escalonados(self):
+        url = reverse("producto-detail", args=[self.producto.id])
+        payload = {
+            "nombre": "Prod",
+            "precio_normal": "100",
+            "stock": 10,
+            "disponible": True,
+            "estado_inventario": "en_existencia",
+            "visibilidad": True,
+            "estado": "borrador",
+            "precios_escalonados": [
+                {"id": self.tier.id, "cantidad_minima": 5, "precio_unitario": "95"},
+                {"cantidad_minima": 20, "precio_unitario": "80"},
+            ],
+        }
+        response = self.client.put(url, payload, format="json")
+        self.assertEqual(response.status_code, 200)
+        tiers = list(
+            PrecioEscalonado.objects.filter(producto=self.producto)
+            .order_by("cantidad_minima")
+            .values_list("cantidad_minima", "precio_unitario")
+        )
+        self.assertEqual(tiers, [(5, Decimal("95")), (20, Decimal("80"))])
