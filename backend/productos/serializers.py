@@ -47,10 +47,26 @@ class ImagenProductoSerializer(serializers.ModelSerializer):
         fields = ["id", "imagen"]
 
 
+class PrecioEscalonadoListSerializer(serializers.ListSerializer):
+    """Permite recibir una lista JSON cuando se envía vía FormData."""
+
+    def to_internal_value(self, data):
+        if isinstance(data, str):
+            try:
+                data = json.loads(data)
+            except json.JSONDecodeError:
+                data = []
+        return super().to_internal_value(data)
+
+
 class PrecioEscalonadoSerializer(serializers.ModelSerializer):
+    # permitir ID para distinguir entre actualizaciones y creaciones
+    id = serializers.IntegerField(required=False)
+
     class Meta:
         model = PrecioEscalonado
         fields = ["id", "cantidad_minima", "precio_unitario"]
+        list_serializer_class = PrecioEscalonadoListSerializer
 
 
 class ProductoSerializer(serializers.ModelSerializer):
@@ -90,17 +106,6 @@ class ProductoSerializer(serializers.ModelSerializer):
             "precios_escalonados",
         ]
         read_only_fields = ["miniatura", "fecha_creacion"]
-
-    def to_internal_value(self, data):
-        """Permite recibir precios_escalonados como JSON en FormData."""
-        mutable = data.copy()
-        raw = mutable.get("precios_escalonados")
-        if isinstance(raw, str):
-            try:
-                mutable["precios_escalonados"] = json.loads(raw)
-            except json.JSONDecodeError:
-                mutable["precios_escalonados"] = []
-        return super().to_internal_value(mutable)
 
     def validate_precios_escalonados(self, value):
         cantidades = [tier["cantidad_minima"] for tier in value]
