@@ -39,6 +39,7 @@ class PrecioEscalonadoSerializer(serializers.ModelSerializer):
 class ProductoSerializer(serializers.ModelSerializer):
     imagen_principal = serializers.ImageField(required=False)
     categoria = serializers.PrimaryKeyRelatedField(queryset=Categoria.objects.all(), required=False)
+    categorias = serializers.PrimaryKeyRelatedField(queryset=Categoria.objects.all(), many=True, required=False)
     marca = serializers.PrimaryKeyRelatedField(queryset=Marca.objects.all(), required=False)
     atributos = serializers.PrimaryKeyRelatedField(queryset=ValorAtributo.objects.all(), many=True, required=False)
     # Añadir galería de imágenes
@@ -57,8 +58,8 @@ class ProductoSerializer(serializers.ModelSerializer):
             'id', 'nombre', 'descripcion_corta', 'descripcion_larga',
             'precio_normal', 'precio_rebajado', 'sku', 'imagen_principal',
             'miniatura_url','estado_inventario', 'disponible',
-            'visibilidad', 'estado', 'categoria', 'marca', 'atributos',
-            'galeria','galeria_read','stock', 'precios_escalonados'
+            'visibilidad', 'estado', 'categoria', 'categorias', 'marca', 'atributos',
+            'galeria','galeria_read','stock', 'precios_escalonados', 'fecha_creacion'
         ]
     # Método para obtener la URL de la miniatura
     def get_miniatura_url(self, obj):
@@ -103,6 +104,7 @@ class ProductoSerializer(serializers.ModelSerializer):
                 pass
         precios_data.extend(validated_data.pop('precios_escalonados', []))
         atributos_data = validated_data.pop('atributos', [])
+        categorias_data = validated_data.pop('categorias', [])
         # Evitar pasar la galería como argumento directo a Producto.objects.create
         validated_data.pop('galeria', None)
 
@@ -127,6 +129,8 @@ class ProductoSerializer(serializers.ModelSerializer):
 
         # Relación ManyToMany
         producto.atributos.set(atributos_data)
+        if categorias_data:
+            producto.categorias.set(categorias_data)
 
         # Galería de imágenes
         for imagen in galeria_imagenes:
@@ -151,9 +155,12 @@ class ProductoSerializer(serializers.ModelSerializer):
         galeria_imagenes = request.FILES.getlist('galeria')
         
         # Actualiza campos del producto
+        categorias_data = validated_data.pop('categorias', None)
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
+        if categorias_data is not None:
+            instance.categorias.set(categorias_data)
 
         # Elimina los precios actuales y los vuelve a crear
         instance.precios_escalonados.all().delete()

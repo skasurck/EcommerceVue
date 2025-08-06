@@ -55,9 +55,11 @@ class Producto(models.Model):
         ('publicado', 'Publicado')
     ], default='borrador')
     categoria = models.ForeignKey(Categoria, on_delete=models.SET_NULL, null=True, blank=True)
+    categorias = models.ManyToManyField(Categoria, blank=True, related_name='productos')
     marca = models.ForeignKey(Marca, on_delete=models.SET_NULL, null=True, blank=True)
     atributos = models.ManyToManyField(ValorAtributo, blank=True)
     stock = models.PositiveIntegerField(default=0)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
 
     def save(self, *args, **kwargs):
         is_new = self.pk is None
