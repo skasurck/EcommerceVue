@@ -71,7 +71,7 @@
             </div>
             <div v-else>
               <button @click="editar(p)">Edición rápida</button>
-              <a :href="`/productos/editar/${p.id}/`">Editar</a>
+              <router-link :to="`/productos/editar/${p.id}`">Editar</router-link>
             </div>
           </td>
         </tr>

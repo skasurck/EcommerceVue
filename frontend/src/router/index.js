@@ -16,6 +16,7 @@ import AdminUsuarios from '../views/AdminUsuarios.vue'
 import AdminConfiguracion from '../views/AdminConfiguracion.vue'
 import MetodosPago from '../views/MetodosPago.vue'
 import MetodosEnvio from '../views/MetodosEnvio.vue'
+import EditarProducto from '../views/EditarProducto.vue'
 import { useAuthStore } from '../stores/auth'
 
 const routes = [
@@ -109,6 +110,12 @@ const routes = [
     name: 'admin-configuracion-metodos-envio',
     component: MetodosEnvio,
     meta: { requiresAuth: true, roles: ['super_admin'] }
+  },
+  {
+    path: '/productos/editar/:id',
+    name: 'editar-producto',
+    component: EditarProducto,
+    meta: { requiresAuth: true, roles: ['admin', 'super_admin'] }
   },
   {
     path: '/acceso-denegado',

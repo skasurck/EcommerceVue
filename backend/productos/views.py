@@ -4,12 +4,13 @@ from django.db.models import Q
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
-from .models import Producto, Categoria, Marca, ValorAtributo
+from .models import Producto, Categoria, Marca, ValorAtributo, ImagenProducto
 from .serializers import (
     ProductoSerializer,
     CategoriaSerializer,
     MarcaSerializer,
     ValorAtributoSerializer,
+    ImagenProductoSerializer,
 )
 from .forms import ProductoForm, PrecioEscalonadoFormSet
 from usuarios.permissions import IsAdminOrSuperAdmin
@@ -71,6 +72,27 @@ class ValorAtributoViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action in ["create", "update", "partial_update", "destroy"]:
+            return [IsAdminOrSuperAdmin()]
+        return [permissions.AllowAny()]
+
+
+class ImagenProductoViewSet(viewsets.ModelViewSet):
+    queryset = ImagenProducto.objects.all()
+    serializer_class = ImagenProductoSerializer
+
+    def get_queryset(self):
+        producto_id = self.kwargs.get("producto_pk")
+        if producto_id:
+            return self.queryset.filter(producto_id=producto_id)
+        return self.queryset
+
+    def perform_create(self, serializer):
+        producto_id = self.kwargs.get("producto_pk")
+        producto = get_object_or_404(Producto, pk=producto_id)
+        serializer.save(producto=producto)
+
+    def get_permissions(self):
+        if self.action in ["create", "destroy"]:
             return [IsAdminOrSuperAdmin()]
         return [permissions.AllowAny()]
 
