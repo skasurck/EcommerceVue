@@ -1,4 +1,5 @@
 from rest_framework import serializers
+import json
 
 from .models import (
     Producto,
@@ -90,6 +91,23 @@ class ProductoSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["miniatura", "fecha_creacion"]
 
+    def to_internal_value(self, data):
+        """Permite recibir precios_escalonados como JSON en FormData."""
+        mutable = data.copy()
+        raw = mutable.get("precios_escalonados")
+        if isinstance(raw, str):
+            try:
+                mutable["precios_escalonados"] = json.loads(raw)
+            except json.JSONDecodeError:
+                mutable["precios_escalonados"] = []
+        return super().to_internal_value(mutable)
+
+    def validate_precios_escalonados(self, value):
+        cantidades = [tier["cantidad_minima"] for tier in value]
+        if len(cantidades) != len(set(cantidades)):
+            raise serializers.ValidationError("No se puede repetir cantidad_minima")
+        return value
+
     def create(self, validated_data):
         precios_data = validated_data.pop("precios_escalonados", [])
         categorias = validated_data.pop("categorias", [])
@@ -118,9 +136,20 @@ class ProductoSerializer(serializers.ModelSerializer):
         if atributos is not None:
             instance.atributos.set(atributos)
         if precios_data is not None:
-            instance.precios_escalonados.all().delete()
+            existentes = {p.id: p for p in instance.precios_escalonados.all()}
+            enviados = []
             for tier in precios_data:
-                PrecioEscalonado.objects.create(producto=instance, **tier)
+                tier_id = tier.get("id")
+                if tier_id and tier_id in existentes:
+                    obj = existentes[tier_id]
+                    obj.cantidad_minima = tier["cantidad_minima"]
+                    obj.precio_unitario = tier["precio_unitario"]
+                    obj.save()
+                    enviados.append(tier_id)
+                else:
+                    nuevo = PrecioEscalonado.objects.create(producto=instance, **tier)
+                    enviados.append(nuevo.id)
+            instance.precios_escalonados.exclude(id__in=enviados).delete()
 
         return instance
 

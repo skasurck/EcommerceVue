@@ -123,13 +123,13 @@ class PrecioEscalonadoViewSet(viewsets.ModelViewSet):
     serializer_class = PrecioEscalonadoSerializer
 
     def get_queryset(self):
-        producto = self.request.query_params.get("producto")
-        if producto:
-            return self.queryset.filter(producto_id=producto)
+        producto_id = self.kwargs.get("producto_pk") or self.request.query_params.get("producto")
+        if producto_id:
+            return self.queryset.filter(producto_id=producto_id)
         return self.queryset
 
     def perform_create(self, serializer):
-        producto_id = self.request.data.get("producto")
+        producto_id = self.kwargs.get("producto_pk") or self.request.data.get("producto")
         producto = get_object_or_404(Producto, pk=producto_id)
         serializer.save(producto=producto)
 

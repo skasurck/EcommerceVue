@@ -16,7 +16,6 @@ router.register(r'categorias', CategoriaViewSet)
 router.register(r'marcas', MarcaViewSet)
 router.register(r'atributos-base', AtributoViewSet)
 router.register(r'atributos', ValorAtributoViewSet)
-router.register(r'precios-escalonados', PrecioEscalonadoViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
@@ -29,5 +28,15 @@ urlpatterns = [
         'galeria/<int:pk>/',
         ImagenProductoViewSet.as_view({'delete': 'destroy'}),
         name='galeria-detalle',
+    ),
+    path(
+        'productos/<int:producto_pk>/precios-escalonados/',
+        PrecioEscalonadoViewSet.as_view({'get': 'list', 'post': 'create'}),
+        name='producto-precios-escalonados',
+    ),
+    path(
+        'precios-escalonados/<int:pk>/',
+        PrecioEscalonadoViewSet.as_view({'put': 'update', 'delete': 'destroy'}),
+        name='precios-escalonados-detalle',
     ),
 ]

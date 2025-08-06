@@ -173,9 +173,10 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '../axios'
+import { useProductoStore } from '../stores/productos'
 
 defineOptions({ name: 'EditarProducto' })
 
@@ -217,11 +218,18 @@ const nuevaMarca = ref('')
 const nuevoValor = reactive({ atributo_id: null, valor: '' })
 const nuevoAtributo = ref('')
 const loading = ref(false)
+const productoStore = useProductoStore()
 
 onMounted(async () => {
   await fetchOpciones()
   await fetchProducto()
 })
+
+watch(preciosEscalonados, val => {
+  if (productoStore.cache[id]) {
+    productoStore.cache[id].precios_escalonados = val
+  }
+}, { deep: true })
 
 async function fetchOpciones() {
   const [catRes, marcaRes, attrRes, baseRes] = await Promise.all([
@@ -237,7 +245,7 @@ async function fetchOpciones() {
 }
 
 async function fetchProducto() {
-  const { data } = await api.get(`productos/${id}/`)
+  const data = await productoStore.get(id)
   Object.assign(form, data)
   form.imagen_principal_url = data.imagen_principal
   form.categorias = data.categorias || []
@@ -301,20 +309,22 @@ async function guardar() {
   if (form.marca) fd.append('marca', form.marca)
   form.atributos.forEach(a => fd.append('atributos', a))
   fd.append('stock', form.stock)
-  preciosEscalonados.value.forEach(t =>
-    fd.append('precios_escalonados', JSON.stringify(t))
-  )
+  fd.append('precios_escalonados', JSON.stringify(preciosEscalonados.value))
   if (imagenPrincipal.value) {
     fd.append('imagen_principal', imagenPrincipal.value)
   }
 
   loading.value = true
   try {
-    await api.put(`productos/${id}/`, fd, {
+    const { data } = await api.put(`productos/${id}/`, fd, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
+    productoStore.cache[id] = data
     alert('Producto actualizado')
     router.push('/admin/productos')
+  } catch (err) {
+    console.error(err)
+    alert('Error al guardar')
   } finally {
     loading.value = false
   }
