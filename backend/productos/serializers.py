@@ -2,6 +2,7 @@ from rest_framework import serializers
 import json
 import re
 from django.http import QueryDict
+from django.utils.text import slugify
 
 from .models import (
     Producto,
@@ -18,6 +19,17 @@ class CategoriaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Categoria
         fields = "__all__"
+        extra_kwargs = {"slug": {"required": False}}
+
+    def create(self, validated_data):
+        if not validated_data.get("slug"):
+            validated_data["slug"] = slugify(validated_data["nombre"])
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        if not validated_data.get("slug") and validated_data.get("nombre"):
+            validated_data["slug"] = slugify(validated_data["nombre"])
+        return super().update(instance, validated_data)
 
 
 class MarcaSerializer(serializers.ModelSerializer):
