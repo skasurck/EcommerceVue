@@ -71,7 +71,7 @@ class PrecioEscalonadoListSerializer(serializers.ListSerializer):
 
 class PrecioEscalonadoSerializer(serializers.ModelSerializer):
     # permitir ID para distinguir entre actualizaciones y creaciones
-    id = serializers.IntegerField(required=False)
+    id = serializers.IntegerField(required=False, allow_null=True)
 
     class Meta:
         model = PrecioEscalonado
@@ -175,9 +175,16 @@ class ProductoSerializer(serializers.ModelSerializer):
         return producto
 
     def update(self, instance, validated_data):
-        precios_data = validated_data.pop("precios_escalonados", None)
+        precios_raw = validated_data.pop("precios_escalonados", "[]")
         categorias = validated_data.pop("categorias", None)
         atributos = validated_data.pop("atributos", None)
+
+        # 🔎 DEBUG
+        # print("=== DEBUG UPDATE PRODUCTO ===")
+        # print("Precios escalonados (raw):", precios_raw)
+        # print("Categorías recibidas:", categorias)
+        # print("Atributos recibidos:", atributos)
+        # print("Otros campos:", validated_data)
 
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
@@ -187,12 +194,19 @@ class ProductoSerializer(serializers.ModelSerializer):
             instance.categorias.set(categorias)
         if atributos is not None:
             instance.atributos.set(atributos)
-        if precios_data is not None:
+
+        # Procesar precios escalonados si vienen
+        try:
+            if isinstance(precios_raw, str):
+                precios_data = json.loads(precios_raw)
+            else:
+                precios_data = precios_raw
+
             existentes = {p.id: p for p in instance.precios_escalonados.all()}
             enviados = []
+
             for tier in precios_data:
-                tier = dict(tier)
-                tier_id = tier.pop("id", None)
+                tier_id = tier.get("id")
                 if tier_id and tier_id in existentes:
                     obj = existentes[tier_id]
                     obj.cantidad_minima = tier["cantidad_minima"]
@@ -202,7 +216,13 @@ class ProductoSerializer(serializers.ModelSerializer):
                 else:
                     nuevo = PrecioEscalonado.objects.create(producto=instance, **tier)
                     enviados.append(nuevo.id)
+
+            # Eliminar los que ya no están
             instance.precios_escalonados.exclude(id__in=enviados).delete()
 
+        except Exception as e:
+            print("❌ ERROR procesando precios escalonados:", e)
+
         return instance
+
 
