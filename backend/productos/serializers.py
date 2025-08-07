@@ -133,6 +133,17 @@ class ProductoSerializer(serializers.ModelSerializer):
             if tiers:
                 data["precios_escalonados"] = [tiers[i] for i in sorted(tiers.keys())]
 
+        # Normalizar valores "null" o vacíos a None para evitar errores de validación
+        for key, value in list(data.items()):
+            if isinstance(value, str):
+                if value.lower() == "null" or value == "":
+                    data[key] = None
+            elif isinstance(value, list):
+                data[key] = [
+                    None if isinstance(v, str) and (v.lower() == "null" or v == "") else v
+                    for v in value
+                ]
+
         return super().to_internal_value(data)
 
     def validate_precios_escalonados(self, value):

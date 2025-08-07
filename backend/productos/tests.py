@@ -71,3 +71,23 @@ class PrecioEscalonadoAPITests(APITestCase):
             .values_list("cantidad_minima", "precio_unitario")
         )
         self.assertEqual(tiers, [(5, Decimal("95")), (20, Decimal("80"))])
+
+    def test_update_con_valores_null(self):
+        """Acepta cadenas 'null' o vacías en campos opcionales."""
+        url = reverse("producto-detail", args=[self.producto.id])
+        data = {
+            "nombre": "Prod",
+            "precio_normal": "100",
+            "stock": 10,
+            "disponible": "true",
+            "estado_inventario": "en_existencia",
+            "visibilidad": "true",
+            "estado": "borrador",
+            "categoria": "null",
+            "marca": "",
+        }
+        response = self.client.put(url, data, format="multipart")
+        self.assertEqual(response.status_code, 200)
+        self.producto.refresh_from_db()
+        self.assertIsNone(self.producto.categoria)
+        self.assertIsNone(self.producto.marca)
