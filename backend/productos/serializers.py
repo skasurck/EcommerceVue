@@ -122,6 +122,12 @@ class ProductoSerializer(serializers.ModelSerializer):
         if isinstance(data, QueryDict):
             data = {k: data.getlist(k) if len(data.getlist(k)) > 1 else data.get(k) for k in data.keys()}
 
+        if "precios_escalonados" in data and isinstance(data["precios_escalonados"], str):
+            try:
+                data["precios_escalonados"] = json.loads(data["precios_escalonados"])
+            except json.JSONDecodeError:
+                data["precios_escalonados"] = []
+
         if "precios_escalonados" not in data:
             pattern = re.compile(r"^precios_escalonados\[(\d+)\]\[(\w+)\]$")
             tiers = {}
