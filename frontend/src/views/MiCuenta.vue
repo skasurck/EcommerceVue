@@ -14,7 +14,7 @@
 
     <div v-if="seccion === 'Resumen'" class="space-y-4">
       <div class="flex items-center space-x-4">
-        <img :src="profileImg" alt="Perfil" class="w-24 h-24 rounded-full" />
+        <img :src="profileImg" alt="Perfil" class="w-24 h-24 rounded-full imagen_perfil" />
         <form @submit.prevent="guardarPerfil" class="space-y-2">
           <input v-model="perfil.first_name" placeholder="Nombre" class="border p-1 w-full" />
           <input v-model="perfil.last_name" placeholder="Apellidos" class="border p-1 w-full" />
@@ -221,3 +221,14 @@ onMounted(() => {
   cargarDatos()
 })
 </script>
+<style scoped>
+.imagen_perfil {
+  margin: 10px;
+  object-fit: cover;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  border: 2px solid #ccc;
+  transition: border-color 0.3s ease;
+}
+</style>

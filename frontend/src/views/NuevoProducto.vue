@@ -39,13 +39,40 @@
       <SelectInput v-model="producto.estado" label="Estado" :options="['borrador', 'publicado']" />
 
       <!-- Categoría -->
-      <SelectInput v-model="producto.categoria" label="Categoría" :options="categorias" option-label="nombre" option-value="id" />
+      <div class="flex items-center gap-2">
+        <SelectInput
+          v-model="producto.categoria"
+          label="Categoría"
+          :options="categorias"
+          option-label="nombre"
+          option-value="id"
+        />
+        <button type="button" @click="abrirModalCategoria = true" class="text-blue-600 underline">+ Nueva</button>
+      </div>
 
       <!-- Marca -->
-      <SelectInput v-model="producto.marca" label="Marca" :options="marcas" option-label="nombre" option-value="id" />
+      <div class="flex items-center gap-2">
+        <SelectInput
+          v-model="producto.marca"
+          label="Marca"
+          :options="marcas"
+          option-label="nombre"
+          option-value="id"
+        />
+        <button type="button" @click="abrirModalMarca = true" class="text-blue-600 underline">+ Nueva</button>
+      </div>
 
       <!-- Atributos -->
-      <MultiCheckbox v-model="producto.atributos" label="Atributos" :options="atributos" option-label="valor" option-value="id" />
+        <div class="flex items-center gap-2">
+          <MultiCheckbox
+            v-model="producto.atributos"
+            label="Atributos"
+            :options="atributos"
+            option-label="valor"
+            option-value="id"
+          />
+          <button type="button" @click="abrirModalAtributo = true" class="text-blue-600 underline">+ Nuevo</button>
+        </div>
 
       <!-- Precios escalonados -->
       <EscalonadoInput v-model="producto.precios_escalonados" />
@@ -57,6 +84,10 @@
 
     <p v-if="mensaje" class="mt-4 text-green-600">{{ mensaje }}</p>
   </div>
+  <ModalInput v-model:visible="abrirModalCategoria" label="Nueva categoría" @save="crearCategoria" />
+<ModalInput v-model:visible="abrirModalMarca" label="Nueva marca" @save="crearMarca" />
+<ModalInput v-model:visible="abrirModalAtributo" label="Nuevo atributo" @save="crearAtributo" />
+
 </template>
 
 <script setup>
@@ -71,6 +102,7 @@ import SwitchInput from '../inputs/SwitchInput.vue'
 import ImageUpload from '../inputs/ImageUpload.vue'
 import MultiCheckbox from '../inputs/MultiCheckbox.vue'
 import EscalonadoInput from '../inputs/EscalonadoInput.vue'
+import ModalInput from '../inputs/ModalInput.vue'
 
 const router = useRouter()
 const producto = reactive({
@@ -110,7 +142,37 @@ const categorias = ref([])
 const marcas = ref([])
 const atributos = ref([])
 const mensaje = ref('')
+const abrirModalCategoria = ref(false)
+const abrirModalMarca = ref(false)
+const abrirModalAtributo = ref(false)
 
+const crearCategoria = async (nombre) => {
+  try {
+    const res = await api.post('categorias/', { nombre: nombre }) // <-- así debe ir
+    categorias.value.push(res.data)
+  } catch (e) {
+    console.error('Error creando categoría', e)
+    console.log('Detalles del error:', e.response?.data) // Esto te muestra el error que lanza el serializer
+  }
+}
+
+const crearMarca = async (nombre) => {
+  try {
+    const res = await api.post('marcas/', { nombre })
+    marcas.value.push(res.data)
+  } catch (e) {
+    console.error('Error creando marca', e)
+  }
+}
+
+const crearAtributo = async (valor) => {
+  try {
+    const res = await api.post('valores-atributo/', { valor }) // Ajusta si tu endpoint es otro
+    atributos.value.push(res.data)
+  } catch (e) {
+    console.error('Error creando atributo', e)
+  }
+}
 onMounted(async () => {
   const [catRes, marcaRes, attrRes] = await Promise.all([
     api.get('categorias/'), api.get('marcas/'), api.get('atributos/')
