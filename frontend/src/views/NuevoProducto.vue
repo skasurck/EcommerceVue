@@ -63,16 +63,16 @@
       </div>
 
       <!-- Atributos -->
-        <div class="flex items-center gap-2">
-          <MultiCheckbox
-            v-model="producto.atributos"
-            label="Atributos"
-            :options="atributos"
-            option-label="valor"
-            option-value="id"
-          />
-          <button type="button" @click="abrirModalAtributo = true" class="text-blue-600 underline">+ Nuevo</button>
-        </div>
+      <div class="flex items-center gap-2">
+        <MultiCheckbox
+          v-model="producto.atributos"
+          label="Atributos"
+          :options="opcionesAtributos"
+          option-label="label"
+          option-value="id"
+        />
+        <button type="button" @click="abrirModalAtributo = true" class="text-blue-600 underline">+ Nuevo</button>
+      </div>
 
       <!-- Precios escalonados -->
       <EscalonadoInput v-model="producto.precios_escalonados" />
@@ -85,13 +85,13 @@
     <p v-if="mensaje" class="mt-4 text-green-600">{{ mensaje }}</p>
   </div>
   <ModalInput v-model:visible="abrirModalCategoria" label="Nueva categoría" @save="crearCategoria" />
-<ModalInput v-model:visible="abrirModalMarca" label="Nueva marca" @save="crearMarca" />
-<ModalInput v-model:visible="abrirModalAtributo" label="Nuevo atributo" @save="crearAtributo" />
+  <ModalInput v-model:visible="abrirModalMarca" label="Nueva marca" @save="crearMarca" />
+  <ModalAtributo v-model:visible="abrirModalAtributo" label="Nuevo atributo" @save="crearAtributo" />
 
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, watch } from 'vue'
+import { ref, reactive, onMounted, watch, computed } from 'vue'
 import api from '../axios'
 import { useRouter } from 'vue-router'
 import InputText from '../inputs/InputText.vue'
@@ -103,6 +103,7 @@ import ImageUpload from '../inputs/ImageUpload.vue'
 import MultiCheckbox from '../inputs/MultiCheckbox.vue'
 import EscalonadoInput from '../inputs/EscalonadoInput.vue'
 import ModalInput from '../inputs/ModalInput.vue'
+import ModalAtributo from '../inputs/ModalAtributo.vue'
 
 const router = useRouter()
 const producto = reactive({
@@ -141,10 +142,15 @@ watch(
 const categorias = ref([])
 const marcas = ref([])
 const atributos = ref([])
+const atributosBase = ref([])
 const mensaje = ref('')
 const abrirModalCategoria = ref(false)
 const abrirModalMarca = ref(false)
 const abrirModalAtributo = ref(false)
+
+const opcionesAtributos = computed(() =>
+  atributos.value.map(a => ({ ...a, label: `${a.atributo.nombre}: ${a.valor}` }))
+)
 
 const crearCategoria = async (nombre) => {
   try {
@@ -165,24 +171,36 @@ const crearMarca = async (nombre) => {
   }
 }
 
-const crearAtributo = async (valor) => {
+const crearAtributo = async ({ nombre, valor }) => {
   try {
-    const res = await api.post('valores-atributo/', { valor }) // Ajusta si tu endpoint es otro
+    let atributo = atributosBase.value.find(
+      a => a.nombre.toLowerCase() === nombre.toLowerCase()
+    )
+    if (!atributo) {
+      const { data } = await api.post('atributos-base/', { nombre })
+      atributo = data
+      atributosBase.value.push(data)
+    }
+    const res = await api.post('atributos/', { atributo_id: atributo.id, valor })
     atributos.value.push(res.data)
+    producto.atributos.push(res.data.id)
   } catch (e) {
     console.error('Error creando atributo', e)
   }
 }
+
 onMounted(async () => {
-  const [catRes, marcaRes, attrRes] = await Promise.all([
-    api.get('categorias/'), api.get('marcas/'), api.get('atributos/')
+  const [catRes, marcaRes, attrRes, baseRes] = await Promise.all([
+    api.get('categorias/'),
+    api.get('marcas/'),
+    api.get('atributos/'),
+    api.get('atributos-base/')
   ])
   categorias.value = catRes.data
   marcas.value = marcaRes.data
   atributos.value = attrRes.data
+  atributosBase.value = baseRes.data
 })
-
-console.log(categorias.value, marcas.value, atributos.value)
 
 const crearProducto = async () => {
   const formData = new FormData()

@@ -1,10 +1,10 @@
 <template>
   <div>
-    <h3 class="font-medium">Atributos</h3>
-    <div v-for="attr in atributos" :key="attr.id" class="mt-1">
+    <InputLabel :label="label" />
+    <div v-for="opt in options" :key="opt[optionValue]" class="mt-1">
       <label>
-        <input type="checkbox" :value="attr.id" v-model="seleccionados" />
-        {{ attr.atributo }}: {{ attr.valor }}
+        <input type="checkbox" :value="opt[optionValue]" v-model="selected" />
+        {{ opt[optionLabel] }}
       </label>
     </div>
   </div>
@@ -12,14 +12,18 @@
 
 <script setup>
 import { ref, watch } from 'vue'
+import InputLabel from './InputLabel.vue'
 
 const props = defineProps({
-  atributos: Array,
-  modelValue: Array
+  modelValue: { type: Array, default: () => [] },
+  label: String,
+  options: { type: Array, default: () => [] },
+  optionLabel: { type: String, default: 'label' },
+  optionValue: { type: String, default: 'value' }
 })
 
 const emit = defineEmits(['update:modelValue'])
-const seleccionados = ref([...props.modelValue])
+const selected = ref([...props.modelValue])
 
-watch(seleccionados, val => emit('update:modelValue', val), { deep: true })
+watch(selected, val => emit('update:modelValue', val), { deep: true })
 </script>
