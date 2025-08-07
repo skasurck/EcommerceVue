@@ -46,3 +46,28 @@ class PrecioEscalonadoAPITests(APITestCase):
             .values_list("cantidad_minima", "precio_unitario")
         )
         self.assertEqual(tiers, [(5, Decimal("95")), (20, Decimal("80"))])
+
+    def test_actualizar_precios_escalonados_multipart(self):
+        url = reverse("producto-detail", args=[self.producto.id])
+        data = {
+            "nombre": "Prod",
+            "precio_normal": "100",
+            "stock": 10,
+            "disponible": "true",
+            "estado_inventario": "en_existencia",
+            "visibilidad": "true",
+            "estado": "borrador",
+            "precios_escalonados[0][id]": str(self.tier.id),
+            "precios_escalonados[0][cantidad_minima]": "5",
+            "precios_escalonados[0][precio_unitario]": "95",
+            "precios_escalonados[1][cantidad_minima]": "20",
+            "precios_escalonados[1][precio_unitario]": "80",
+        }
+        response = self.client.put(url, data, format="multipart")
+        self.assertEqual(response.status_code, 200)
+        tiers = list(
+            PrecioEscalonado.objects.filter(producto=self.producto)
+            .order_by("cantidad_minima")
+            .values_list("cantidad_minima", "precio_unitario")
+        )
+        self.assertEqual(tiers, [(5, Decimal("95")), (20, Decimal("80"))])

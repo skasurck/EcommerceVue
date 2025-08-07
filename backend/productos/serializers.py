@@ -1,5 +1,7 @@
 from rest_framework import serializers
 import json
+import re
+from django.http import QueryDict
 
 from .models import (
     Producto,
@@ -114,6 +116,24 @@ class ProductoSerializer(serializers.ModelSerializer):
             "precios_escalonados",
         ]
         read_only_fields = ["miniatura", "fecha_creacion"]
+
+    def to_internal_value(self, data):
+        """Permite recibir precios escalonados desde FormData con notación de corchetes."""
+        if isinstance(data, QueryDict):
+            data = {k: data.getlist(k) if len(data.getlist(k)) > 1 else data.get(k) for k in data.keys()}
+
+        if "precios_escalonados" not in data:
+            pattern = re.compile(r"^precios_escalonados\[(\d+)\]\[(\w+)\]$")
+            tiers = {}
+            for key in list(data.keys()):
+                match = pattern.match(key)
+                if match:
+                    idx, field = match.groups()
+                    tiers.setdefault(int(idx), {})[field] = data.pop(key)
+            if tiers:
+                data["precios_escalonados"] = [tiers[i] for i in sorted(tiers.keys())]
+
+        return super().to_internal_value(data)
 
     def validate_precios_escalonados(self, value):
         cantidades = [tier["cantidad_minima"] for tier in value]
