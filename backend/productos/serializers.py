@@ -132,7 +132,21 @@ class ProductoSerializer(serializers.ModelSerializer):
     def to_internal_value(self, data):
         """Permite recibir precios escalonados desde FormData con notación de corchetes."""
         if isinstance(data, QueryDict):
-            data = {k: data.getlist(k) if len(data.getlist(k)) > 1 else data.get(k) for k in data.keys()}
+            data = {
+                k: data.getlist(k) if len(data.getlist(k)) > 1 else data.get(k)
+                for k in data.keys()
+            }
+
+        # Asegurar que las relaciones ManyToMany se procesen como listas incluso
+        # cuando solo se envía un elemento desde el formulario (ej. "categorias" y
+        # "atributos" en formularios de edición existentes).
+        for m2m_field in ("categorias", "atributos"):
+            if m2m_field in data and not isinstance(data[m2m_field], list):
+                value = data[m2m_field]
+                if value in (None, "", "null"):
+                    data[m2m_field] = []
+                else:
+                    data[m2m_field] = [value]
 
         if "precios_escalonados" in data and isinstance(data["precios_escalonados"], str):
             try:
