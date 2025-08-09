@@ -141,7 +141,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, computed, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAdminUsersStore } from '../stores/adminUsers'
 import { useAuthStore } from '../stores/auth'
@@ -151,6 +151,7 @@ defineOptions({ name: 'AdminUsuarioDetalle' })
 const route = useRoute()
 const store = useAdminUsersStore()
 const authStore = useAuthStore()
+const bc = new BroadcastChannel('admin-users')
 const user = ref(null)
 const form = reactive({ first_name:'', last_name:'', email:'', perfil:{ telefono:'', empresa:'', rol:'cliente' } })
 const defaultDir = ref(null)
@@ -177,12 +178,15 @@ onMounted(async () => {
   otrasDirecciones.value = data.direcciones || []
 })
 
+onBeforeUnmount(() => bc.close())
+
 async function guardarUsuario() {
   const payload = { ...form, perfil: form.perfil }
   if (defaultDir.value) payload.direccion_predeterminada = defaultDir.value
   const data = await store.updateUser(user.value.id, payload)
   user.value = data
   alert('Usuario actualizado')
+  bc.postMessage({ type: 'changed' })
 }
 
 async function guardarDireccionPredeterminada() {
@@ -191,6 +195,7 @@ async function guardarDireccionPredeterminada() {
   defaultDir.value = data.direccion_predeterminada
   otrasDirecciones.value = data.direcciones
   alert('Dirección actualizada')
+  bc.postMessage({ type: 'changed' })
 }
 
 function crearDefaultDir() {
@@ -218,6 +223,7 @@ async function guardarModalDireccion() {
   const data = await store.fetchUser(user.value.id)
   defaultDir.value = data.direccion_predeterminada
   mostrarModal.value = false
+  bc.postMessage({ type: 'changed' })
 }
 
 async function eliminarDireccion(dir) {
@@ -225,6 +231,7 @@ async function eliminarDireccion(dir) {
   otrasDirecciones.value = await store.getDirecciones(user.value.id)
   const data = await store.fetchUser(user.value.id)
   defaultDir.value = data.direccion_predeterminada
+  bc.postMessage({ type: 'changed' })
 }
 
 async function hacerPredeterminada(dir) {
@@ -232,6 +239,7 @@ async function hacerPredeterminada(dir) {
   const data = await store.fetchUser(user.value.id)
   defaultDir.value = data.direccion_predeterminada
   otrasDirecciones.value = data.direcciones
+  bc.postMessage({ type: 'changed' })
 }
 
 async function importarDirecciones() {
@@ -240,6 +248,7 @@ async function importarDirecciones() {
   const data = await store.fetchUser(user.value.id)
   defaultDir.value = data.direccion_predeterminada
   otrasDirecciones.value = data.direcciones
+  bc.postMessage({ type: 'changed' })
 }
 
 function abrirModalPassword(){
@@ -255,6 +264,7 @@ async function guardarPassword(){
     await store.setPassword(user.value.id, pwd.new1)
     showPwdModal.value = false
     alert('Contraseña actualizada')
+    bc.postMessage({ type: 'changed' })
   } catch (e) {
     alert(e.response?.data?.detail || 'Error al actualizar contraseña')
   }

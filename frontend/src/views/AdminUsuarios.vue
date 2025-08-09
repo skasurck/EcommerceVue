@@ -54,32 +54,65 @@ const users = ref([])
 const search = ref('')
 const role = ref('')
 
-async function fetch() {
+// cache-buster param solo para saltar caches intermedios si hiciera falta
+async function fetchNow() {
   const data = await store.fetchUsers({ search: search.value, rol: role.value, _t: Date.now() })
   users.value = data.results || data
 }
 
-// 1) Primera carga
-onMounted(fetch)
+// ---- Polling visible ----
+let timer = null
+const intervalMs = 10000 // 10s
+let backoff = 1
 
-// 2) Cuando regresas desde /admin/usuarios/:id
-onActivated(fetch)
+function startPolling() {
+  stopPolling()
+  timer = setInterval(async () => {
+    if (document.visibilityState !== 'visible') return
+    try {
+      await fetchNow()
+      backoff = 1
+    } catch (e) {
+      backoff = Math.min(backoff * 2, 6)
+      stopPolling()
+      timer = setInterval(() => {
+        if (document.visibilityState === 'visible') fetchNow()
+      }, intervalMs * backoff)
+    }
+  }, intervalMs)
+}
+function stopPolling() { if (timer) { clearInterval(timer); timer = null } }
 
-// 3) Al recuperar foco/visibilidad
-function onFocus() { fetch() }
-function onVisibility() { if (document.visibilityState === 'visible') fetch() }
-window.addEventListener('focus', onFocus)
-document.addEventListener('visibilitychange', onVisibility)
+// ---- BroadcastChannel para refrescar inmediato ----
+let bc = null
+function setupBroadcast() {
+  bc = new BroadcastChannel('admin-users')
+  bc.onmessage = ev => {
+    if (ev?.data?.type === 'changed') fetchNow()
+  }
+}
+function teardownBroadcast() { if (bc) { bc.close(); bc = null } }
+
+onMounted(async () => {
+  await fetchNow()
+  setupBroadcast()
+  startPolling()
+})
+onActivated(fetchNow)
 onBeforeUnmount(() => {
-  window.removeEventListener('focus', onFocus)
-  document.removeEventListener('visibilitychange', onVisibility)
+  stopPolling()
+  teardownBroadcast()
 })
 
+// filtros
+async function fetch() { await fetchNow() }
+
+// acciones
 async function resetPassword(id) {
   try {
     await store.resetPasswordLink(id)
     alert('Si existe, hemos enviado el correo de restablecimiento de contraseña.')
-  } catch (e) {
+  } catch {
     alert('Error al solicitar el restablecimiento de contraseña')
   }
 }
@@ -88,14 +121,12 @@ async function deleteUser(id) {
   if (!confirm('¿Eliminar usuario?')) return
   try {
     await store.deleteUser(id)
-    await fetch() // Refresca lista, conteo y página actual
+    await fetchNow()
+    bc?.postMessage({ type: 'changed' })
     alert('Usuario eliminado')
   } catch (e) {
-    if (e?.response?.status === 403) {
-      alert('No se puede eliminar un superadmin')
-    } else {
-      alert('Error al eliminar usuario')
-    }
+    if (e?.response?.status === 403) alert('No se puede eliminar un superadmin')
+    else alert('Error al eliminar usuario')
   }
 }
 </script>

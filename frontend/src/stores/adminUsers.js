@@ -3,14 +3,23 @@ import api from '../axios'
 
 export const useAdminUsersStore = defineStore('adminUsers', {
   state: () => ({
-    users: [],
+    items: [],
     userDetail: null,
+    etag: null,
   }),
   actions: {
     async fetchUsers(params = {}) {
-      const { data } = await api.get('admin/users/', { params })
-      this.users = data.results || data
-      return data
+      const headers = {}
+      if (this.etag) headers['If-None-Match'] = this.etag
+      const resp = await api.get('admin/users/', {
+        params,
+        headers,
+        validateStatus: s => (s >= 200 && s < 300) || s === 304
+      })
+      if (resp.status === 304) return { results: this.items }
+      this.etag = resp.headers.etag || null
+      this.items = resp.data.results || resp.data
+      return resp.data
     },
     async fetchUser(id) {
       const res = await api.get(`admin/users/${id}/`)
