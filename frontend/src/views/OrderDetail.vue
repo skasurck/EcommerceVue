@@ -27,7 +27,7 @@
       <div v-for="(item,idx) in pedido.detalles" :key="idx">
         {{ item.producto_nombre || item.producto }} - {{ money(item.precio_unitario) }}
         <button @click="dec(idx)">−</button>
-        <input type="number" min="1" v-model.number="item.cantidad" @change="recalc" />
+        <input type="number" min="1" v-model.number="item.cantidad" @input="recalc" />
         <button @click="inc(idx)">+</button>
         <span>Subtotal: {{ money(item.subtotal || (item.precio_unitario * item.cantidad)) }}</span>
         <button @click="removeItem(idx)">Eliminar</button>
