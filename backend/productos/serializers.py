@@ -2,6 +2,7 @@ from rest_framework import serializers
 import json
 import re
 from django.http import QueryDict
+from django.utils.text import slugify
 
 from .models import (
     Producto,
@@ -18,6 +19,17 @@ class CategoriaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Categoria
         fields = "__all__"
+        extra_kwargs = {"slug": {"required": False}}
+
+    def create(self, validated_data):
+        if not validated_data.get("slug"):
+            validated_data["slug"] = slugify(validated_data["nombre"])
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        if not validated_data.get("slug") and validated_data.get("nombre"):
+            validated_data["slug"] = slugify(validated_data["nombre"])
+        return super().update(instance, validated_data)
 
 
 class MarcaSerializer(serializers.ModelSerializer):
@@ -120,7 +132,21 @@ class ProductoSerializer(serializers.ModelSerializer):
     def to_internal_value(self, data):
         """Permite recibir precios escalonados desde FormData con notación de corchetes."""
         if isinstance(data, QueryDict):
-            data = {k: data.getlist(k) if len(data.getlist(k)) > 1 else data.get(k) for k in data.keys()}
+            data = {
+                k: data.getlist(k) if len(data.getlist(k)) > 1 else data.get(k)
+                for k in data.keys()
+            }
+
+        # Asegurar que las relaciones ManyToMany se procesen como listas incluso
+        # cuando solo se envía un elemento desde el formulario (ej. "categorias" y
+        # "atributos" en formularios de edición existentes).
+        for m2m_field in ("categorias", "atributos"):
+            if m2m_field in data and not isinstance(data[m2m_field], list):
+                value = data[m2m_field]
+                if value in (None, "", "null"):
+                    data[m2m_field] = []
+                else:
+                    data[m2m_field] = [value]
 
         if "precios_escalonados" in data and isinstance(data["precios_escalonados"], str):
             try:

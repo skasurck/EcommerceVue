@@ -18,7 +18,15 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:modelValue'])
-const tiers = ref([...props.modelValue])
+const tiers = ref([])
+
+watch(
+  () => props.modelValue,
+  val => {
+    tiers.value = [...val]
+  },
+  { deep: true, immediate: true }
+)
 
 function agregar() {
   tiers.value.push({ cantidad_minima: 1, precio_unitario: 0 })
