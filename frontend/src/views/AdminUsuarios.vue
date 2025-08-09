@@ -34,7 +34,7 @@
             <div class="flex space-x-1">
               <router-link :to="`/admin/usuarios/${u.id}`" class="underline">Ver</router-link>
               <button @click="resetPassword(u.id)" class="bg-blue-500 text-white px-2 py-1 text-xs rounded hover:bg-blue-600">Restablecer contraseña</button>
-              <button @click="deleteUser(u.id)" class="bg-red-500 text-white px-2 py-1 text-xs rounded hover:bg-red-600">Eliminar</button>
+              <button v-if="u.rol !== 'super_admin'" @click="deleteUser(u.id)" class="bg-red-500 text-white px-2 py-1 text-xs rounded hover:bg-red-600">Eliminar</button>
             </div>
           </td>
         </tr>
@@ -77,7 +77,11 @@ async function deleteUser(id) {
     users.value = users.value.filter(u => u.id !== id)
     alert('Usuario eliminado')
   } catch (e) {
-    alert('Error al eliminar usuario')
+    if (e.response?.status === 403) {
+      alert('No se puede eliminar un superadmin')
+    } else {
+      alert('Error al eliminar usuario')
+    }
   }
 }
 </script>

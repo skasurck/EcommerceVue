@@ -8,11 +8,11 @@
         <input v-model="form.email" placeholder="Email" class="border p-1 col-span-2" />
         <input v-model="form.perfil.telefono" placeholder="Teléfono" class="border p-1 col-span-2" />
         <input v-model="form.perfil.empresa" placeholder="Empresa" class="border p-1 col-span-2" />
-        <select v-model="form.perfil.rol" class="border p-1 col-span-2">
+        <select v-model="form.perfil.rol" class="border p-1 col-span-2" :disabled="user?.perfil?.rol==='super_admin'">
           <option value="cliente">Cliente</option>
           <option value="admin">Administrador</option>
-          <option value="super_admin">Super Administrador</option>
         </select>
+        <p v-if="user?.perfil?.rol==='super_admin'" class="text-xs text-gray-600 col-span-2">El rol Super Administrador solo se asigna desde consola o Django Admin</p>
       </div>
       <button class="bg-blue-500 text-white px-3 py-1">Guardar</button>
     </form>
@@ -85,6 +85,23 @@
       <button @click="importarDirecciones" class="mt-2 px-2 py-1 border">Importar direcciones usadas en pedidos</button>
     </div>
 
+    <section class="mt-6">
+      <h3 class="font-semibold mb-2">Seguridad</h3>
+      <button @click="abrirModalPassword" class="bg-gray-800 text-white px-3 py-1 text-sm rounded">Cambiar contraseña</button>
+    </section>
+
+    <div v-if="showPwdModal" class="fixed inset-0 bg-black/50 flex items-center justify-center">
+      <div class="bg-white p-4 w-96 space-y-2">
+        <h4 class="font-semibold">Cambiar contraseña</h4>
+        <input v-model="pwd.new1" type="password" placeholder="Nueva contraseña" class="border p-1 w-full" />
+        <input v-model="pwd.new2" type="password" placeholder="Confirmar contraseña" class="border p-1 w-full" />
+        <div class="text-right space-x-2">
+          <button @click="guardarPassword" class="bg-blue-600 text-white px-3 py-1 rounded">Guardar</button>
+          <button @click="showPwdModal=false" class="px-3 py-1 border rounded">Cancelar</button>
+        </div>
+      </div>
+    </div>
+
     <div v-if="mostrarModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
       <div class="bg-white p-4 w-96 space-y-2">
         <h3 class="font-semibold">{{ editDir ? 'Editar' : 'Nueva' }} dirección</h3>
@@ -130,6 +147,8 @@ const otrasDirecciones = ref([])
 const mostrarModal = ref(false)
 const modalDir = reactive({})
 const editDir = ref(null)
+const showPwdModal = ref(false)
+const pwd = reactive({ new1:'', new2:'' })
 
 onMounted(async () => {
   const data = await store.fetchUser(route.params.id)
@@ -202,5 +221,23 @@ async function importarDirecciones() {
   const data = await store.fetchUser(user.value.id)
   defaultDir.value = data.direccion_predeterminada
   otrasDirecciones.value = data.direcciones
+}
+
+function abrirModalPassword(){
+  showPwdModal.value = true
+  pwd.new1 = ''
+  pwd.new2 = ''
+}
+
+async function guardarPassword(){
+  if (!pwd.new1 || pwd.new1.length < 8) return alert('La contraseña debe tener al menos 8 caracteres.')
+  if (pwd.new1 !== pwd.new2) return alert('Las contraseñas no coinciden.')
+  try {
+    await store.setPassword(user.value.id, pwd.new1)
+    showPwdModal.value = false
+    alert('Contraseña actualizada')
+  } catch (e) {
+    alert('Error al actualizar contraseña')
+  }
 }
 </script>
