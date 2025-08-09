@@ -44,7 +44,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onActivated, onBeforeUnmount } from 'vue'
 import { useAdminUsersStore } from '../stores/adminUsers'
 
 defineOptions({ name: 'AdminUsuarios' })
@@ -55,11 +55,25 @@ const search = ref('')
 const role = ref('')
 
 async function fetch() {
-  const data = await store.fetchUsers({ search: search.value, rol: role.value })
+  const data = await store.fetchUsers({ search: search.value, rol: role.value, _t: Date.now() })
   users.value = data.results || data
 }
 
+// 1) Primera carga
 onMounted(fetch)
+
+// 2) Cuando regresas desde /admin/usuarios/:id
+onActivated(fetch)
+
+// 3) Al recuperar foco/visibilidad
+function onFocus() { fetch() }
+function onVisibility() { if (document.visibilityState === 'visible') fetch() }
+window.addEventListener('focus', onFocus)
+document.addEventListener('visibilitychange', onVisibility)
+onBeforeUnmount(() => {
+  window.removeEventListener('focus', onFocus)
+  document.removeEventListener('visibilitychange', onVisibility)
+})
 
 async function resetPassword(id) {
   try {
@@ -74,10 +88,10 @@ async function deleteUser(id) {
   if (!confirm('¿Eliminar usuario?')) return
   try {
     await store.deleteUser(id)
-    users.value = users.value.filter(u => u.id !== id)
+    await fetch() // Refresca lista, conteo y página actual
     alert('Usuario eliminado')
   } catch (e) {
-    if (e.response?.status === 403) {
+    if (e?.response?.status === 403) {
       alert('No se puede eliminar un superadmin')
     } else {
       alert('Error al eliminar usuario')
