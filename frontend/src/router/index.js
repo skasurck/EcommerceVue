@@ -14,6 +14,7 @@ import AdminProductos from '../views/AdminProductos.vue'
 import AdminPedidos from '../views/AdminPedidos.vue'
 import OrderDetail from '../views/OrderDetail.vue'
 import AdminUsuarios from '../views/AdminUsuarios.vue'
+import AdminUsuarioDetalle from '../views/AdminUsuarioDetalle.vue'
 import AdminConfiguracion from '../views/AdminConfiguracion.vue'
 import MetodosPago from '../views/MetodosPago.vue'
 import MetodosEnvio from '../views/MetodosEnvio.vue'
@@ -98,6 +99,12 @@ const routes = [
     path: '/admin/usuarios',
     name: 'admin-usuarios',
     component: AdminUsuarios,
+    meta: { requiresAuth: true, roles: ['admin', 'super_admin'] }
+  },
+  {
+    path: '/admin/usuarios/:id',
+    name: 'admin-usuario-detalle',
+    component: AdminUsuarioDetalle,
     meta: { requiresAuth: true, roles: ['admin', 'super_admin'] }
   },
   {
