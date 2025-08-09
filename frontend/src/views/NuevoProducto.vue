@@ -203,11 +203,17 @@ onMounted(async () => {
 })
 
 const crearProducto = async () => {
+  const cantidades = producto.precios_escalonados.map(t => t.cantidad_minima)
+  if (new Set(cantidades).size !== cantidades.length) {
+    alert('Cantidades mínimas duplicadas')
+    return
+  }
+
   const formData = new FormData()
   Object.entries(producto).forEach(([k, v]) => {
     if (k === 'atributos') v.forEach(id => formData.append('atributos', id))
     else if (k === 'precios_escalonados') {
-      v.forEach(p => formData.append('precios_escalonados', JSON.stringify(p)))
+      formData.append('precios_escalonados', JSON.stringify(v))
     }
     else if (k === 'galeria') v.forEach(f => formData.append('galeria', f))
     else if (v !== null) formData.append(k, v)
