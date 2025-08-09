@@ -1,7 +1,11 @@
-from rest_framework import viewsets, permissions, status
+from rest_framework import viewsets, permissions, status, filters
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.decorators import action
+from rest_framework.views import APIView
+from django.db.models import Sum, Avg
+from django.utils.dateparse import parse_date
 from .models import Direccion, MetodoEnvio, Pedido
 from .serializers import DireccionSerializer, MetodoEnvioSerializer, PedidoSerializer
 from usuarios.permissions import IsAdminOrSuperAdmin
@@ -47,6 +51,10 @@ class PedidoViewSet(viewsets.ModelViewSet):
     serializer_class = PedidoSerializer
     permission_classes = [permissions.IsAuthenticated]
     pagination_class = PageNumberPagination
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['id', 'direccion__nombre', 'direccion__apellidos', 'direccion__email']
+    ordering_fields = ['creado', 'total']
+    ordering = ['-creado']
 
     def get_permissions(self):
         if self.action in ["update", "partial_update", "destroy"]:
@@ -60,10 +68,17 @@ class PedidoViewSet(viewsets.ModelViewSet):
             if hasattr(user, "perfil") and user.perfil.rol in ("admin", "super_admin")
             else Pedido.objects.filter(user=user)
         )
-        estado = self.request.query_params.get("estado")
+        params = self.request.query_params
+        estado = params.get("estado")
         if estado:
             qs = qs.filter(estado=estado)
-        return qs.order_by("-creado")
+        fecha_desde = params.get("fecha_desde")
+        if fecha_desde:
+            qs = qs.filter(creado__date__gte=parse_date(fecha_desde))
+        fecha_hasta = params.get("fecha_hasta")
+        if fecha_hasta:
+            qs = qs.filter(creado__date__lte=parse_date(fecha_hasta))
+        return qs
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
@@ -79,3 +94,46 @@ class PedidoViewSet(viewsets.ModelViewSet):
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+    @action(detail=False, methods=['post'], permission_classes=[IsAdminOrSuperAdmin])
+    def bulk_update_estado(self, request):
+        ids = request.data.get('ids', [])
+        estado = request.data.get('estado')
+        allowed = ['pendiente', 'pagado', 'confirmado', 'enviado', 'cancelado']
+        if estado not in allowed:
+            return Response({'detail': 'Estado inválido'}, status=status.HTTP_400_BAD_REQUEST)
+        updated = 0
+        failed = []
+        for pk in ids:
+            try:
+                pedido = Pedido.objects.get(pk=pk)
+                pedido.estado = estado
+                pedido.save(update_fields=['estado'])
+                updated += 1
+            except Pedido.DoesNotExist:
+                failed.append({'id': pk, 'error': 'No existe'})
+            except Exception as exc:
+                failed.append({'id': pk, 'error': str(exc)})
+        return Response({'updated': updated, 'failed': failed})
+
+
+class ClienteSummaryView(APIView):
+    permission_classes = [permissions.IsAuthenticated, IsAdminOrSuperAdmin]
+
+    def get(self, request, user_id=None):
+        email = request.query_params.get('email')
+        if user_id:
+            qs = Pedido.objects.filter(user_id=user_id)
+        elif email:
+            qs = Pedido.objects.filter(direccion__email=email)
+        else:
+            return Response({'detail': 'user_id o email requerido'}, status=status.HTTP_400_BAD_REQUEST)
+        agg = qs.aggregate(total_spent=Sum('total'))
+        orders_count = qs.count()
+        total_spent = agg['total_spent'] or 0
+        avg_ticket = total_spent / orders_count if orders_count else 0
+        return Response({
+            'orders_count': orders_count,
+            'total_spent': f"{total_spent:.2f}",
+            'avg_ticket': f"{avg_ticket:.2f}"
+        })

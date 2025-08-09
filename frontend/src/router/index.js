@@ -12,6 +12,7 @@ import AccesoDenegado from '../views/AccesoDenegado.vue'
 import AdminDashboard from '../views/AdminDashboard.vue'
 import AdminProductos from '../views/AdminProductos.vue'
 import AdminPedidos from '../views/AdminPedidos.vue'
+import OrderDetail from '../views/OrderDetail.vue'
 import AdminUsuarios from '../views/AdminUsuarios.vue'
 import AdminConfiguracion from '../views/AdminConfiguracion.vue'
 import MetodosPago from '../views/MetodosPago.vue'
@@ -85,6 +86,12 @@ const routes = [
     path: '/admin/pedidos',
     name: 'admin-pedidos',
     component: AdminPedidos,
+    meta: { requiresAuth: true, roles: ['admin', 'super_admin'] }
+  },
+  {
+    path: '/admin/pedidos/:id',
+    name: 'admin-pedido-detalle',
+    component: OrderDetail,
     meta: { requiresAuth: true, roles: ['admin', 'super_admin'] }
   },
   {

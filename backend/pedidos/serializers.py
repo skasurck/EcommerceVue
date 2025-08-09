@@ -92,16 +92,37 @@ class PedidoSerializer(serializers.ModelSerializer):
     metodo_envio_detalle = MetodoEnvioSerializer(source='metodo_envio', read_only=True)
     metodo_pago_display = serializers.CharField(source='get_metodo_pago_display', read_only=True)
     historial = PedidoHistorialSerializer(many=True, read_only=True)
+    cliente_nombre_completo = serializers.SerializerMethodField(read_only=True)
+    direccion_resumen = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Pedido
         fields = ['id', 'direccion', 'metodo_envio', 'metodo_envio_detalle', 'metodo_pago',
                   'metodo_pago_display', 'indicaciones', 'subtotal', 'costo_envio', 'total',
                   'datos_pago', 'items', 'detalles', 'save_address', 'estado', 'historial',
-                  'creado']
+                  'creado', 'cliente_nombre_completo', 'direccion_resumen']
         read_only_fields = ['id', 'creado', 'subtotal', 'costo_envio', 'total', 'detalles',
-                            'historial', 'metodo_envio_detalle', 'metodo_pago_display']
+                            'historial', 'metodo_envio_detalle', 'metodo_pago_display',
+                            'cliente_nombre_completo', 'direccion_resumen']
         extra_kwargs = {'estado': {'required': False}}
+
+    def get_cliente_nombre_completo(self, obj):
+        if obj.direccion:
+            return f"{obj.direccion.nombre} {obj.direccion.apellidos}".strip()
+        return ""
+
+    def get_direccion_resumen(self, obj):
+        if not obj.direccion:
+            return ""
+        d = obj.direccion
+        partes = [
+            f"Calle {d.calle} {d.numero_exterior}",
+            d.colonia,
+            d.ciudad,
+            d.estado,
+            d.codigo_postal,
+        ]
+        return ", ".join([p for p in partes if p])
 
     def create(self, validated_data):
         request = self.context.get('request')
