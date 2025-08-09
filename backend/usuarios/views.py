@@ -7,6 +7,7 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework.decorators import action
 from django.contrib.auth.models import User
 from django.db.models import Q
+from django.contrib.auth.password_validation import validate_password
 
 from .serializers import (
     RegisterSerializer,
@@ -107,10 +108,29 @@ class AdminUserViewSet(viewsets.ModelViewSet):
             return self.get_paginated_response(serializer.data)
         return Response(serializer.data)
 
+    def partial_update(self, request, *args, **kwargs):
+        user = self.get_object()
+        perfil = request.data.get('perfil', {})
+        if (
+            isinstance(perfil, dict)
+            and perfil.get('rol') == 'super_admin'
+            and getattr(user.perfil, 'rol', '') != 'super_admin'
+        ):
+            return Response(
+                {"detail": "El rol super_admin no es asignable por este endpoint"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return super().partial_update(request, *args, **kwargs)
+
     @action(detail=False, methods=['post'])
     def bulk_set_role(self, request):
         ids = request.data.get('ids', [])
         rol = request.data.get('rol')
+        if rol == 'super_admin':
+            return Response(
+                {"detail": "El rol super_admin no es asignable por este endpoint"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         actualizados = Perfil.objects.filter(user__id__in=ids).update(rol=rol)
         return Response({'actualizados': actualizados})
 
@@ -120,13 +140,29 @@ class AdminUserViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def set_password(self, request, pk=None):
-        password = request.data.get('password')
-        if not password:
-            return Response({'error': 'Password requerido'}, status=400)
         user = self.get_object()
-        user.set_password(password)
+        new_password = request.data.get('new_password')
+        if not new_password:
+            return Response({'detail': 'new_password requerido'}, status=400)
+        try:
+            validate_password(new_password, user)
+        except Exception as e:
+            return Response(
+                {'detail': getattr(e, 'messages', [str(e)])},
+                status=400,
+            )
+        user.set_password(new_password)
         user.save()
         return Response({'status': 'ok'})
+
+    def destroy(self, request, *args, **kwargs):
+        user = self.get_object()
+        if user.is_superuser or getattr(user.perfil, 'rol', '') == 'super_admin':
+            return Response(
+                {"detail": "Prohibido eliminar superadmin"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return super().destroy(request, *args, **kwargs)
 
     @action(detail=True, methods=['get', 'post'], url_path='direcciones')
     def direcciones(self, request, pk=None):

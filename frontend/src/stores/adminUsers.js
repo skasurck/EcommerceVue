@@ -46,6 +46,10 @@ export const useAdminUsersStore = defineStore('adminUsers', {
       const res = await api.post(`admin/users/${userId}/importar_direcciones/`)
       return res.data
     },
+    async setPassword(userId, newPassword) {
+      const res = await api.post(`admin/users/${userId}/set_password/`, { new_password: newPassword })
+      return res.data
+    },
     async resetPasswordLink(userId) {
       try {
         const res = await api.post(`admin/users/${userId}/reset_password_link/`)
