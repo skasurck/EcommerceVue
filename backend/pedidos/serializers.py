@@ -100,10 +100,10 @@ class PedidoSerializer(serializers.ModelSerializer):
         fields = ['id', 'direccion', 'metodo_envio', 'metodo_envio_detalle', 'metodo_pago',
                   'metodo_pago_display', 'indicaciones', 'subtotal', 'costo_envio', 'total',
                   'datos_pago', 'items', 'detalles', 'save_address', 'estado', 'historial',
-                  'creado', 'cliente_nombre_completo', 'direccion_resumen']
+                  'creado', 'papelera', 'cliente_nombre_completo', 'direccion_resumen']
         read_only_fields = ['id', 'creado', 'subtotal', 'costo_envio', 'total', 'detalles',
                             'historial', 'metodo_envio_detalle', 'metodo_pago_display',
-                            'cliente_nombre_completo', 'direccion_resumen']
+                            'papelera', 'cliente_nombre_completo', 'direccion_resumen']
         extra_kwargs = {'estado': {'required': False}}
 
     def get_cliente_nombre_completo(self, obj):

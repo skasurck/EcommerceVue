@@ -63,6 +63,8 @@ class Pedido(models.Model):
     )
     stock_restaurado = models.BooleanField(default=False)
     creado = models.DateTimeField(auto_now_add=True)
+    papelera = models.BooleanField(default=False)
+    eliminado_en = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return f"Pedido #{self.id}"

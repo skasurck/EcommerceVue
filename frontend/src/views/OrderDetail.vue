@@ -26,8 +26,11 @@
       <h2>Artículos</h2>
       <div v-for="(item,idx) in pedido.detalles" :key="idx">
         {{ item.producto_nombre || item.producto }} - {{ money(item.precio_unitario) }}
-        <input type="number" v-model.number="item.cantidad" min="1" />
-        <button @click="pedido.detalles.splice(idx,1)">Eliminar</button>
+        <button @click="dec(idx)">−</button>
+        <input type="number" min="1" v-model.number="item.cantidad" @change="recalc" />
+        <button @click="inc(idx)">+</button>
+        <span>Subtotal: {{ money(item.subtotal || (item.precio_unitario * item.cantidad)) }}</span>
+        <button @click="removeItem(idx)">Eliminar</button>
       </div>
       <div>
         <input type="number" v-model.number="nuevoProducto" placeholder="ID producto" />
@@ -51,7 +54,8 @@
       <div v-if="summary">Pedidos: {{ summary.orders_count }} | Gastado: {{ money(summary.total_spent) }} | Ticket promedio: {{ money(summary.avg_ticket) }}</div>
     </section>
 
-    <button @click="guardar">Guardar</button>
+    <div v-if="!pedido.detalles.length">El pedido no puede quedar vacío.</div>
+    <button :disabled="!pedido.detalles.length" @click="guardar">Guardar</button>
     <button @click="cancelar">Cancelar</button>
   </div>
 </template>
@@ -72,18 +76,24 @@ const nuevaCantidad = ref(1)
 async function cargar(){
   const res = await axios.get(`pedidos/${route.params.id}/`)
   pedido.value = res.data
+  recalc()
   obtenerResumen()
 }
 
-function agregarItem(){
+async function agregarItem(){
   if (nuevoProducto.value && nuevaCantidad.value){
-    pedido.value.detalles.push({ producto: nuevoProducto.value, cantidad: nuevaCantidad.value, producto_nombre: '' })
+    const res = await axios.get(`productos/${nuevoProducto.value}/`)
+    const prod = res.data
+    const precio = Number(prod.precio_rebajado || prod.precio_normal)
+    pedido.value.detalles.push({ producto: prod.id, producto_nombre: prod.nombre, precio_unitario: precio, cantidad: nuevaCantidad.value, subtotal: precio * nuevaCantidad.value })
+    recalc()
     nuevoProducto.value = null
     nuevaCantidad.value = 1
   }
 }
 
 async function guardar(){
+  if (!pedido.value.detalles.length) return alert('El pedido no puede quedar vacío.')
   const payload = {
     estado: pedido.value.estado,
     direccion: pedido.value.direccion,
@@ -104,4 +114,35 @@ async function obtenerResumen(){
 }
 
 cargar()
+
+function recalc(){
+  let sub = 0
+  pedido.value.detalles.forEach(it => {
+    it.cantidad = Math.max(1, Number(it.cantidad))
+    it.subtotal = Number(it.precio_unitario) * Number(it.cantidad)
+    sub += it.subtotal
+  })
+  pedido.value.subtotal = sub
+  pedido.value.total = sub + Number(pedido.value.costo_envio || 0)
+}
+
+function inc(idx){
+  const it = pedido.value.detalles[idx]
+  it.cantidad++
+  recalc()
+}
+
+function dec(idx){
+  const it = pedido.value.detalles[idx]
+  if (it.cantidad > 1){
+    it.cantidad--
+    recalc()
+  }
+}
+
+function removeItem(idx){
+  pedido.value.detalles.splice(idx,1)
+  recalc()
+  if (!pedido.value.detalles.length) alert('El pedido no puede quedar vacío.')
+}
 </script>

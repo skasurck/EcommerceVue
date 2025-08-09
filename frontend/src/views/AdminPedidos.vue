@@ -12,6 +12,7 @@
         <option value="enviado">Enviado</option>
         <option value="cancelado">Cancelado</option>
       </select>
+      <label><input type="checkbox" v-model="verPapelera" @change="fetchPedidos(1)" /> Ver papelera</label>
     </div>
 
     <div v-if="seleccionados.length" class="bulk-actions">
@@ -24,6 +25,9 @@
         <option value="cancelado">Cancelado</option>
       </select>
       <button @click="aplicarBulk">Aplicar</button>
+      <button v-if="!verPapelera" @click="bulkTrash">Mover a papelera</button>
+      <button v-else @click="bulkRestore">Restaurar</button>
+      <button v-if="verPapelera" @click="bulkDestroy">Eliminar definitivamente</button>
     </div>
 
     <table>
@@ -56,7 +60,12 @@
           </td>
           <td>{{ pedido.direccion_resumen }}</td>
           <td>{{ money(pedido.total) }}</td>
-          <td><button @click="verDetalle(pedido.id)">Ver/Editar</button></td>
+          <td>
+            <button @click="verDetalle(pedido.id)">Ver/Editar</button>
+            <button v-if="!pedido.papelera" @click="moverPapelera(pedido.id)">Mover a papelera</button>
+            <button v-else @click="restaurar(pedido.id)">Restaurar</button>
+            <button v-if="pedido.papelera" @click="eliminar(pedido.id)">Eliminar</button>
+          </td>
         </tr>
       </tbody>
     </table>
@@ -81,12 +90,14 @@ const estadoFiltro = ref('')
 const seleccionados = ref([])
 const seleccionarTodo = ref(false)
 const estadoBulk = ref('')
+const verPapelera = ref(false)
 const router = useRouter()
 
 async function fetchPedidos(p=1){
   pagina.value = p
   const params = { page: p }
   if (estadoFiltro.value) params.estado = estadoFiltro.value
+  if (verPapelera.value) params.papelera = 1
   const res = await axios.get('pedidos/', { params })
   pedidos.value = res.data.results || res.data
   siguiente.value = !!res.data.next
@@ -121,6 +132,45 @@ async function aplicarBulk(){
 
 function verDetalle(id){
   router.push(`/admin/pedidos/${id}`)
+}
+
+async function moverPapelera(id){
+  if (!confirm('¿Mover pedido a papelera?')) return
+  await axios.post(`pedidos/${id}/trash/`)
+  fetchPedidos(pagina.value)
+}
+
+async function restaurar(id){
+  if (!confirm('¿Restaurar pedido?')) return
+  await axios.post(`pedidos/${id}/restore/`)
+  fetchPedidos(pagina.value)
+}
+
+async function eliminar(id){
+  if (!confirm('¿Eliminar definitivamente?')) return
+  await axios.delete(`pedidos/${id}/`)
+  fetchPedidos(pagina.value)
+}
+
+async function bulkTrash(){
+  if (!confirm('¿Mover seleccionados a papelera?')) return
+  const res = await axios.post('pedidos/bulk_trash/', { ids: seleccionados.value })
+  alert(`Actualizados: ${res.data.updated}, Fallidos: ${res.data.failed.length}`)
+  fetchPedidos(pagina.value)
+}
+
+async function bulkRestore(){
+  if (!confirm('¿Restaurar seleccionados?')) return
+  const res = await axios.post('pedidos/bulk_restore/', { ids: seleccionados.value })
+  alert(`Actualizados: ${res.data.updated}, Fallidos: ${res.data.failed.length}`)
+  fetchPedidos(pagina.value)
+}
+
+async function bulkDestroy(){
+  if (!confirm('¿Eliminar definitivamente los seleccionados?')) return
+  const res = await axios.post('pedidos/bulk_destroy/', { ids: seleccionados.value })
+  alert(`Eliminados: ${res.data.updated}, Fallidos: ${res.data.failed.length}`)
+  fetchPedidos(pagina.value)
 }
 
 fetchPedidos()

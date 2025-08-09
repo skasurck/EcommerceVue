@@ -6,7 +6,8 @@ from rest_framework.decorators import action
 from rest_framework.views import APIView
 from django.db.models import Sum, Avg
 from django.utils.dateparse import parse_date
-from .models import Direccion, MetodoEnvio, Pedido
+from django.utils import timezone
+from .models import Direccion, MetodoEnvio, Pedido, PedidoHistorial
 from .serializers import DireccionSerializer, MetodoEnvioSerializer, PedidoSerializer
 from usuarios.permissions import IsAdminOrSuperAdmin
 
@@ -72,6 +73,12 @@ class PedidoViewSet(viewsets.ModelViewSet):
         estado = params.get("estado")
         if estado:
             qs = qs.filter(estado=estado)
+        papelera = params.get("papelera")
+        incluye_papelera = params.get("incluye_papelera")
+        if papelera:
+            qs = qs.filter(papelera=True)
+        elif not incluye_papelera:
+            qs = qs.filter(papelera=False)
         fecha_desde = params.get("fecha_desde")
         if fecha_desde:
             qs = qs.filter(creado__date__gte=parse_date(fecha_desde))
@@ -115,6 +122,91 @@ class PedidoViewSet(viewsets.ModelViewSet):
             except Exception as exc:
                 failed.append({'id': pk, 'error': str(exc)})
         return Response({'updated': updated, 'failed': failed})
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAdminOrSuperAdmin])
+    def trash(self, request, pk=None):
+        pedido = self.get_object()
+        if pedido.papelera:
+            return Response({'detail': 'Ya está en papelera'}, status=status.HTTP_400_BAD_REQUEST)
+        pedido.papelera = True
+        pedido.eliminado_en = timezone.now()
+        pedido.save(update_fields=['papelera', 'eliminado_en'])
+        PedidoHistorial.objects.create(pedido=pedido, descripcion='Movido a papelera')
+        return Response({'status': 'ok'})
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAdminOrSuperAdmin])
+    def restore(self, request, pk=None):
+        pedido = self.get_object()
+        if not pedido.papelera:
+            return Response({'detail': 'Pedido no está en papelera'}, status=status.HTTP_400_BAD_REQUEST)
+        pedido.papelera = False
+        pedido.eliminado_en = None
+        pedido.save(update_fields=['papelera', 'eliminado_en'])
+        PedidoHistorial.objects.create(pedido=pedido, descripcion='Restaurado desde papelera')
+        return Response({'status': 'ok'})
+
+    @action(detail=False, methods=['post'], permission_classes=[IsAdminOrSuperAdmin])
+    def bulk_trash(self, request):
+        ids = request.data.get('ids', [])
+        updated = 0
+        failed = []
+        for pk in ids:
+            try:
+                pedido = Pedido.objects.get(pk=pk)
+                pedido.papelera = True
+                pedido.eliminado_en = timezone.now()
+                pedido.save(update_fields=['papelera', 'eliminado_en'])
+                PedidoHistorial.objects.create(pedido=pedido, descripcion='Movido a papelera')
+                updated += 1
+            except Pedido.DoesNotExist:
+                failed.append({'id': pk, 'error': 'No existe'})
+            except Exception as exc:
+                failed.append({'id': pk, 'error': str(exc)})
+        return Response({'updated': updated, 'failed': failed})
+
+    @action(detail=False, methods=['post'], permission_classes=[IsAdminOrSuperAdmin])
+    def bulk_restore(self, request):
+        ids = request.data.get('ids', [])
+        updated = 0
+        failed = []
+        for pk in ids:
+            try:
+                pedido = Pedido.objects.get(pk=pk)
+                pedido.papelera = False
+                pedido.eliminado_en = None
+                pedido.save(update_fields=['papelera', 'eliminado_en'])
+                PedidoHistorial.objects.create(pedido=pedido, descripcion='Restaurado desde papelera')
+                updated += 1
+            except Pedido.DoesNotExist:
+                failed.append({'id': pk, 'error': 'No existe'})
+            except Exception as exc:
+                failed.append({'id': pk, 'error': str(exc)})
+        return Response({'updated': updated, 'failed': failed})
+
+    @action(detail=False, methods=['post'], permission_classes=[IsAdminOrSuperAdmin])
+    def bulk_destroy(self, request):
+        ids = request.data.get('ids', [])
+        updated = 0
+        failed = []
+        for pk in ids:
+            try:
+                pedido = Pedido.objects.get(pk=pk)
+                if not pedido.papelera:
+                    raise Exception('No está en papelera')
+                pedido.delete()
+                updated += 1
+            except Pedido.DoesNotExist:
+                failed.append({'id': pk, 'error': 'No existe'})
+            except Exception as exc:
+                failed.append({'id': pk, 'error': str(exc)})
+        return Response({'updated': updated, 'failed': failed})
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if not instance.papelera:
+            return Response({'detail': 'Debe estar en papelera para eliminar'}, status=status.HTTP_400_BAD_REQUEST)
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class ClienteSummaryView(APIView):
