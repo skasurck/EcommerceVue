@@ -143,12 +143,13 @@ class AdminUserViewSet(viewsets.ModelViewSet):
         user = self.get_object()
         new_password = request.data.get('new_password')
         # restriction: only a superadmin can change another superadmin's password
-        is_target_superadmin = (
-            user.is_superuser or getattr(user.perfil, 'rol', '') == 'super_admin'
+        perfil_target = getattr(user, 'perfil', None)
+        is_target_superadmin = user.is_superuser or (
+            perfil_target and getattr(perfil_target, 'rol', '') == 'super_admin'
         )
-        is_request_superadmin = (
-            request.user.is_superuser
-            or getattr(request.user.perfil, 'rol', '') == 'super_admin'
+        perfil_request = getattr(request.user, 'perfil', None)
+        is_request_superadmin = request.user.is_superuser or (
+            perfil_request and getattr(perfil_request, 'rol', '') == 'super_admin'
         )
         if is_target_superadmin and not is_request_superadmin:
             return Response(
