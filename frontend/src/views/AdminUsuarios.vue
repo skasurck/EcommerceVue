@@ -19,7 +19,7 @@
           <th class="border px-2 py-1">Rol</th>
           <th class="border px-2 py-1">2FA</th>
           <th class="border px-2 py-1">Último acceso</th>
-          <th class="border px-2 py-1"></th>
+          <th class="border px-2 py-1">Acciones</th>
         </tr>
       </thead>
       <tbody>
@@ -30,7 +30,13 @@
           <td class="border px-2 py-1">{{ u.rol }}</td>
           <td class="border px-2 py-1">{{ u.estado_2fa ? 'Sí' : 'No' }}</td>
           <td class="border px-2 py-1">{{ u.ultimo_acceso }}</td>
-          <td class="border px-2 py-1"><router-link :to="`/admin/usuarios/${u.id}`" class="underline">Ver</router-link></td>
+          <td class="border px-2 py-1">
+            <div class="flex space-x-1">
+              <router-link :to="`/admin/usuarios/${u.id}`" class="underline">Ver</router-link>
+              <button @click="resetPassword(u.id)" class="bg-blue-500 text-white px-2 py-1 text-xs rounded hover:bg-blue-600">Restablecer contraseña</button>
+              <button @click="deleteUser(u.id)" class="bg-red-500 text-white px-2 py-1 text-xs rounded hover:bg-red-600">Eliminar</button>
+            </div>
+          </td>
         </tr>
       </tbody>
     </table>
@@ -54,4 +60,24 @@ async function fetch() {
 }
 
 onMounted(fetch)
+
+async function resetPassword(id) {
+  try {
+    await store.resetPasswordLink(id)
+    alert('Si existe, hemos enviado el correo de restablecimiento de contraseña.')
+  } catch (e) {
+    alert('Error al solicitar el restablecimiento de contraseña')
+  }
+}
+
+async function deleteUser(id) {
+  if (!confirm('¿Eliminar usuario?')) return
+  try {
+    await store.deleteUser(id)
+    users.value = users.value.filter(u => u.id !== id)
+    alert('Usuario eliminado')
+  } catch (e) {
+    alert('Error al eliminar usuario')
+  }
+}
 </script>

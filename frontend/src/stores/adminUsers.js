@@ -45,6 +45,22 @@ export const useAdminUsersStore = defineStore('adminUsers', {
     async importarDirecciones(userId) {
       const res = await api.post(`admin/users/${userId}/importar_direcciones/`)
       return res.data
+    },
+    async resetPasswordLink(userId) {
+      try {
+        const res = await api.post(`admin/users/${userId}/reset_password_link/`)
+        return res.data
+      } catch (error) {
+        throw error
+      }
+    },
+    async deleteUser(userId) {
+      try {
+        const res = await api.delete(`admin/users/${userId}/`)
+        return res.data
+      } catch (error) {
+        throw error
+      }
     }
   }
 })
