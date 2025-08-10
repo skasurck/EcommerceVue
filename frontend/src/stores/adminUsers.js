@@ -5,25 +5,28 @@ export const useAdminUsersStore = defineStore('adminUsers', {
   state: () => ({
     items: [],
     userDetail: null,
+    changedAt: 0,           // <- pulso de cambios
   }),
   actions: {
     async fetchUsers(params = {}) {
-      const { data } = await api.get('admin/users/', {
-        params,
-        headers: { 'Cache-Control': 'no-cache' }
-      })
+      const { data } = await api.get('admin/users/', { params })
       this.items = data.results || data
       return data
     },
     async fetchUser(id) {
-      const res = await api.get(`admin/users/${id}/`)
-      this.userDetail = res.data
-      return res.data
+      const { data } = await api.get(`admin/users/${id}/`, { params: { _t: Date.now() } })
+      this.userDetail = data
+      // sincroniza si ya está listado
+      const i = this.items.findIndex(u => u.id === id)
+      if (i !== -1) this.items[i] = { ...this.items[i], ...data }
+      return data
     },
     async updateUser(id, payload) {
-      const res = await api.patch(`admin/users/${id}/`, payload)
-      this.userDetail = res.data
-      return res.data
+      const { data } = await api.patch(`admin/users/${id}/`, payload)
+      const i = this.items.findIndex(u => u.id === id)
+      if (i !== -1) this.items[i] = { ...this.items[i], ...data }
+      this.changedAt = Date.now()     // <- notifica
+      return data
     },
     async getDirecciones(userId) {
       const res = await api.get(`admin/users/${userId}/direcciones/`)
@@ -54,20 +57,13 @@ export const useAdminUsersStore = defineStore('adminUsers', {
       return res.data
     },
     async resetPasswordLink(userId) {
-      try {
-        const res = await api.post(`admin/users/${userId}/reset_password_link/`)
-        return res.data
-      } catch (error) {
-        throw error
-      }
+      const { data } = await api.post(`admin/users/${userId}/reset_password_link/`)
+      return data
     },
-    async deleteUser(userId) {
-      try {
-        const res = await api.delete(`admin/users/${userId}/`)
-        return res.data
-      } catch (error) {
-        throw error
-      }
-    }
+    async deleteUser(id) {
+      await api.delete(`admin/users/${id}/`)
+      this.items = this.items.filter(u => u.id !== id)
+      this.changedAt = Date.now()     // <- notifica
+    },
   }
 })

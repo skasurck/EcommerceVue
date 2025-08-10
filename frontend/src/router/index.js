@@ -101,9 +101,13 @@ const routes = [
     name: 'admin-usuarios',
     component: AdminUsuarios,
     meta: { requiresAuth: true, roles: ['admin', 'super_admin'] },
-    beforeEnter: async () => {
+    async beforeEnter(to, from) {
       const store = useAdminUsersStore()
-      await store.fetchUsers({ _t: Date.now() })
+      // opcional: respetar query como filtros
+      const search = to.query.search ?? ''
+      const rol    = to.query.rol ?? ''
+      await store.fetchUsers({ search, rol, _t: Date.now() }) // cache-buster
+      return true
     }
   },
   {

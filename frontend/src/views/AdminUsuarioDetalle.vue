@@ -183,8 +183,12 @@ onBeforeUnmount(() => bc.close())
 async function guardarUsuario() {
   const payload = { ...form, perfil: form.perfil }
   if (defaultDir.value) payload.direccion_predeterminada = defaultDir.value
-  const data = await store.updateUser(user.value.id, payload)
-  user.value = data
+  await store.updateUser(user.value.id, payload)
+  
+  // Recarga los datos del usuario
+  const updated = await store.fetchUser(user.value.id)
+  user.value = updated
+  
   alert('Usuario actualizado')
   bc.postMessage({ type: 'changed' })
 }
@@ -212,19 +216,49 @@ function cerrarModal() { mostrarModal.value = false }
 
 function editarDireccion(dir) { editDir.value = dir.id; Object.assign(modalDir, { ...dir }); mostrarModal.value = true }
 
-async function guardarModalDireccion() {
-  if (editDir.value) {
-    await store.updateDireccion(user.value.id, editDir.value, modalDir)
-  } else {
-    await store.createDireccion(user.value.id, modalDir)
+function buildDireccionPayload(src) {
+  // obligatorios en tu modelo:
+  const required = ['nombre','apellidos','email','calle','numero_exterior','colonia','ciudad','pais','estado','codigo_postal','telefono']
+  for (const k of required) {
+    if (!src[k] || String(src[k]).trim() === '') {
+      throw new Error(`Falta el campo obligatorio: ${k}`)
+    }
   }
-  const resp = await store.getDirecciones(user.value.id)
-  otrasDirecciones.value = resp
-  const data = await store.fetchUser(user.value.id)
-  defaultDir.value = data.direccion_predeterminada
-  mostrarModal.value = false
-  bc.postMessage({ type: 'changed' })
+  // opcionales en tu modelo (tienen blank=True)
+  return {
+    nombre: src.nombre,
+    apellidos: src.apellidos,
+    email: src.email,
+    nombre_empresa: src.nombre_empresa || '',
+    calle: src.calle,
+    numero_exterior: src.numero_exterior,
+    numero_interior: src.numero_interior || '',
+    colonia: src.colonia,
+    ciudad: src.ciudad,
+    pais: src.pais,
+    estado: src.estado,
+    codigo_postal: src.codigo_postal,
+    telefono: src.telefono,
+    referencias: src.referencias || '',
+    predeterminada: !!src.predeterminada,
+  }
 }
+
+async function guardarModalDireccion() {
+  try {
+    const payload = buildDireccionPayload(modalDir)
+    if (editDir.value) {
+      await store.updateDireccion(user.value.id, editDir.value, payload)
+    } else {
+      await store.createDireccion(user.value.id, payload)
+    }
+    // refrescos…
+  } catch (e) {
+    console.error('Validación Dirección:', e?.response?.data || e)
+    alert('Error al guardar la dirección: ' + (e?.message || JSON.stringify(e?.response?.data)))
+  }
+}
+
 
 async function eliminarDireccion(dir) {
   await store.deleteDireccion(user.value.id, dir.id)

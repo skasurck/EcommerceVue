@@ -1,10 +1,12 @@
+<!-- App.vue (o el layout principal) -->
 <template>
-  <div class="flex flex-col min-h-screen">
-    <Navbar />
-    <main class="pt-20 px-6 flex-1">
-      <RouterView :key="$route.fullPath" />
-    </main>
-  </div>
+  <Navbar />
+  <RouterView v-slot="{ Component, route }">
+    <!-- si usas KeepAlive, EXCLUYE AdminUsuarios -->
+    <!-- <KeepAlive exclude="AdminUsuarios"> -->
+      <component :is="Component" :key="route.fullPath" />
+    <!-- </KeepAlive> -->
+  </RouterView>
 </template>
 
 

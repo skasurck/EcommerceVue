@@ -2,13 +2,14 @@
   <div class="p-4">
     <h2 class="text-xl font-bold mb-4">Gestión de usuarios</h2>
     <div class="mb-2 space-x-2">
-      <input v-model="search" @input="fetch" placeholder="Buscar..." class="border p-1" />
-      <select v-model="role" @change="fetch" class="border p-1">
+      <input v-model="search" placeholder="Buscar..." class="border p-1" />
+      <select v-model="role" class="border p-1">
         <option value="">Todos</option>
         <option value="cliente">Cliente</option>
         <option value="admin">Administrador</option>
         <option value="super_admin">Super Administrador</option>
       </select>
+
     </div>
     <table class="w-full text-sm border">
       <thead>
@@ -44,42 +45,60 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted, onActivated, onBeforeUnmount, watch } from 'vue'
 import { useAdminUsersStore } from '../stores/adminUsers'
 
 defineOptions({ name: 'AdminUsuarios' })
 
-const store = useAdminUsersStore()
-const users = ref([])
+const store  = useAdminUsersStore()
+const users  = computed(() => store.items)
+
 const search = ref('')
-const role = ref('')
+const role   = ref('')
+
+const bc = new BroadcastChannel('admin-users')
 
 async function fetchNow() {
-  const data = await store.fetchUsers({ search: search.value, rol: role.value, _t: Date.now() })
-  users.value = data.results || data
+  await store.fetchUsers({ search: search.value, rol: role.value, _t: Date.now() })
 }
 
-// 1) Primera carga (al REMONTAR la vista)
 onMounted(fetchNow)
+onActivated(fetchNow)                 // <- CLAVE: al volver desde el detalle, vuelve a pedir datos
 
-// 2) Filtros
-async function fetch() { await fetchNow() }
+// refresca cuando la pestaña recupera foco o vienes del historial (BFCache)
+const onFocus = () => fetchNow()
+const onPageShow = () => fetchNow()
+window.addEventListener('focus', onFocus)
+window.addEventListener('pageshow', onPageShow)
 
-// Acciones
+// Escuchar cambios publicados por el detalle
+bc.onmessage = (ev) => { if (ev?.data?.type === 'changed') fetchNow() }
+
+onBeforeUnmount(() => {
+  window.removeEventListener('focus', onFocus)
+  window.removeEventListener('pageshow', onPageShow)
+   bc.close()
+})
+
+// filtros
+let t = null
+function refetchDebounced(){ clearTimeout(t); t = setTimeout(fetchNow, 300) }
+watch(search, refetchDebounced)
+watch(role,   fetchNow)
+
+
+
+// acciones
 async function resetPassword(id) {
-  try {
-    await store.resetPasswordLink(id)
-    alert('Si existe, hemos enviado el correo de restablecimiento de contraseña.')
-  } catch {
-    alert('Error al solicitar el restablecimiento de contraseña')
-  }
+  try { await store.resetPasswordLink(id); alert('Si existe, enviamos el correo.') }
+  catch { alert('Error al solicitar el restablecimiento de contraseña') }
 }
 
 async function deleteUser(id) {
   if (!confirm('¿Eliminar usuario?')) return
   try {
     await store.deleteUser(id)
-    await fetchNow()
+    await fetchNow()                  // asegura coherencia con paginación/servidor
     alert('Usuario eliminado')
   } catch (e) {
     if (e?.response?.status === 403) alert('No se puede eliminar un superadmin')
