@@ -8,6 +8,8 @@ from rest_framework.decorators import action
 from django.contrib.auth.models import User
 from django.db.models import Q
 from django.contrib.auth.password_validation import validate_password
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import never_cache
 
 from .serializers import (
     RegisterSerializer,
@@ -80,6 +82,8 @@ class ChangePasswordView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+@method_decorator(never_cache, name='list')
+@method_decorator(never_cache, name='retrieve')
 class AdminUserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all().select_related('perfil')
     permission_classes = [permissions.IsAdminUser]

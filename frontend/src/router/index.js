@@ -20,6 +20,7 @@ import MetodosPago from '../views/MetodosPago.vue'
 import MetodosEnvio from '../views/MetodosEnvio.vue'
 import EditarProducto from '../views/EditarProducto.vue'
 import { useAuthStore } from '../stores/auth'
+import { useAdminUsersStore } from '../stores/adminUsers'
 
 const routes = [
   {
@@ -99,7 +100,11 @@ const routes = [
     path: '/admin/usuarios',
     name: 'admin-usuarios',
     component: AdminUsuarios,
-    meta: { requiresAuth: true, roles: ['admin', 'super_admin'] }
+    meta: { requiresAuth: true, roles: ['admin', 'super_admin'] },
+    beforeEnter: async () => {
+      const store = useAdminUsersStore()
+      await store.fetchUsers({ _t: Date.now() })
+    }
   },
   {
     path: '/admin/usuarios/:id',

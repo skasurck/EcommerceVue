@@ -8,7 +8,10 @@ export const useAdminUsersStore = defineStore('adminUsers', {
   }),
   actions: {
     async fetchUsers(params = {}) {
-      const { data } = await api.get('admin/users/', { params })
+      const { data } = await api.get('admin/users/', {
+        params,
+        headers: { 'Cache-Control': 'no-cache' }
+      })
       this.items = data.results || data
       return data
     },

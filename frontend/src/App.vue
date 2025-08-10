@@ -2,7 +2,7 @@
   <div class="flex flex-col min-h-screen">
     <Navbar />
     <main class="pt-20 px-6 flex-1">
-      <router-view />
+      <RouterView :key="$route.fullPath" />
     </main>
   </div>
 </template>

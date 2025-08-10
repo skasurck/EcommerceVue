@@ -44,46 +44,25 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onActivated, onBeforeUnmount, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, onMounted } from 'vue'
 import { useAdminUsersStore } from '../stores/adminUsers'
 
 defineOptions({ name: 'AdminUsuarios' })
 
 const store = useAdminUsersStore()
-const route = useRoute()
-
 const users = ref([])
 const search = ref('')
 const role = ref('')
 
-// Refresco centralizado
 async function fetchNow() {
-  // cache-buster para evitar caches de proxy/navegador
   const data = await store.fetchUsers({ search: search.value, rol: role.value, _t: Date.now() })
   users.value = data.results || data
 }
 
-// 1) Primera carga
+// 1) Primera carga (al REMONTAR la vista)
 onMounted(fetchNow)
 
-// 2) Al reactivar (si la vista está dentro de <keep-alive/>)
-onActivated(fetchNow)
-
-// 3) Si cambian los filtros por ruta (opcional si usas query/params)
-watch(() => route.fullPath, () => fetchNow())
-
-// 4) Cuando la pestaña vuelve del historial (BFCache) o recupera foco
-function onPageShow() { fetchNow() }         // se dispara también al volver con atrás/adelante
-function onFocus() { fetchNow() }            // por si el usuario cambia de pestaña
-window.addEventListener('pageshow', onPageShow)
-window.addEventListener('focus', onFocus)
-onBeforeUnmount(() => {
-  window.removeEventListener('pageshow', onPageShow)
-  window.removeEventListener('focus', onFocus)
-})
-
-// Handlers de filtros en la UI
+// 2) Filtros
 async function fetch() { await fetchNow() }
 
 // Acciones
@@ -100,7 +79,7 @@ async function deleteUser(id) {
   if (!confirm('¿Eliminar usuario?')) return
   try {
     await store.deleteUser(id)
-    await fetchNow() // refrescar inmediatamente tras eliminar
+    await fetchNow()
     alert('Usuario eliminado')
   } catch (e) {
     if (e?.response?.status === 403) alert('No se puede eliminar un superadmin')
