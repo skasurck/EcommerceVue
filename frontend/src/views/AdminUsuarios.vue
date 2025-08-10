@@ -44,70 +44,49 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onActivated, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onActivated, onBeforeUnmount, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAdminUsersStore } from '../stores/adminUsers'
 
 defineOptions({ name: 'AdminUsuarios' })
 
 const store = useAdminUsersStore()
+const route = useRoute()
+
 const users = ref([])
 const search = ref('')
 const role = ref('')
 
-// cache-buster param solo para saltar caches intermedios si hiciera falta
+// Refresco centralizado
 async function fetchNow() {
+  // cache-buster para evitar caches de proxy/navegador
   const data = await store.fetchUsers({ search: search.value, rol: role.value, _t: Date.now() })
   users.value = data.results || data
 }
 
-// ---- Polling visible ----
-let timer = null
-const intervalMs = 10000 // 10s
-let backoff = 1
+// 1) Primera carga
+onMounted(fetchNow)
 
-function startPolling() {
-  stopPolling()
-  timer = setInterval(async () => {
-    if (document.visibilityState !== 'visible') return
-    try {
-      await fetchNow()
-      backoff = 1
-    } catch (e) {
-      backoff = Math.min(backoff * 2, 6)
-      stopPolling()
-      timer = setInterval(() => {
-        if (document.visibilityState === 'visible') fetchNow()
-      }, intervalMs * backoff)
-    }
-  }, intervalMs)
-}
-function stopPolling() { if (timer) { clearInterval(timer); timer = null } }
-
-// ---- BroadcastChannel para refrescar inmediato ----
-let bc = null
-function setupBroadcast() {
-  bc = new BroadcastChannel('admin-users')
-  bc.onmessage = ev => {
-    if (ev?.data?.type === 'changed') fetchNow()
-  }
-}
-function teardownBroadcast() { if (bc) { bc.close(); bc = null } }
-
-onMounted(async () => {
-  await fetchNow()
-  setupBroadcast()
-  startPolling()
-})
+// 2) Al reactivar (si la vista está dentro de <keep-alive/>)
 onActivated(fetchNow)
+
+// 3) Si cambian los filtros por ruta (opcional si usas query/params)
+watch(() => route.fullPath, () => fetchNow())
+
+// 4) Cuando la pestaña vuelve del historial (BFCache) o recupera foco
+function onPageShow() { fetchNow() }         // se dispara también al volver con atrás/adelante
+function onFocus() { fetchNow() }            // por si el usuario cambia de pestaña
+window.addEventListener('pageshow', onPageShow)
+window.addEventListener('focus', onFocus)
 onBeforeUnmount(() => {
-  stopPolling()
-  teardownBroadcast()
+  window.removeEventListener('pageshow', onPageShow)
+  window.removeEventListener('focus', onFocus)
 })
 
-// filtros
+// Handlers de filtros en la UI
 async function fetch() { await fetchNow() }
 
-// acciones
+// Acciones
 async function resetPassword(id) {
   try {
     await store.resetPasswordLink(id)
@@ -121,8 +100,7 @@ async function deleteUser(id) {
   if (!confirm('¿Eliminar usuario?')) return
   try {
     await store.deleteUser(id)
-    await fetchNow()
-    bc?.postMessage({ type: 'changed' })
+    await fetchNow() // refrescar inmediatamente tras eliminar
     alert('Usuario eliminado')
   } catch (e) {
     if (e?.response?.status === 403) alert('No se puede eliminar un superadmin')
