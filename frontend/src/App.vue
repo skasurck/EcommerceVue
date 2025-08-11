@@ -1,12 +1,14 @@
 <!-- App.vue (o el layout principal) -->
 <template>
   <Navbar />
+   <main style="padding-top: var(--nav-h)">
   <RouterView v-slot="{ Component, route }">
     <!-- si usas KeepAlive, EXCLUYE AdminUsuarios -->
     <!-- <KeepAlive exclude="AdminUsuarios"> -->
       <component :is="Component" :key="route.fullPath" />
     <!-- </KeepAlive> -->
   </RouterView>
+   </main>
 </template>
 
 
@@ -20,6 +22,9 @@ const auth = useAuthStore()
 
 onMounted(() => {
   auth.checkLogin()
+// Calcular altura del navbar y guardarla en una variable CSS global
+  const h = document.getElementById('nav').offsetHeight + 'px'
+  document.documentElement.style.setProperty('--nav-h', h)
 })
 </script>
 

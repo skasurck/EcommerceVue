@@ -1,5 +1,5 @@
 <template>
-  <div class="max-w-xl mx-auto">
+  <div class="max-w-xl mx-auto pt-10">
     <CheckoutStep1 v-if="store.step === 1" />
     <CheckoutStep2 v-else-if="store.step === 2" @back="store.step = 1" />
     <CheckoutStep3 v-else @back="store.step = 2" @complete="onComplete" />
