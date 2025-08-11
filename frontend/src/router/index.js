@@ -21,6 +21,7 @@ import MetodosEnvio from '../views/MetodosEnvio.vue'
 import EditarProducto from '../views/EditarProducto.vue'
 import { useAuthStore } from '../stores/auth'
 import { useAdminUsersStore } from '../stores/adminUsers'
+import AdminLayout from '@/layouts/AdminLayout.vue'
 
 const routes = [
   {
@@ -74,77 +75,109 @@ const routes = [
   },
   {
     path: '/admin',
-    name: 'admin',
-    component: AdminDashboard,
-    meta: { requiresAuth: true, roles: ['admin', 'super_admin'] }
+    component: AdminLayout,
+    meta: { requiresAuth: true, roles: ['admin','super_admin'] },
+    children: [
+      { 
+        path: '', 
+        name: 'admin', 
+        component: () => import('@/views/AdminDashboard.vue'), 
+        meta: { title: 'Dashboard' } 
+      },
+      { 
+        path: 'productos', 
+        name: 'admin-productos', 
+        component: () => import('@/views/AdminProductos.vue'), 
+        meta: { title: 'Gestión de productos' } 
+      },
+      {
+        path: 'productos/nuevo',
+        name: 'admin-producto-nuevo',
+        component: () => import('@/views/NuevoProducto.vue'),
+        meta: { title: 'Nuevo producto', requiresAuth: true, roles: ['admin','super_admin'] }
+      },
+      { 
+        path: 'pedidos',   
+        name: 'admin-pedidos',   
+        component: () => import('@/views/AdminPedidos.vue'),   
+        meta: { title: 'Gestión de pedidos' } 
+      },
+      { 
+        path: 'pedidos/:id', 
+        name: 'admin-pedido-detalle', 
+        component: () => import('@/views/OrderDetail.vue'), 
+        meta: { title: 'Detalle de pedido' } 
+      },
+      { 
+        path: 'usuarios',
+        name: 'admin-usuarios',
+        component: AdminUsuarios,
+        meta: { 
+          title: 'Gestión de usuarios', 
+          requiresAuth: true, 
+          roles: ['admin', 'super_admin'] 
+        },
+        async beforeEnter(to, from) {
+          const store = useAdminUsersStore()
+          const search = to.query.search ?? ''
+          const rol    = to.query.rol ?? ''
+          await store.fetchUsers({ search, rol, _t: Date.now() })
+          return true
+        }
+      },
+      { 
+        path: 'usuarios/:id', 
+        name: 'admin-usuario-detalle', 
+        component: () => import('@/views/AdminUsuarioDetalle.vue'), 
+        meta: { title: 'Usuario' } 
+      },
+      { 
+        path: 'configuracion', 
+        name: 'admin-configuracion', 
+        component: () => import('@/views/AdminConfiguracion.vue'), 
+        meta: { title: 'Configuración', roles:['super_admin'] } 
+      },
+      {
+        path: 'configuracion/metodos-pago',
+        name: 'admin-configuracion-metodos-pago',
+        component: () => import('@/views/MetodosPago.vue'),
+        meta: { title: 'Métodos de pago', requiresAuth: true, roles: ['super_admin'] }
+      },
+      {
+        path: 'configuracion/metodos-envio',
+        name: 'admin-configuracion-metodos-envio',
+        component: () => import('@/views/MetodosEnvio.vue'),
+        meta: { title: 'Métodos de envío', requiresAuth: true, roles: ['super_admin'] }
+      },
+      {
+        path: '/productos/editar/:id',
+        name: 'editar-producto',
+        component: EditarProducto,
+        meta: { requiresAuth: true, roles: ['admin', 'super_admin'] }
+      },
+    ]
   },
-  {
-    path: '/admin/productos',
-    name: 'admin-productos',
-    component: AdminProductos,
-    meta: { requiresAuth: true, roles: ['admin', 'super_admin'] }
-  },
-  {
-    path: '/admin/pedidos',
-    name: 'admin-pedidos',
-    component: AdminPedidos,
-    meta: { requiresAuth: true, roles: ['admin', 'super_admin'] }
-  },
-  {
-    path: '/admin/pedidos/:id',
-    name: 'admin-pedido-detalle',
-    component: OrderDetail,
-    meta: { requiresAuth: true, roles: ['admin', 'super_admin'] }
-  },
-  {
-    path: '/admin/usuarios',
-    name: 'admin-usuarios',
-    component: AdminUsuarios,
-    meta: { requiresAuth: true, roles: ['admin', 'super_admin'] },
-    async beforeEnter(to, from) {
-      const store = useAdminUsersStore()
-      // opcional: respetar query como filtros
-      const search = to.query.search ?? ''
-      const rol    = to.query.rol ?? ''
-      await store.fetchUsers({ search, rol, _t: Date.now() }) // cache-buster
-      return true
-    }
-  },
-  {
-    path: '/admin/usuarios/:id',
-    name: 'admin-usuario-detalle',
-    component: AdminUsuarioDetalle,
-    meta: { requiresAuth: true, roles: ['admin', 'super_admin'] }
-  },
-  {
-    path: '/admin/configuracion',
-    name: 'admin-configuracion',
-    component: AdminConfiguracion,
-    meta: { requiresAuth: true, roles: ['super_admin'] }
-  },
-  {
-    path: '/admin/configuracion/metodos-pago',
-    name: 'admin-configuracion-metodos-pago',
-    component: MetodosPago,
-    meta: { requiresAuth: true, roles: ['super_admin'] }
-  },
-  {
-    path: '/admin/configuracion/metodos-envio',
-    name: 'admin-configuracion-metodos-envio',
-    component: MetodosEnvio,
-    meta: { requiresAuth: true, roles: ['super_admin'] }
-  },
-  {
-    path: '/productos/editar/:id',
-    name: 'editar-producto',
-    component: EditarProducto,
-    meta: { requiresAuth: true, roles: ['admin', 'super_admin'] }
-  },
+  
   {
     path: '/acceso-denegado',
     name: 'acceso-denegado',
     component: AccesoDenegado
-  }
+  },
+  {
+  path: '/mis-pedidos',
+  name: 'MisPedidos',
+  component: () => import('@/views/MisPedidos.vue')
+},
+{
+  path: '/seguridad',
+  name: 'Seguridad',
+  component: () => import('@/views/Seguridad.vue')
+},
+{
+  path: '/direcciones',
+  name: 'Direcciones',
+  component: () => import('@/views/Direcciones.vue')
+}
 ]
 
 const router = createRouter({

@@ -1,87 +1,220 @@
 <template>
-  <div>
-    <h2>Gestión de productos</h2>
-
-    <div>
-      <input v-model="filtros.search" placeholder="Buscar..." @input="fetchProductos" />
-      <select v-model="filtros.categoria" @change="fetchProductos">
-        <option value="">Todas las categorías</option>
-        <option v-for="c in categorias" :key="c.id" :value="c.id">{{ c.nombre }}</option>
-      </select>
-      <select v-model="filtros.estado" @change="fetchProductos">
-        <option value="">Todos</option>
-        <option value="en_existencia">En existencia</option>
-        <option value="agotado">Agotado</option>
-      </select>
-      <select v-model="filtros.marca" @change="fetchProductos">
-        <option value="">Todas las marcas</option>
-        <option v-for="m in marcas" :key="m.id" :value="m.id">{{ m.nombre }}</option>
-      </select>
-      <button @click="nuevoProducto">Añadir producto</button>
+  <div class="space-y-5">
+    <!-- Título + acción -->
+    <div class="flex items-center justify-between">
+      <h1 class="text-2xl font-bold text-slate-800">Gestión de productos</h1>
+      <RouterLink
+        to="/admin/productos/nuevo"
+        class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm"
+      >
+        ➕ Nuevo producto
+      </RouterLink>
     </div>
 
-    <table>
-      <thead>
-        <tr>
-          <th>Imagen</th>
-          <th>Nombre</th>
-          <th>SKU</th>
-          <th>Stock</th>
-          <th>Precio</th>
-          <th>Precio rebajado</th>
-          <th>Categorías</th>
-          <th>Fecha</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="p in productos" :key="p.id">
-          <td><img v-if="p.miniatura_url" :src="p.miniatura_url" alt="" width="50" /></td>
-          <td>
-            <span v-if="editingId !== p.id">{{ p.nombre }}</span>
-            <input v-else v-model="p.nombre" />
-          </td>
-          <td>
-            <span v-if="editingId !== p.id">{{ p.sku }}</span>
-            <input v-else v-model="p.sku" />
-          </td>
-          <td>
-            <span v-if="editingId !== p.id">{{ p.stock }}</span>
-            <input v-else type="number" v-model.number="p.stock" />
-          </td>
-          <td>
-            <span v-if="editingId !== p.id">{{ p.precio_normal }}</span>
-            <input v-else type="number" step="0.01" v-model.number="p.precio_normal" />
-          </td>
-          <td>
-            <span v-if="editingId !== p.id">{{ p.precio_rebajado }}</span>
-            <input v-else type="number" step="0.01" v-model.number="p.precio_rebajado" />
-          </td>
-          <td>
-            <span v-if="editingId !== p.id">{{ categoriasNombres(p.categorias).join(', ') }}</span>
-            <select v-else multiple v-model="p.categorias">
-              <option v-for="c in categorias" :key="c.id" :value="c.id">{{ c.nombre }}</option>
-            </select>
-          </td>
-          <td>{{ new Date(p.fecha_creacion).toLocaleDateString() }}</td>
-          <td>
-            <div v-if="editingId === p.id">
-              <button @click="guardar(p)">Guardar</button>
-              <button @click="cancelar(p)">Cancelar</button>
-            </div>
-            <div v-else>
-              <button @click="editar(p)">Edición rápida</button>
-              <router-link :to="`/productos/editar/${p.id}`">Editar</router-link>
-            </div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <!-- Filtros -->
+    <section class="bg-white border rounded-xl p-4 shadow-sm">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <div class="lg:col-span-2">
+          <label class="block text-xs font-medium text-slate-500 mb-1">Buscar</label>
+          <input
+            v-model="filtros.search"
+            @input="onSearch"
+            type="search"
+            placeholder="Nombre, SKU…"
+            class="w-full h-10 rounded-md border border-slate-300 px-3 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
 
-    <div>
-      <button @click="cambiarPagina(pagination.page - 1)" :disabled="pagination.page === 1">Anterior</button>
-      <span>Página {{ pagination.page }} de {{ pagination.totalPages }}</span>
-      <button @click="cambiarPagina(pagination.page + 1)" :disabled="pagination.page === pagination.totalPages">Siguiente</button>
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">Categoría</label>
+          <select
+            v-model="filtros.categoria"
+            @change="fetchProductos"
+            class="w-full h-10 rounded-md border border-slate-300 px-3 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Todas</option>
+            <option v-for="c in categorias" :key="c.id" :value="c.id">{{ c.nombre }}</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">Estado</label>
+          <select
+            v-model="filtros.estado"
+            @change="fetchProductos"
+            class="w-full h-10 rounded-md border border-slate-300 px-3 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Todos</option>
+            <option value="en_existencia">En existencia</option>
+            <option value="agotado">Agotado</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">Marca</label>
+          <select
+            v-model="filtros.marca"
+            @change="fetchProductos"
+            class="w-full h-10 rounded-md border border-slate-300 px-3 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Todas</option>
+            <option v-for="m in marcas" :key="m.id" :value="m.id">{{ m.nombre }}</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tabla -->
+    <section class="bg-white border rounded-xl shadow-sm overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead class="bg-slate-50 text-slate-600 sticky top-0 z-10">
+            <tr class="border-b">
+              <th class="text-left font-semibold px-3 py-2 w-16">Imagen</th>
+              <th class="text-left font-semibold px-3 py-2">Nombre</th>
+              <th class="text-left font-semibold px-3 py-2">SKU</th>
+              <th class="text-right font-semibold px-3 py-2">Stock</th>
+              <th class="text-right font-semibold px-3 py-2">Precio</th>
+              <th class="text-right font-semibold px-3 py-2">Rebajado</th>
+              <th class="text-left font-semibold px-3 py-2">Categorías</th>
+              <th class="text-left font-semibold px-3 py-2">Fecha</th>
+              <th class="text-right font-semibold px-3 py-2 w-48">Acciones</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            <tr v-for="p in productos" :key="p.id" class="border-b last:border-0 hover:bg-slate-50">
+              <!-- Imagen -->
+              <td class="px-3 py-2">
+                <img v-if="p.miniatura_url" :src="p.miniatura_url" class="w-12 h-12 object-cover rounded border" alt="">
+              </td>
+
+              <!-- Nombre -->
+              <td class="px-3 py-2">
+                <span v-if="editingId !== p.id" class="font-medium text-slate-800">{{ p.nombre }}</span>
+                <input
+                  v-else v-model="p.nombre"
+                  class="w-full h-9 rounded border border-slate-300 px-2 focus:ring-2 focus:ring-blue-500"
+                />
+              </td>
+
+              <!-- SKU -->
+              <td class="px-3 py-2">
+                <span v-if="editingId !== p.id" class="text-slate-700">{{ p.sku }}</span>
+                <input
+                  v-else v-model="p.sku"
+                  class="w-full h-9 rounded border border-slate-300 px-2 focus:ring-2 focus:ring-blue-500"
+                />
+              </td>
+
+              <!-- Stock -->
+              <td class="px-3 py-2 text-right">
+                <span v-if="editingId !== p.id"
+                      :class="p.stock > 0 ? 'text-emerald-700' : 'text-rose-600'">
+                  {{ p.stock }}
+                </span>
+                <input
+                  v-else type="number" v-model.number="p.stock"
+                  class="w-24 h-9 text-right rounded border border-slate-300 px-2 focus:ring-2 focus:ring-blue-500"
+                />
+              </td>
+
+              <!-- Precio -->
+              <td class="px-3 py-2 text-right">
+                <span v-if="editingId !== p.id">{{ money(p.precio_normal) }}</span>
+                <input
+                  v-else type="number" step="0.01" v-model.number="p.precio_normal"
+                  class="w-28 h-9 text-right rounded border border-slate-300 px-2 focus:ring-2 focus:ring-blue-500"
+                />
+              </td>
+
+              <!-- Rebajado -->
+              <td class="px-3 py-2 text-right">
+                <span v-if="editingId !== p.id" :class="p.precio_rebajado ? 'text-amber-700' : 'text-slate-500'">
+                  {{ p.precio_rebajado ? money(p.precio_rebajado) : '—' }}
+                </span>
+                <input
+                  v-else type="number" step="0.01" v-model.number="p.precio_rebajado"
+                  class="w-28 h-9 text-right rounded border border-slate-300 px-2 focus:ring-2 focus:ring-blue-500"
+                />
+              </td>
+
+              <!-- Categorías -->
+              <td class="px-3 py-2">
+                <template v-if="editingId !== p.id">
+                  <span v-for="(n,i) in categoriasNombres(p.categorias)" :key="i"
+                        class="inline-flex items-center px-2 py-0.5 mr-1 mb-1 rounded-full text-[11px] bg-slate-100 border text-slate-700">
+                    {{ n }}
+                  </span>
+                </template>
+                <select
+                  v-else multiple v-model="p.categorias"
+                  class="w-full min-h-[2.25rem] rounded border border-slate-300 px-2 focus:ring-2 focus:ring-blue-500"
+                >
+                  <option v-for="c in categorias" :key="c.id" :value="c.id">{{ c.nombre }}</option>
+                </select>
+              </td>
+
+              <!-- Fecha -->
+              <td class="px-3 py-2 text-slate-600">
+                {{ formatDate(p.fecha_creacion) }}
+              </td>
+
+              <!-- Acciones -->
+              <td class="px-3 py-2">
+                <div class="flex justify-end gap-2">
+                  <template v-if="editingId === p.id">
+                    <button @click="guardar(p)"
+                            class="px-3 py-1.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white">
+                      Guardar
+                    </button>
+                    <button @click="cancelar(p)"
+                            class="px-3 py-1.5 rounded border border-slate-300 hover:bg-slate-100">
+                      Cancelar
+                    </button>
+                  </template>
+                  <template v-else>
+                    <button @click="editar(p)"
+                            class="px-3 py-1.5 rounded border border-slate-300 hover:bg-slate-100">
+                      Edición rápida
+                    </button>
+                    <RouterLink
+                      :to="`/productos/editar/${p.id}`"
+                      class="px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      Editar
+                    </RouterLink>
+                  </template>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Paginación -->
+    <div class="flex items-center justify-between text-sm">
+      <div class="text-slate-600">
+        Página <span class="font-medium text-slate-800">{{ pagination.page }}</span>
+        de <span class="font-medium text-slate-800">{{ pagination.totalPages }}</span>
+      </div>
+      <div class="flex gap-2">
+        <button
+          @click="cambiarPagina(pagination.page - 1)"
+          :disabled="pagination.page === 1"
+          class="px-3 py-1.5 rounded border border-slate-300 disabled:opacity-50 hover:bg-slate-100"
+        >
+          ← Anterior
+        </button>
+        <button
+          @click="cambiarPagina(pagination.page + 1)"
+          :disabled="pagination.page === pagination.totalPages"
+          class="px-3 py-1.5 rounded border border-slate-300 disabled:opacity-50 hover:bg-slate-100"
+        >
+          Siguiente →
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -89,7 +222,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import api from '../axios'
+import api from '@/axios'
 
 defineOptions({ name: 'AdminProductos' })
 
@@ -103,11 +236,16 @@ const pagination = reactive({ page: 1, totalPages: 1, pageSize: 10 })
 const editingId = ref(null)
 const cache = ref({})
 
-function categoriasNombres(ids) {
-  return ids.map(id => {
-    const cat = categorias.value.find(c => c.id === id)
-    return cat ? cat.nombre : id
-  })
+const money = (v) => `\$${Number(v ?? 0).toFixed(2)}`
+const formatDate = (d) => new Date(d).toLocaleDateString()
+
+const onSearch = () => {
+  pagination.page = 1
+  fetchProductos()
+}
+
+function categoriasNombres(ids = []) {
+  return ids.map(id => categorias.value.find(c => c.id === id)?.nombre || id)
 }
 
 async function fetchFiltros() {
@@ -122,12 +260,13 @@ async function fetchFiltros() {
 async function fetchProductos() {
   const params = {
     page: pagination.page,
-    page_size: pagination.pageSize
+    page_size: pagination.pageSize,
   }
   if (filtros.search) params.search = filtros.search
   if (filtros.categoria) params.categoria = filtros.categoria
   if (filtros.estado) params.estado_inventario = filtros.estado
   if (filtros.marca) params.marca = filtros.marca
+
   const res = await api.get('productos/', { params })
   productos.value = res.data.results
   const total = res.data.count
@@ -163,11 +302,6 @@ async function guardar(p) {
   editingId.value = null
   fetchProductos()
 }
-
-function nuevoProducto() {
-  router.push('/nuevo-producto')
-}
-
 onMounted(async () => {
   await fetchFiltros()
   await fetchProductos()
