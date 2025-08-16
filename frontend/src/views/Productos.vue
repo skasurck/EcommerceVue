@@ -3,8 +3,17 @@
     <h1 class="text-2xl font-bold mb-6 text-center text-gray-800">🛍️ Productos Disponibles</h1>
 
     <div class="mb-4 flex gap-2">
-      <input v-model="filtros.search" @input="fetchProductos" placeholder="Buscar..." />
-      <select v-model="filtros.categoria" @change="fetchProductos">
+      <input
+        v-model="filtros.search"
+        @input="fetchProductos"
+        placeholder="Buscar..."
+        class="flex-1 border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+      />
+      <select
+        v-model="filtros.categoria"
+        @change="fetchProductos"
+        class="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+      >
         <option value="">Todas</option>
         <option v-for="c in categorias" :key="c.id" :value="c.id">{{ c.nombre }}</option>
       </select>
@@ -21,9 +30,17 @@
     </div>
 
     <div class="mt-4 flex justify-center items-center gap-2">
-      <button @click="cambiarPagina(pagination.page - 1)" :disabled="pagination.page === 1">Anterior</button>
+      <button
+        @click="cambiarPagina(pagination.page - 1)"
+        :disabled="pagination.page === 1"
+        class="px-3 py-1.5 rounded bg-blue-600 text-white disabled:opacity-50"
+      >Anterior</button>
       <span>Página {{ pagination.page }} de {{ pagination.totalPages }}</span>
-      <button @click="cambiarPagina(pagination.page + 1)" :disabled="pagination.page === pagination.totalPages">Siguiente</button>
+      <button
+        @click="cambiarPagina(pagination.page + 1)"
+        :disabled="pagination.page === pagination.totalPages"
+        class="px-3 py-1.5 rounded bg-blue-600 text-white disabled:opacity-50"
+      >Siguiente</button>
     </div>
   </div>
 </template>
@@ -33,20 +50,13 @@ import ProductCard from '@/components/ProductCard.vue'
 import { ref, reactive, onMounted } from 'vue'
 import { obtenerProductos } from '../services/api.js'
 import api from '../axios'
-import { RouterLink } from 'vue-router'
-import { useCarritoStore } from '../stores/carrito'
 defineOptions({ name: 'ProductosView' })
 
 const productos = ref([])
 const categorias = ref([])
 const filtros = reactive({ search: '', categoria: '' })
 const pagination = reactive({ page: 1, totalPages: 1, pageSize: 10 })
-const carrito = useCarritoStore()
 
-const agregar = async (producto) => {
-  await carrito.agregar(producto)
-  producto.stock = Math.max(producto.stock - 1, 0)
-}
 
 async function fetchCategorias() {
   const res = await api.get('categorias/')
@@ -75,24 +85,3 @@ onMounted(async () => {
 })
 </script>
 
-<style scoped>
-h1 {
-  color: #333;
-}
-ul {
-  list-style-type: none;
-  padding: 0;
-}
-li {
-  padding: 8px;
-  border-bottom: 1px solid #ccc;
-}
-li:last-child {
-  border-bottom: none;
-}
-.ImagenProducto {
-  width: 250px;
-  height: auto;
-  object-fit: cover;
-}
-</style>

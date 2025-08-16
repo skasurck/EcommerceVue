@@ -1,14 +1,32 @@
 <template>
-  <div>
-    <h2>Registro de usuario</h2>
-    <form @submit.prevent="registrar">
-      <input v-model="username" placeholder="Usuario" required />
-      <input v-model="email" type="email" placeholder="Correo (opcional)" />
-      <input v-model="password" type="password" placeholder="Contraseña" required />
-      <button type="submit">Registrar</button>
+  <div class="max-w-sm mx-auto px-4 py-10">
+    <h2 class="text-2xl font-bold text-gray-900 mb-6 text-center">Registro de usuario</h2>
+    <form @submit.prevent="registrar" class="space-y-4">
+      <input
+        v-model="username"
+        placeholder="Usuario"
+        required
+        class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+      />
+      <input
+        v-model="email"
+        type="email"
+        placeholder="Correo (opcional)"
+        class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+      />
+      <input
+        v-model="password"
+        type="password"
+        placeholder="Contraseña"
+        required
+        class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+      />
+      <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded">
+        Registrar
+      </button>
     </form>
-    <p v-if="mensaje" style="color: green">{{ mensaje }}</p>
-    <p v-if="error" style="color: red">{{ error }}</p>
+    <p v-if="mensaje" class="mt-4 text-center text-green-600">{{ mensaje }}</p>
+    <p v-if="error" class="mt-2 text-center text-red-600">{{ error }}</p>
   </div>
 </template>
 
@@ -42,87 +60,4 @@ const registrar = async () => {
   }
 }
 </script>
-<style scoped>
- h2{
-    text-align: center;
-    margin-bottom: 20px;
- }
-    form {
-    display: flex;
-    flex-direction: column;
-    max-width: 300px;
-    margin: auto;
-    }
-    input {
-      margin-bottom: 10px;
-      padding: 8px;
-      font-size: 16px;
-    }
-    button {
-      padding: 10px;
-      font-size: 16px;
-      background-color: #007bff;
-      color: white;
-      border: none;
-      cursor: pointer;
-    }
-    button:hover {
-      background-color: #0056b3;
-    }
-    p {
-      text-align: center;
-      margin-top: 10px;
-    }
-.error {
-  color: red;
-}
-.success {
-  color: green;
-}
-.formulario {
-  max-width: 400px;
-  margin: auto;
-  padding: 20px;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-}
-.formulario h2 {
-  text-align: center;
-}
-.formulario div {
-  margin-bottom: 15px;
-}
-.formulario label {
-  display: block;
-  margin-bottom: 5px;
-}
-.formulario input,
-.formulario textarea {
-  width: 100%;
-  padding: 8px;
-  box-sizing: border-box;
-}
-.formulario button {
-  width: 100%;
-  padding: 10px;
-  background-color: #28a745;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-}
-.formulario button:hover {
-  background-color: #218838;
-}
-.formulario p {
-  text-align: center;
-  margin-top: 10px;
-}
-.formulario p.error {
-  color: red;
-}
-.formulario p.success {
-  color: green;
-}
 
-</style>

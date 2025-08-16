@@ -229,26 +229,4 @@ const crearProducto = async () => {
 }
 </script>
 
-<style scoped>
-h2 {
-  color: #333;
-}
-input, textarea {
-  transition: border-color 0.2s;
-}
-input:focus, textarea:focus {
-  border-color: #3b82f6; /* Azul claro */
-  outline: none;
-}
-.border-red-500 {
-  border-color: #f87171; /* Rojo claro */
-}
-.border {
-  border: 1px solid #e5e7eb; /* Gris claro */
-}
-.imagePrevi {
-  max-width: 290px;
-  height: auto;
-}
-</style>
 <!-- This is a simple form to create a new product. It uses Vue's reactivity system to bind the form inputs to a `producto` object. When the form is submitted, it sends a POST request to the API to create the product. If successful, it displays a success message and resets the form. If there's an error, it logs the error and displays an error message. The form includes fields for name, description, price, and availability. -->

@@ -148,13 +148,13 @@
     <section class="bg-white border rounded-xl p-4 shadow-sm">
       <h2 class="text-lg font-semibold text-slate-800 mb-3">Dirección</h2>
       <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        <input v-model="pedido.direccion.calle"           placeholder="Calle"           class="input" />
-        <input v-model="pedido.direccion.numero_exterior" placeholder="Número"          class="input" />
-        <input v-model="pedido.direccion.colonia"         placeholder="Colonia"         class="input" />
-        <input v-model="pedido.direccion.ciudad"          placeholder="Ciudad"          class="input" />
-        <input v-model="pedido.direccion.estado"          placeholder="Estado"          class="input" />
-        <input v-model="pedido.direccion.codigo_postal"   placeholder="CP"              class="input" />
-        <input v-model="pedido.direccion.email"           placeholder="Email (cliente)" class="input lg:col-span-3" />
+        <input v-model="pedido.direccion.calle"           placeholder="Calle"           class="h-10 rounded-md border border-slate-300 px-3 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        <input v-model="pedido.direccion.numero_exterior" placeholder="Número"          class="h-10 rounded-md border border-slate-300 px-3 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        <input v-model="pedido.direccion.colonia"         placeholder="Colonia"         class="h-10 rounded-md border border-slate-300 px-3 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        <input v-model="pedido.direccion.ciudad"          placeholder="Ciudad"          class="h-10 rounded-md border border-slate-300 px-3 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        <input v-model="pedido.direccion.estado"          placeholder="Estado"          class="h-10 rounded-md border border-slate-300 px-3 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        <input v-model="pedido.direccion.codigo_postal"   placeholder="CP"              class="h-10 rounded-md border border-slate-300 px-3 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        <input v-model="pedido.direccion.email"           placeholder="Email (cliente)" class="h-10 rounded-md border border-slate-300 px-3 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 lg:col-span-3" />
       </div>
     </section>
 
@@ -162,17 +162,17 @@
     <section class="bg-white border rounded-xl p-4 shadow-sm">
       <h2 class="text-lg font-semibold text-slate-800 mb-3">Historial del cliente</h2>
       <div v-if="summary" class="grid sm:grid-cols-3 gap-3">
-        <div class="stat">
-          <div class="stat-label">Pedidos</div>
-          <div class="stat-value">{{ summary.orders_count }}</div>
+        <div class="bg-slate-50 rounded-lg p-3 border">
+          <div class="text-xs text-slate-500">Pedidos</div>
+          <div class="text-lg font-semibold text-slate-800">{{ summary.orders_count }}</div>
         </div>
-        <div class="stat">
-          <div class="stat-label">Gastado</div>
-          <div class="stat-value">{{ money(summary.total_spent) }}</div>
+        <div class="bg-slate-50 rounded-lg p-3 border">
+          <div class="text-xs text-slate-500">Gastado</div>
+          <div class="text-lg font-semibold text-slate-800">{{ money(summary.total_spent) }}</div>
         </div>
-        <div class="stat">
-          <div class="stat-label">Ticket promedio</div>
-          <div class="stat-value">{{ money(summary.avg_ticket) }}</div>
+        <div class="bg-slate-50 rounded-lg p-3 border">
+          <div class="text-xs text-slate-500">Ticket promedio</div>
+          <div class="text-lg font-semibold text-slate-800">{{ money(summary.avg_ticket) }}</div>
         </div>
       </div>
       <div v-else class="text-slate-500 text-sm">Sin datos (ingresa email para consultar).</div>
@@ -311,17 +311,3 @@ function removeItem(idx) {
 cargar()
 </script>
 
-<style scoped>
-.input {
-  @apply h-10 rounded-md border border-slate-300 px-3 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500;
-}
-.stat {
-  @apply bg-slate-50 rounded-lg p-3 border;
-}
-.stat-label {
-  @apply text-xs text-slate-500;
-}
-.stat-value {
-  @apply text-lg font-semibold text-slate-800;
-}
-</style>
