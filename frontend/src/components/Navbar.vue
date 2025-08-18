@@ -34,7 +34,7 @@
             <RouterLink :to="{name:'productos'}"
               class="px-2 py-1 rounded hover:text-cyan-300"
               :class="isActive('/productos') ? 'text-cyan-300' : 'text-slate-200'">
-              Productos
+              Tienda
             </RouterLink>
 
             <RouterLink v-if="auth.isAuthenticated" to="/mi-cuenta"
@@ -98,7 +98,7 @@
                  class="w-full h-10 rounded-md bg-slate-800/70 text-slate-100 placeholder-slate-400 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 px-3" />
         </form>
         <div class="mt-3 grid gap-1 text-sm">
-          <RouterLink to="/productos" class="px-3 py-2 rounded hover:bg-slate-800 text-slate-200" @click="openMobile=false">Productos</RouterLink>
+          <RouterLink to="/productos" class="px-3 py-2 rounded hover:bg-slate-800 text-slate-200" @click="openMobile=false">Tienda</RouterLink>
           <RouterLink v-if="auth.isAuthenticated" to="/mi-cuenta" class="px-3 py-2 rounded hover:bg-slate-800 text-slate-200" @click="openMobile=false">Mi cuenta</RouterLink>
           <RouterLink v-if="auth.isAuthenticated && auth.hasAnyRole?.(['admin','super_admin'])" to="/admin" class="px-3 py-2 rounded hover:bg-slate-800 text-slate-200" @click="openMobile=false">Admin</RouterLink>
           <div v-if="!auth.isAuthenticated" class="flex gap-2 px-3 pt-1">
