@@ -20,80 +20,80 @@
     </div>
 
     <!-- Básicos -->
-    <section class="card">
-      <h2 class="card-title">Información básica</h2>
+    <section class="bg-white border rounded-xl p-5 shadow-sm">
+      <h2 class="text-lg font-semibold text-slate-800 mb-3">Información básica</h2>
       <div class="grid sm:grid-cols-2 gap-4">
         <div class="sm:col-span-2">
-          <label class="label">Nombre</label>
-          <input v-model="form.nombre" class="input" placeholder="Ej. Audífonos inalámbricos XYZ" />
-          <p v-if="errs.nombre" class="err">{{ errs.nombre }}</p>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Nombre</label>
+          <input v-model="form.nombre" class="h-10 w-full rounded-md border border-slate-300 px-3 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ej. Audífonos inalámbricos XYZ" />
+          <p v-if="errs.nombre" class="mt-1 text-xs text-rose-600">{{ errs.nombre }}</p>
         </div>
 
         <div>
-          <label class="label">Precio normal</label>
-          <input type="number" step="0.01" v-model.number="form.precio_normal" class="input text-right" />
-          <p v-if="errs.precio_normal" class="err">{{ errs.precio_normal }}</p>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Precio normal</label>
+          <input type="number" step="0.01" v-model.number="form.precio_normal" class="h-10 w-full rounded-md border border-slate-300 px-3 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-right" />
+          <p v-if="errs.precio_normal" class="mt-1 text-xs text-rose-600">{{ errs.precio_normal }}</p>
         </div>
         <div>
-          <label class="label">Precio rebajado</label>
-          <input type="number" step="0.01" v-model.number="form.precio_rebajado" class="input text-right" />
-          <p v-if="errs.precio_rebajado" class="err">{{ errs.precio_rebajado }}</p>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Precio rebajado</label>
+          <input type="number" step="0.01" v-model.number="form.precio_rebajado" class="h-10 w-full rounded-md border border-slate-300 px-3 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-right" />
+          <p v-if="errs.precio_rebajado" class="mt-1 text-xs text-rose-600">{{ errs.precio_rebajado }}</p>
         </div>
 
         <div>
-          <label class="label">SKU</label>
-          <input v-model="form.sku" class="input" />
-          <p v-if="errs.sku" class="err">{{ errs.sku }}</p>
+          <label class="block text-xs font-medium text-slate-600 mb-1">SKU</label>
+          <input v-model="form.sku" class="h-10 w-full rounded-md border border-slate-300 px-3 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <p v-if="errs.sku" class="mt-1 text-xs text-rose-600">{{ errs.sku }}</p>
         </div>
         <div>
-          <label class="label">Stock</label>
-          <input type="number" v-model.number="form.stock" class="input text-right" />
-          <p v-if="errs.stock" class="err">{{ errs.stock }}</p>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Stock</label>
+          <input type="number" v-model.number="form.stock" class="h-10 w-full rounded-md border border-slate-300 px-3 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-right" />
+          <p v-if="errs.stock" class="mt-1 text-xs text-rose-600">{{ errs.stock }}</p>
         </div>
 
         <div class="sm:col-span-2">
-          <label class="label">Descripción corta</label>
-          <textarea v-model="form.descripcion_corta" rows="2" class="textarea"
+          <label class="block text-xs font-medium text-slate-600 mb-1">Descripción corta</label>
+          <textarea v-model="form.descripcion_corta" rows="2" class="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Resumen breve que aparece en listados"></textarea>
-          <p v-if="errs.descripcion_corta" class="err">{{ errs.descripcion_corta }}</p>
+          <p v-if="errs.descripcion_corta" class="mt-1 text-xs text-rose-600">{{ errs.descripcion_corta }}</p>
         </div>
 
         <div class="sm:col-span-2">
-          <label class="label">Descripción larga</label>
-          <textarea v-model="form.descripcion_larga" rows="6" class="textarea"
+          <label class="block text-xs font-medium text-slate-600 mb-1">Descripción larga</label>
+          <textarea v-model="form.descripcion_larga" rows="6" class="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Detalles, especificaciones, cuidados, etc."></textarea>
-          <p v-if="errs.descripcion_larga" class="err">{{ errs.descripcion_larga }}</p>
+          <p v-if="errs.descripcion_larga" class="mt-1 text-xs text-rose-600">{{ errs.descripcion_larga }}</p>
         </div>
       </div>
     </section>
 
     <!-- Estado / Inventario -->
-    <section class="card">
-      <h2 class="card-title">Estado e inventario</h2>
+    <section class="bg-white border rounded-xl p-5 shadow-sm">
+      <h2 class="text-lg font-semibold text-slate-800 mb-3">Estado e inventario</h2>
       <div class="grid sm:grid-cols-3 gap-4">
         <div>
-          <label class="label">Estado inventario</label>
-          <select v-model="form.estado_inventario" class="select">
+          <label class="block text-xs font-medium text-slate-600 mb-1">Estado inventario</label>
+          <select v-model="form.estado_inventario" class="h-10 w-full rounded-md border border-slate-300 px-3 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
             <option value="en_existencia">En existencia</option>
             <option value="agotado">Agotado</option>
           </select>
-          <p v-if="errs.estado_inventario" class="err">{{ errs.estado_inventario }}</p>
+          <p v-if="errs.estado_inventario" class="mt-1 text-xs text-rose-600">{{ errs.estado_inventario }}</p>
         </div>
         <div>
-          <label class="label">Estado</label>
-          <select v-model="form.estado" class="select">
+          <label class="block text-xs font-medium text-slate-600 mb-1">Estado</label>
+          <select v-model="form.estado" class="h-10 w-full rounded-md border border-slate-300 px-3 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
             <option value="borrador">Borrador</option>
             <option value="publicado">Publicado</option>
           </select>
-          <p v-if="errs.estado" class="err">{{ errs.estado }}</p>
+          <p v-if="errs.estado" class="mt-1 text-xs text-rose-600">{{ errs.estado }}</p>
         </div>
         <div class="flex items-end gap-4">
           <label class="inline-flex items-center gap-2">
-            <input type="checkbox" v-model="form.disponible" class="checkbox" />
+            <input type="checkbox" v-model="form.disponible" class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
             <span>Disponible</span>
           </label>
           <label class="inline-flex items-center gap-2">
-            <input type="checkbox" v-model="form.visibilidad" class="checkbox" />
+            <input type="checkbox" v-model="form.visibilidad" class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
             <span>Visible</span>
           </label>
         </div>
@@ -101,34 +101,34 @@
     </section>
 
     <!-- Categorías / Marca -->
-    <section class="card">
-      <h2 class="card-title">Taxonomías</h2>
+    <section class="bg-white border rounded-xl p-5 shadow-sm">
+      <h2 class="text-lg font-semibold text-slate-800 mb-3">Taxonomías</h2>
       <div class="grid sm:grid-cols-2 gap-4">
         <div>
-          <label class="label">Categoría principal</label>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Categoría principal</label>
           <div class="flex gap-2">
-            <select v-model="form.categoria" class="select flex-1">
+            <select v-model="form.categoria" class="h-10 w-full rounded-md border border-slate-300 px-3 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1">
               <option :value="null">Sin categoría</option>
               <option v-for="c in categorias" :key="c.id" :value="c.id">{{ c.nombre }}</option>
             </select>
-            <button type="button" @click="showCatModal = true" class="btn-outline">Gestionar</button>
+            <button type="button" @click="showCatModal = true" class="inline-flex items-center gap-2 border border-slate-300 hover:bg-slate-50 text-slate-800 px-3 py-2 rounded-md text-sm">Gestionar</button>
           </div>
-          <p v-if="errs.categoria" class="err">{{ errs.categoria }}</p>
+          <p v-if="errs.categoria" class="mt-1 text-xs text-rose-600">{{ errs.categoria }}</p>
         </div>
         <div>
-          <label class="label">Marca</label>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Marca</label>
           <div class="flex gap-2">
-            <select v-model="form.marca" class="select flex-1">
+            <select v-model="form.marca" class="h-10 w-full rounded-md border border-slate-300 px-3 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1">
               <option :value="null">Sin marca</option>
               <option v-for="m in marcas" :key="m.id" :value="m.id">{{ m.nombre }}</option>
             </select>
-            <button type="button" @click="showMarcaModal = true" class="btn-outline">Gestionar</button>
+            <button type="button" @click="showMarcaModal = true" class="inline-flex items-center gap-2 border border-slate-300 hover:bg-slate-50 text-slate-800 px-3 py-2 rounded-md text-sm">Gestionar</button>
           </div>
-          <p v-if="errs.marca" class="err">{{ errs.marca }}</p>
+          <p v-if="errs.marca" class="mt-1 text-xs text-rose-600">{{ errs.marca }}</p>
         </div>
         <div class="sm:col-span-2">
-          <label class="label">Categorías adicionales</label>
-          <select v-model="form.categorias" multiple class="select h-28">
+          <label class="block text-xs font-medium text-slate-600 mb-1">Categorías adicionales</label>
+          <select v-model="form.categorias" multiple class="h-10 w-full rounded-md border border-slate-300 px-3 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 h-28">
             <option v-for="c in categorias" :key="c.id" :value="c.id">{{ c.nombre }}</option>
           </select>
         </div>
@@ -136,12 +136,12 @@
     </section>
 
     <!-- Atributos -->
-    <section class="card">
+    <section class="bg-white border rounded-xl p-5 shadow-sm">
       <div class="flex items-center justify-between">
-        <h2 class="card-title">Atributos</h2>
-        <button type="button" @click="showAttrModal = true" class="btn-outline">Gestionar</button>
+        <h2 class="text-lg font-semibold text-slate-800 mb-3">Atributos</h2>
+        <button type="button" @click="showAttrModal = true" class="inline-flex items-center gap-2 border border-slate-300 hover:bg-slate-50 text-slate-800 px-3 py-2 rounded-md text-sm">Gestionar</button>
       </div>
-      <select v-model="form.atributos" multiple class="select h-32">
+      <select v-model="form.atributos" multiple class="h-10 w-full rounded-md border border-slate-300 px-3 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 h-32">
         <option v-for="a in atributos" :key="a.id" :value="a.id">
           {{ nombreAtributo(a) }} — {{ a.valor }}
         </option>
@@ -149,13 +149,13 @@
     </section>
 
     <!-- Imágenes -->
-    <section class="card">
-      <h2 class="card-title">Imágenes</h2>
+    <section class="bg-white border rounded-xl p-5 shadow-sm">
+      <h2 class="text-lg font-semibold text-slate-800 mb-3">Imágenes</h2>
 
       <div class="grid lg:grid-cols-3 gap-6">
         <!-- Principal -->
         <div class="lg:col-span-1">
-          <label class="label">Imagen principal</label>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Imagen principal</label>
           <div class="flex items-start gap-4">
             <label class="inline-flex items-center px-3 py-2 rounded border border-slate-300 hover:bg-slate-50 cursor-pointer">
               <input type="file" class="hidden" @change="onImagenChange" />
@@ -170,7 +170,7 @@
         <!-- Galería -->
         <div class="lg:col-span-2">
           <div class="flex items-center justify-between">
-            <label class="label">Galería</label>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Galería</label>
             <label class="inline-flex items-center px-3 py-2 rounded border border-slate-300 hover:bg-slate-50 cursor-pointer">
               <input type="file" class="hidden" multiple @change="subirGaleria" />
               Añadir a galería
@@ -197,10 +197,10 @@
     </section>
 
     <!-- Precios escalonados -->
-    <section class="card">
+    <section class="bg-white border rounded-xl p-5 shadow-sm">
       <div class="flex items-center justify-between">
-        <h2 class="card-title">Precios escalonados</h2>
-        <button type="button" @click="addTier" class="btn">Añadir precio</button>
+        <h2 class="text-lg font-semibold text-slate-800 mb-3">Precios escalonados</h2>
+        <button type="button" @click="addTier" class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm">Añadir precio</button>
       </div>
 
       <div class="overflow-x-auto">
@@ -215,13 +215,13 @@
           <tbody>
             <tr v-for="(tier, index) in preciosEscalonados" :key="tier.id || index" class="border-b last:border-0">
               <td class="px-3 py-2">
-                <input type="number" v-model.number="tier.cantidad_minima" class="input w-40 text-right" />
+                <input type="number" v-model.number="tier.cantidad_minima" class="h-10 w-full rounded-md border border-slate-300 px-3 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 w-40 text-right" />
               </td>
               <td class="px-3 py-2">
-                <input type="number" step="0.01" v-model.number="tier.precio_unitario" class="input w-48 text-right" />
+                <input type="number" step="0.01" v-model.number="tier.precio_unitario" class="h-10 w-full rounded-md border border-slate-300 px-3 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 w-48 text-right" />
               </td>
               <td class="px-3 py-2 text-right">
-                <button type="button" @click="removeTier(index)" class="btn-danger">Quitar</button>
+                <button type="button" @click="removeTier(index)" class="inline-flex items-center gap-2 bg-rose-600 hover:bg-rose-700 text-white px-3 py-2 rounded-md text-sm">Quitar</button>
               </td>
             </tr>
             <tr v-if="!preciosEscalonados.length">
@@ -230,7 +230,7 @@
           </tbody>
         </table>
       </div>
-      <p v-if="errs.precios_escalonados" class="err mt-2">{{ errs.precios_escalonados }}</p>
+      <p v-if="errs.precios_escalonados" class="mt-1 text-xs text-rose-600 mt-2">{{ errs.precios_escalonados }}</p>
     </section>
 
     <!-- Barra de acciones -->
@@ -242,8 +242,8 @@
           <span>Estado: <span class="font-medium capitalize text-slate-800">{{ form.estado }}</span></span>
         </div>
         <div class="flex items-center gap-2">
-          <RouterLink to="/admin/productos" class="btn-outline">Cancelar</RouterLink>
-          <button type="button" class="btn" :disabled="loading" @click="guardar">
+          <RouterLink to="/admin/productos" class="inline-flex items-center gap-2 border border-slate-300 hover:bg-slate-50 text-slate-800 px-3 py-2 rounded-md text-sm">Cancelar</RouterLink>
+          <button type="button" class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm" :disabled="loading" @click="guardar">
             <span v-if="!loading">Guardar cambios</span>
             <span v-else>Guardando…</span>
           </button>
@@ -253,79 +253,79 @@
 
     <!-- MODALES (igual que antes, sin cambios de lógica) -->
     <!-- Categorías -->
-    <div v-if="showCatModal" class="modal-backdrop" @click.self="showCatModal=false">
-      <div class="modal">
-        <div class="modal-header">
-          <h3 class="modal-title">Categorías</h3>
-          <button class="modal-close" @click="showCatModal=false">✕</button>
+    <div v-if="showCatModal" class="fixed inset-0 bg-black/40 z-50 grid place-items-center p-4" @click.self="showCatModal=false">
+      <div class="w-full max-w-3xl bg-white rounded-xl shadow-xl p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-lg font-semibold text-slate-800">Categorías</h3>
+          <button class="text-slate-500 hover:text-slate-700" @click="showCatModal=false">✕</button>
         </div>
         <div class="space-y-2">
           <div v-for="c in categorias" :key="c.id" class="flex items-center gap-2">
-            <input v-model="c.nombre" class="input flex-1" />
-            <button type="button" @click="guardarCategoria(c)" class="btn">Guardar</button>
-            <button type="button" @click="eliminarCategoria(c.id)" class="btn-danger">Eliminar</button>
+            <input v-model="c.nombre" class="h-10 w-full rounded-md border border-slate-300 px-3 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1" />
+            <button type="button" @click="guardarCategoria(c)" class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm">Guardar</button>
+            <button type="button" @click="eliminarCategoria(c.id)" class="inline-flex items-center gap-2 bg-rose-600 hover:bg-rose-700 text-white px-3 py-2 rounded-md text-sm">Eliminar</button>
           </div>
           <div class="flex items-center gap-2 pt-2 border-t">
-            <input v-model="nuevaCategoria" placeholder="Nueva categoría" class="input flex-1" />
-            <button type="button" @click="agregarCategoria" class="btn">Agregar</button>
+            <input v-model="nuevaCategoria" placeholder="Nueva categoría" class="h-10 w-full rounded-md border border-slate-300 px-3 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1" />
+            <button type="button" @click="agregarCategoria" class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm">Agregar</button>
           </div>
         </div>
       </div>
     </div>
 
     <!-- Marcas -->
-    <div v-if="showMarcaModal" class="modal-backdrop" @click.self="showMarcaModal=false">
-      <div class="modal">
-        <div class="modal-header">
-          <h3 class="modal-title">Marcas</h3>
-          <button class="modal-close" @click="showMarcaModal=false">✕</button>
+    <div v-if="showMarcaModal" class="fixed inset-0 bg-black/40 z-50 grid place-items-center p-4" @click.self="showMarcaModal=false">
+      <div class="w-full max-w-3xl bg-white rounded-xl shadow-xl p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-lg font-semibold text-slate-800">Marcas</h3>
+          <button class="text-slate-500 hover:text-slate-700" @click="showMarcaModal=false">✕</button>
         </div>
         <div class="space-y-2">
           <div v-for="m in marcas" :key="m.id" class="flex items-center gap-2">
-            <input v-model="m.nombre" class="input flex-1" />
-            <button type="button" @click="guardarMarca(m)" class="btn">Guardar</button>
-            <button type="button" @click="eliminarMarca(m.id)" class="btn-danger">Eliminar</button>
+            <input v-model="m.nombre" class="h-10 w-full rounded-md border border-slate-300 px-3 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1" />
+            <button type="button" @click="guardarMarca(m)" class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm">Guardar</button>
+            <button type="button" @click="eliminarMarca(m.id)" class="inline-flex items-center gap-2 bg-rose-600 hover:bg-rose-700 text-white px-3 py-2 rounded-md text-sm">Eliminar</button>
           </div>
           <div class="flex items-center gap-2 pt-2 border-t">
-            <input v-model="nuevaMarca" placeholder="Nueva marca" class="input flex-1" />
-            <button type="button" @click="agregarMarca" class="btn">Agregar</button>
+            <input v-model="nuevaMarca" placeholder="Nueva marca" class="h-10 w-full rounded-md border border-slate-300 px-3 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1" />
+            <button type="button" @click="agregarMarca" class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm">Agregar</button>
           </div>
         </div>
       </div>
     </div>
 
     <!-- Atributos -->
-    <div v-if="showAttrModal" class="modal-backdrop" @click.self="showAttrModal=false">
-      <div class="modal">
-        <div class="modal-header">
-          <h3 class="modal-title">Atributos</h3>
-          <button class="modal-close" @click="showAttrModal=false">✕</button>
+    <div v-if="showAttrModal" class="fixed inset-0 bg-black/40 z-50 grid place-items-center p-4" @click.self="showAttrModal=false">
+      <div class="w-full max-w-3xl bg-white rounded-xl shadow-xl p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-lg font-semibold text-slate-800">Atributos</h3>
+          <button class="text-slate-500 hover:text-slate-700" @click="showAttrModal=false">✕</button>
         </div>
 
         <div class="space-y-3">
           <div v-for="a in atributos" :key="a.id" class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            <select v-model="a.atributo_id" class="select">
+            <select v-model="a.atributo_id" class="h-10 w-full rounded-md border border-slate-300 px-3 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
               <option v-for="b in atributosBase" :key="b.id" :value="b.id">{{ b.nombre }}</option>
             </select>
-            <input v-model="a.valor" class="input" placeholder="Valor" />
+            <input v-model="a.valor" class="h-10 w-full rounded-md border border-slate-300 px-3 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Valor" />
             <div class="flex gap-2">
-              <button type="button" @click="guardarValor(a)" class="btn flex-1">Guardar</button>
-              <button type="button" @click="eliminarValor(a.id)" class="btn-danger flex-1">Eliminar</button>
+              <button type="button" @click="guardarValor(a)" class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm flex-1">Guardar</button>
+              <button type="button" @click="eliminarValor(a.id)" class="inline-flex items-center gap-2 bg-rose-600 hover:bg-rose-700 text-white px-3 py-2 rounded-md text-sm flex-1">Eliminar</button>
             </div>
           </div>
 
           <div class="pt-3 border-t space-y-3">
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              <select v-model="nuevoValor.atributo_id" class="select">
+              <select v-model="nuevoValor.atributo_id" class="h-10 w-full rounded-md border border-slate-300 px-3 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option v-for="b in atributosBase" :key="b.id" :value="b.id">{{ b.nombre }}</option>
               </select>
-              <input v-model="nuevoValor.valor" class="input" placeholder="Valor" />
-              <button type="button" @click="agregarValor" class="btn">Agregar valor</button>
+              <input v-model="nuevoValor.valor" class="h-10 w-full rounded-md border border-slate-300 px-3 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Valor" />
+              <button type="button" @click="agregarValor" class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm">Agregar valor</button>
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              <input v-model="nuevoAtributo" class="input sm:col-span-2" placeholder="Nuevo atributo (nombre)" />
-              <button type="button" @click="agregarAtributo" class="btn">Agregar atributo</button>
+              <input v-model="nuevoAtributo" class="h-10 w-full rounded-md border border-slate-300 px-3 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:col-span-2" placeholder="Nuevo atributo (nombre)" />
+              <button type="button" @click="agregarAtributo" class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm">Agregar atributo</button>
             </div>
           </div>
         </div>
@@ -625,27 +625,3 @@ async function eliminarValor(id) {
 }
 </script>
 
-<style scoped>
-/* Primitivos */
-.card { @apply bg-white border rounded-xl p-5 shadow-sm; }
-.card-title { @apply text-lg font-semibold text-slate-800 mb-3; }
-
-.label { @apply block text-xs font-medium text-slate-600 mb-1; }
-.input { @apply h-10 w-full rounded-md border border-slate-300 px-3 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500; }
-.textarea { @apply w-full rounded-md border border-slate-300 px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500; }
-.select { @apply h-10 w-full rounded-md border border-slate-300 px-3 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500; }
-.checkbox { @apply w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500; }
-.err { @apply mt-1 text-xs text-rose-600; }
-
-/* Botones */
-.btn { @apply inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm; }
-.btn-outline { @apply inline-flex items-center gap-2 border border-slate-300 hover:bg-slate-50 text-slate-800 px-3 py-2 rounded-md text-sm; }
-.btn-danger { @apply inline-flex items-center gap-2 bg-rose-600 hover:bg-rose-700 text-white px-3 py-2 rounded-md text-sm; }
-
-/* Modal */
-.modal-backdrop { @apply fixed inset-0 bg-black/40 z-50 grid place-items-center p-4; }
-.modal { @apply w-full max-w-3xl bg-white rounded-xl shadow-xl p-5; }
-.modal-header { @apply flex items-center justify-between mb-3; }
-.modal-title { @apply text-lg font-semibold text-slate-800; }
-.modal-close { @apply text-slate-500 hover:text-slate-700; }
-</style>

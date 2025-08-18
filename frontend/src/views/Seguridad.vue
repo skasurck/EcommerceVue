@@ -13,6 +13,7 @@
 </template>
 
 <script setup>
+defineOptions({ name: 'SeguridadView' })
 import { ref } from 'vue'
 import { cambiarPassword } from '@/services/account'
 const form = ref({ old_password: '', new_password: '' })
