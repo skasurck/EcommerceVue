@@ -15,6 +15,43 @@ from .models import (
 )
 
 
+class ProductSearchSerializer(serializers.ModelSerializer):
+    """Serializer ligero para sugerencias de búsqueda."""
+
+    name = serializers.CharField(source="nombre")
+    slug = serializers.SerializerMethodField()
+    price = serializers.DecimalField(
+        source="precio_normal", max_digits=10, decimal_places=2
+    )
+    price_sale = serializers.DecimalField(
+        source="precio_rebajado", max_digits=10, decimal_places=2, allow_null=True
+    )
+    thumbnail = serializers.SerializerMethodField()
+    url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Producto
+        fields = ["id", "name", "slug", "price", "price_sale", "thumbnail", "url"]
+
+    def get_slug(self, obj):
+        # Ajustar si el modelo incorpora un slug real
+        return getattr(obj, "slug", obj.pk)
+
+    def get_thumbnail(self, obj):
+        request = self.context.get("request")
+        url = None
+        if obj.miniatura:
+            url = obj.miniatura.url
+        elif obj.imagen_principal:
+            url = obj.imagen_principal.url
+        if url and request:
+            return request.build_absolute_uri(url)
+        return url
+
+    def get_url(self, obj):
+        return f"/producto/{obj.pk}/"  # Ajustar si se usa slug
+
+
 class CategoriaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Categoria

@@ -20,11 +20,66 @@
         </div>
 
         <!-- Search (opcional) -->
-        <div class="hidden md:flex flex-1 mx-6">
+        <div class="hidden md:flex flex-1 mx-6 relative" @click.outside="showDropdown=false">
           <form class="w-full" @submit.prevent="goSearch">
-            <input v-model="q" type="search" placeholder="Buscar productos…"
-                   class="w-full h-9 rounded-md bg-slate-800/70 text-slate-100 placeholder-slate-400 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 px-3" />
+            <input
+              v-model="q"
+              type="search"
+              placeholder="Buscar productos…"
+              class="w-full h-9 rounded-md bg-slate-800/70 text-slate-100 placeholder-slate-400 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 px-3"
+              role="combobox"
+              :aria-expanded="showDropdown"
+              aria-controls="search-suggestions"
+              @keydown="onKeydown"
+              @focus="onFocus"
+            />
           </form>
+          <div
+            v-if="showDropdown"
+            id="search-suggestions"
+            role="listbox"
+            class="absolute left-0 right-0 mt-1 bg-slate-900 border border-slate-700 rounded-md shadow-lg z-50"
+          >
+            <div v-if="loading" class="p-3 space-y-2">
+              <div v-for="n in 3" :key="n" class="flex items-center gap-2">
+                <div class="w-8 h-8 bg-slate-700 rounded animate-pulse"></div>
+                <div class="flex-1 h-4 bg-slate-700 rounded animate-pulse"></div>
+                <div class="w-12 h-4 bg-slate-700 rounded animate-pulse"></div>
+              </div>
+            </div>
+            <div v-else-if="error" class="p-3 text-sm text-rose-300">Error al cargar</div>
+            <div v-else-if="!suggestions.length" class="p-3 text-sm text-slate-400">Sin resultados</div>
+            <ul v-else>
+              <li
+                v-for="(item, i) in suggestions"
+                :key="item.id"
+                role="option"
+                :aria-selected="i === activeIndex"
+                @mouseenter="activeIndex = i"
+                @mouseleave="activeIndex = -1"
+                @click="selectSuggestion(item)"
+                class="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-slate-800"
+                :class="{ 'bg-slate-800': i === activeIndex }"
+              >
+                <img
+                  v-if="item.thumbnail"
+                  :src="item.thumbnail"
+                  class="w-8 h-8 object-cover rounded"
+                  alt=""
+                />
+                <div class="flex-1 truncate">{{ item.name }}</div>
+                <div class="text-sm text-cyan-300 whitespace-nowrap">{{ fmt(item.price_sale ?? item.price) }}</div>
+              </li>
+              <li>
+                <button
+                  class="w-full text-left px-3 py-2 text-sm text-cyan-400 hover:bg-slate-800"
+                  @click.prevent="moreResults"
+                >
+                  Más resultados
+                </button>
+              </li>
+            </ul>
+          </div>
         </div>
 
         <!-- Right actions -->
@@ -93,10 +148,67 @@
 
       <!-- Mobile panel -->
       <div v-show="openMobile" class="lg:hidden pb-3">
-        <form class="px-1 pt-2" @submit.prevent="goSearch">
-          <input v-model="q" type="search" placeholder="Buscar productos…"
-                 class="w-full h-10 rounded-md bg-slate-800/70 text-slate-100 placeholder-slate-400 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 px-3" />
-        </form>
+        <div class="px-1 pt-2 relative" @click.outside="showDropdown=false">
+          <form @submit.prevent="goSearch">
+            <input
+              v-model="q"
+              type="search"
+              placeholder="Buscar productos…"
+              class="w-full h-10 rounded-md bg-slate-800/70 text-slate-100 placeholder-slate-400 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 px-3"
+              role="combobox"
+              :aria-expanded="showDropdown"
+              aria-controls="search-suggestions"
+              @keydown="onKeydown"
+              @focus="onFocus"
+            />
+          </form>
+          <div
+            v-if="showDropdown"
+            id="search-suggestions"
+            role="listbox"
+            class="absolute left-0 right-0 mt-1 bg-slate-900 border border-slate-700 rounded-md shadow-lg z-50"
+          >
+            <div v-if="loading" class="p-3 space-y-2">
+              <div v-for="n in 3" :key="n" class="flex items-center gap-2">
+                <div class="w-8 h-8 bg-slate-700 rounded animate-pulse"></div>
+                <div class="flex-1 h-4 bg-slate-700 rounded animate-pulse"></div>
+                <div class="w-12 h-4 bg-slate-700 rounded animate-pulse"></div>
+              </div>
+            </div>
+            <div v-else-if="error" class="p-3 text-sm text-rose-300">Error al cargar</div>
+            <div v-else-if="!suggestions.length" class="p-3 text-sm text-slate-400">Sin resultados</div>
+            <ul v-else>
+              <li
+                v-for="(item, i) in suggestions"
+                :key="item.id"
+                role="option"
+                :aria-selected="i === activeIndex"
+                @mouseenter="activeIndex = i"
+                @mouseleave="activeIndex = -1"
+                @click="selectSuggestion(item)"
+                class="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-slate-800"
+                :class="{ 'bg-slate-800': i === activeIndex }"
+              >
+                <img
+                  v-if="item.thumbnail"
+                  :src="item.thumbnail"
+                  class="w-8 h-8 object-cover rounded"
+                  alt=""
+                />
+                <div class="flex-1 truncate">{{ item.name }}</div>
+                <div class="text-sm text-cyan-300 whitespace-nowrap">{{ fmt(item.price_sale ?? item.price) }}</div>
+              </li>
+              <li>
+                <button
+                  class="w-full text-left px-3 py-2 text-sm text-cyan-400 hover:bg-slate-800"
+                  @click.prevent="moreResults"
+                >
+                  Más resultados
+                </button>
+              </li>
+            </ul>
+          </div>
+        </div>
         <div class="mt-3 grid gap-1 text-sm">
           <RouterLink to="/productos" class="px-3 py-2 rounded hover:bg-slate-800 text-slate-200" @click="openMobile=false">Tienda</RouterLink>
           <RouterLink v-if="auth.isAuthenticated" to="/mi-cuenta" class="px-3 py-2 rounded hover:bg-slate-800 text-slate-200" @click="openMobile=false">Mi cuenta</RouterLink>
@@ -114,7 +226,7 @@
 
 <script setup>
 import { RouterLink, useRouter, useRoute } from 'vue-router'
-import { onMounted, watch, ref, computed } from 'vue'
+import { onMounted, watch, ref, computed, onBeforeUnmount } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useCarritoStore } from '@/stores/carrito'
 
@@ -128,6 +240,13 @@ const route = useRoute()
 const openMobile = ref(false)
 const openUser = ref(false)
 const q = ref(route.query.q ?? '')
+const suggestions = ref([])
+const loading = ref(false)
+const error = ref(false)
+const showDropdown = ref(false)
+const activeIndex = ref(-1)
+let abortCtrl = null
+let debounceId = null
 
 // helpers
 const isActive = (path) => route.path === path
@@ -147,6 +266,80 @@ const goSearch = () => {
   openMobile.value = false
 }
 
+const fetchSuggestions = async (term) => {
+  if (abortCtrl) abortCtrl.abort()
+  abortCtrl = new AbortController()
+  const params = new URLSearchParams({ q: term, limit: '5' })
+  const res = await fetch(`/api/search/products/?${params}`, {
+    signal: abortCtrl.signal
+  })
+  if (!res.ok) throw new Error('Network')
+  return await res.json()
+}
+
+watch(q, (val) => {
+  if (debounceId) clearTimeout(debounceId)
+  const term = val.trim()
+  if (term.length < 2) {
+    suggestions.value = []
+    showDropdown.value = false
+    loading.value = false
+    error.value = false
+    if (abortCtrl) abortCtrl.abort()
+    return
+  }
+  debounceId = setTimeout(async () => {
+    loading.value = true
+    error.value = false
+    activeIndex.value = -1
+    try {
+      suggestions.value = await fetchSuggestions(term)
+    } catch (e) {
+      if (e.name !== 'AbortError') error.value = true
+    } finally {
+      loading.value = false
+      showDropdown.value = true
+    }
+  }, 300)
+})
+
+const onKeydown = (e) => {
+  if (!showDropdown.value && e.key !== 'Escape') return
+  if (e.key === 'ArrowDown') {
+    e.preventDefault()
+    activeIndex.value =
+      activeIndex.value < suggestions.value.length - 1 ? activeIndex.value + 1 : -1
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault()
+    activeIndex.value =
+      activeIndex.value > -1 ? activeIndex.value - 1 : suggestions.value.length - 1
+  } else if (e.key === 'Enter') {
+    if (activeIndex.value > -1 && suggestions.value[activeIndex.value]) {
+      selectSuggestion(suggestions.value[activeIndex.value])
+    } else {
+      goSearch()
+    }
+  } else if (e.key === 'Escape') {
+    showDropdown.value = false
+  }
+}
+
+const onFocus = () => {
+  if (suggestions.value.length) showDropdown.value = true
+}
+
+const selectSuggestion = (item) => {
+  showDropdown.value = false
+  router.push({ name: 'producto', params: { id: item.id } }) // ajustar a slug si aplica
+}
+
+const moreResults = () => {
+  showDropdown.value = false
+  goSearch()
+}
+
+const fmt = (n) => Number(n).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })
+
 onMounted(() => {
   if (auth.isAuthenticated) carrito.cargar()
 })
@@ -156,7 +349,15 @@ watch(() => auth.isAuthenticated, (v) => {
 })
 
 // close dropdown on route change
-watch(() => route.fullPath, () => { openUser.value = false; openMobile.value = false })
+watch(() => route.fullPath, () => {
+  openUser.value = false
+  openMobile.value = false
+  showDropdown.value = false
+})
+
+onBeforeUnmount(() => {
+  if (abortCtrl) abortCtrl.abort()
+})
 
 const logout = () => {
   auth.logout()
