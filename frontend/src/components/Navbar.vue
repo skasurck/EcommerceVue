@@ -230,7 +230,9 @@ import { onMounted, watch, ref, computed, onBeforeUnmount } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useCarritoStore } from '@/stores/carrito'
 
-const API_BASE = import.meta.env.VITE_API_BASE || ''
+// Base de la API: permite usar variable de entorno o cae al backend local en desarrollo
+const API_BASE =
+  import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? 'http://localhost:8000' : '')
 const DEFAULT_THUMB = 'https://via.placeholder.com/64x64?text=IMG'
 
 const normalizeUrl = (u) => {
