@@ -8,6 +8,7 @@ from .views import (
     ValorAtributoViewSet,
     ImagenProductoViewSet,
     PrecioEscalonadoViewSet,
+    ProductSearchAPIView,
 )
 
 router = DefaultRouter()
@@ -18,6 +19,7 @@ router.register(r'atributos-base', AtributoViewSet)
 router.register(r'atributos', ValorAtributoViewSet)
 
 urlpatterns = [
+    path('search/products/', ProductSearchAPIView.as_view(), name='product-search'),
     path('', include(router.urls)),
     path(
         'productos/<int:producto_pk>/galeria/',

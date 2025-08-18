@@ -1,9 +1,12 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.views import APIView
 from django.db.models import Q
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
 from rest_framework.response import Response
 from .models import (
     Producto,
@@ -22,9 +25,39 @@ from .serializers import (
     ValorAtributoSerializer,
     ImagenProductoSerializer,
     PrecioEscalonadoSerializer,
+    ProductSearchSerializer,
 )
 from .forms import ProductoForm, PrecioEscalonadoFormSet
 from usuarios.permissions import IsAdminOrSuperAdmin
+
+
+@method_decorator(cache_page(60), name="dispatch")
+class ProductSearchAPIView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        q = (request.query_params.get("q") or "").strip()
+        if len(q) < 2:
+            return Response([])
+        q = q[:64]
+        try:
+            limit = int(request.query_params.get("limit", 5))
+        except ValueError:
+            limit = 5
+        limit = max(1, min(limit, 5))
+        queryset = (
+            Producto.objects.filter(visibilidad=True, estado="publicado")
+            .filter(
+                Q(nombre__icontains=q)
+                | Q(sku__icontains=q)
+                | Q(descripcion_larga__icontains=q)
+            )
+            .order_by("-fecha_creacion")[:limit]
+        )
+        serializer = ProductSearchSerializer(
+            queryset, many=True, context={"request": request}
+        )
+        return Response(serializer.data)
 
 class StandardResultsSetPagination(PageNumberPagination):
     page_size = 10
