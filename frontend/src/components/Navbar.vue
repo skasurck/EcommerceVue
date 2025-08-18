@@ -38,7 +38,7 @@
             v-if="showDropdown"
             id="search-suggestions"
             role="listbox"
-            class="absolute left-0 right-0 mt-1 bg-slate-900 border border-slate-700 rounded-md shadow-lg z-50"
+            class="absolute top-full left-0 right-0 translate-y-1 bg-slate-900 border border-slate-700 rounded-md shadow-lg z-50 max-h-80 overflow-auto pointer-events-auto"
           >
             <div v-if="loading" class="p-3 space-y-2">
               <div v-for="n in 3" :key="n" class="flex items-center gap-2">
@@ -166,7 +166,7 @@
             v-if="showDropdown"
             id="search-suggestions"
             role="listbox"
-            class="absolute left-0 right-0 mt-1 bg-slate-900 border border-slate-700 rounded-md shadow-lg z-50"
+            class="absolute top-full left-0 right-0 translate-y-1 bg-slate-900 border border-slate-700 rounded-md shadow-lg z-50 max-h-80 overflow-auto pointer-events-auto"
           >
             <div v-if="loading" class="p-3 space-y-2">
               <div v-for="n in 3" :key="n" class="flex items-center gap-2">
@@ -351,10 +351,13 @@ const onFocus = () => {
 
 const selectSuggestion = (item) => {
   showDropdown.value = false
-  if (router.hasRoute('producto')) {
-    router.push({ name: 'producto', params: { slug: item.slug } })
+  if (item?.id != null) {
+    router.push({ name: 'producto', params: { id: String(item.id) } })
+  } else if (item?.slug) {
+    // fallback por si no hay id disponible
+    router.push(`/producto/${item.slug}`)
   } else {
-    router.push(`/producto/${item.slug}`) // ajustar a la ruta real si difiere
+    goSearch()
   }
 }
 
