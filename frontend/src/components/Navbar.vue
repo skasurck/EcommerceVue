@@ -285,6 +285,8 @@ const goSearch = () => {
   if (!q.value?.trim()) return
   router.push({ name: 'productos', query: { q: q.value.trim() } })
   openMobile.value = false
+  showDropdown.value = false
+  q.value = ''
 }
 
 const fetchSuggestions = async (term) => {
@@ -359,6 +361,7 @@ const selectSuggestion = (item) => {
   } else {
     goSearch()
   }
+  q.value = ''
 }
 
 const moreResults = () => {
