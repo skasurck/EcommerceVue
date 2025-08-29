@@ -26,23 +26,20 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import api from '../axios'
-import { useAuthStore } from '../stores/auth'
+import { login as authLogin } from '../services/auth'
 defineOptions({ name: 'LoginView' })
 
 const username = ref('')
 const password = ref('')
 const error = ref('')
 const router = useRouter()
-const auth = useAuthStore()
 
 const login = async () => {
   try {
-    const res = await api.post('auth/login/', {
+    await authLogin({
       username: username.value,
-      password: password.value
+      password: password.value,
     })
-    auth.login(res.data.token, res.data.user)
     error.value = ''
     router.push('/admin')
   } catch (err) {

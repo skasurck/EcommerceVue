@@ -2,23 +2,46 @@ import { defineStore } from 'pinia'
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
-    token: localStorage.getItem('token') || null,
+    // Tokens persistidos para mantener la sesión al recargar la página
+    accessToken: localStorage.getItem('accessToken') || null,
+    refreshToken: localStorage.getItem('refreshToken') || null,
     user: localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')) : null,
-    isAuthenticated: !!localStorage.getItem('token'),
   }),
+  getters: {
+    isAuthenticated: (state) => !!state.accessToken,
+  },
   actions: {
-    login(token, user) {
-      this.token = token
+    /**
+     * Guarda los tokens en el estado y en localStorage
+     */
+    setTokens(access, refresh) {
+      this.accessToken = access
+      this.refreshToken = refresh
+      if (access) {
+        localStorage.setItem('accessToken', access)
+      } else {
+        localStorage.removeItem('accessToken')
+      }
+      if (refresh) {
+        localStorage.setItem('refreshToken', refresh)
+      } else {
+        localStorage.removeItem('refreshToken')
+      }
+    },
+    /**
+     * Inicia sesión guardando tokens y usuario
+     */
+    login(tokens, user) {
+      this.setTokens(tokens.access, tokens.refresh)
       this.user = user
-      this.isAuthenticated = true
-      localStorage.setItem('token', token)
       localStorage.setItem('user', JSON.stringify(user))
     },
+    /**
+     * Cierra sesión y limpia estado
+     */
     logout() {
-      this.token = null
+      this.setTokens(null, null)
       this.user = null
-      this.isAuthenticated = false
-      localStorage.removeItem('token')
       localStorage.removeItem('user')
     },
     hasRole(role) {
@@ -28,9 +51,9 @@ export const useAuthStore = defineStore('auth', {
       return roles.includes(this.user?.rol)
     },
     checkLogin() {
-      this.token = localStorage.getItem('token') || null
+      this.accessToken = localStorage.getItem('accessToken') || null
+      this.refreshToken = localStorage.getItem('refreshToken') || null
       this.user = localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')) : null
-      this.isAuthenticated = !!this.token
     }
   }
 })
