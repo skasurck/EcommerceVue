@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import api from '../services/http'
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
@@ -29,12 +30,19 @@ export const useAuthStore = defineStore('auth', {
       }
     },
     /**
-     * Inicia sesión guardando tokens y usuario
+     * Realiza login contra el backend y guarda tokens y usuario
+     * @param {{username:string, password:string}} creds
+     * @param {AbortSignal} [signal]
      */
-    login(tokens, user) {
-      this.setTokens(tokens.access, tokens.refresh)
-      this.user = user
-      localStorage.setItem('user', JSON.stringify(user))
+    async login({ username, password }, signal) {
+      const { data } = await api.post('auth/login/', { username, password }, { signal })
+      if (!data.access || !data.refresh) throw new Error('Tokens missing')
+      this.setTokens(data.access, data.refresh)
+      if (data.user) {
+        this.user = data.user
+        localStorage.setItem('user', JSON.stringify(data.user))
+      }
+      return data
     },
     /**
      * Cierra sesión y limpia estado
