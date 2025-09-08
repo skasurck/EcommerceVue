@@ -4,6 +4,7 @@ from django.db import transaction
 from django.conf import settings
 from decimal import Decimal, ROUND_HALF_UP
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from suppliers.scraper_supermex import (
     get_client, get_with, parse_plp, plp_collect_all, upsert_product
 )
@@ -284,6 +285,13 @@ class Command(BaseCommand):
             help="URL de PDP (repetible). Puedes pasar varias --pdp."
         )
 
+        parser.add_argument(
+            "--workers",
+            type=int,
+            default=8,
+            help="Número de hilos concurrentes para procesar PDPs.",
+        )
+
     def handle(self, *args, **opts):
         url = opts.get("url")
         cats = opts.get("category") or []
@@ -367,7 +375,7 @@ class Command(BaseCommand):
             for sp in qs:
                 obj = upsert_product(sp.product_url)
                 self._sync_product_and_map(obj, markup_pct, min_virtual, dry)
-                self.updated_count += 1        # <— usa self.
+                self.updated_count += 1
                 processed += 1
 
             self.stdout.write(self.style.SUCCESS(f"Actualizados existentes: {processed}"))
@@ -376,68 +384,29 @@ class Command(BaseCommand):
             ))
             return
 
-        # Procesa las PDPs recolectadas
-        for i, u in enumerate(unique_urls, start=1):
-            self.stdout.write(f"[{i}/{len(unique_urls)}] upsert {u}")
+        workers = int(opts.get("workers") or 8)
+
+        # Obtiene SupplierProducts en paralelo reutilizando un único cliente HTTP
+        sp_list = []
+        with get_client() as client:
+            with ThreadPoolExecutor(max_workers=workers) as ex:
+                futures = {ex.submit(upsert_product, u, client): u for u in unique_urls}
+                for i, fut in enumerate(as_completed(futures), start=1):
+                    u = futures[fut]
+                    self.stdout.write(f"[{i}/{len(unique_urls)}] upsert {u}")
+                    try:
+                        sp = fut.result()
+                        if sp:
+                            sp_list.append(sp)
+                    except Exception as e:
+                        self.stderr.write(self.style.ERROR(f"ERROR en {u}: {e}"))
+
+        # Sincroniza con Producto secuencialmente
+        for sp in sp_list:
             try:
-                sp = upsert_product(u)  # lee/actualiza SupplierProduct y devuelve el objeto
-
-                # ¿Existe ya un Producto con ese SKU?
-                prod = Producto.objects.filter(sku=sp.supplier_sku).first()
-
-                if not prod:
-                    # Crear nuevo Producto desde SupplierProduct (imagen principal, map, categorías, galería, etc.)
-                    if not dry:
-                        prod = create_or_update_producto_from_supplier(sp)
-                    self.created_count += 1   # <— usa self.
-                    self.stdout.write(self.style.SUCCESS(
-                        f"[NEW] Producto creado desde proveedor (SKU {sp.supplier_sku})"
-                    ))
-                else:
-                    # Actualizar existente: precio + stock + estado + categorías + galería
-                    if not dry:
-                        new_price = apply_markup_pct(sp.price_supplier or Decimal("0"), markup_pct)
-
-                        # qty efectiva (qty real si está, si no mínimo virtual si hay stock)
-                        if sp.in_stock:
-                            qty = int(getattr(sp, "available_qty", 0) or MIN_VIRTUAL)
-                        else:
-                            qty = 0
-                        estado_inv = "en_existencia" if qty > 0 else "agotado"
-
-                        updates = []
-                        if prod.precio_normal != new_price:
-                            prod.precio_normal = new_price
-                            updates.append("precio_normal")
-                        if prod.stock != qty:
-                            prod.stock = qty
-                            updates.append("stock")
-                        if prod.estado_inventario != estado_inv:
-                            prod.estado_inventario = estado_inv
-                            updates.append("estado_inventario")
-                        if updates:
-                            prod.save(update_fields=updates)
-
-                        # Categorías (breadcrumb) y galería (imágenes 2..n)
-                        try:
-                            with httpx.Client(follow_redirects=True, timeout=30) as c:
-                                r = c.get(sp.product_url)
-                                r.raise_for_status()
-                                html = r.text
-                            cats = _extract_categories_from_html(html)
-                            if cats:
-                                _ensure_categories(prod, cats)
-                        except Exception:
-                            pass
-                        try:
-                            _ensure_gallery(prod, sp)
-                        except Exception:
-                            pass
-
-                    self.updated_count += 1   # <— usa self.
-
+                self._sync_product_and_map(sp, markup_pct, min_virtual, dry)
             except Exception as e:
-                self.stderr.write(self.style.ERROR(f"ERROR en {u}: {e}"))
+                self.stderr.write(self.style.ERROR(f"ERROR al sincronizar {sp.product_url}: {e}"))
 
             processed += 1
             time.sleep(sleep_s)
