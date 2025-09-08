@@ -28,14 +28,26 @@ SECRET_KEY = 'django-insecure-5)n%32ah(7x7c7bqxefk#bl_-x+ff0%h8!2dx*g*+qc+)tunr(
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
-
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "[::1]"]
 
 # Application definition
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    # CLASES DE AUTENTICACIÓN VÁLIDAS (elige las que uses)
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework.authentication.SessionAuthentication",
+        "rest_framework.authentication.BasicAuthentication",
+        # Si usas JWT, descomenta la siguiente:
+        # "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
+
+    # PERMISOS POR DEFECTO (si quieres todo público por ahora)
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.AllowAny",
+    ),
+
+    # (Opcional) Paginación por defecto
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 10,
 }
 
 SIMPLE_JWT = {
@@ -57,6 +69,7 @@ INSTALLED_APPS = [
     'usuarios',
     'carrito',
     'pedidos',
+    'suppliers',
 ]
 
 MIDDLEWARE = [
@@ -72,9 +85,14 @@ MIDDLEWARE = [
 
 # CORS settings
 CORS_ALLOWED_ORIGINS = [
-    'http://localhost:5173',
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
 ]
 
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
 ROOT_URLCONF = 'tienda.urls'
 
 TEMPLATES = [
@@ -150,3 +168,10 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+SUPPLIER_MIN_VIRTUAL_QTY = 1     # cantidad mínima para considerar "en stock" un producto de proveedor
+# Celery
+CELERY_BROKER_URL = "redis://127.0.0.1:6379/0"
+CELERY_RESULT_BACKEND = "redis://127.0.0.1:6379/1"
+CELERY_TIMEZONE = "America/Mexico_City"
+CELERY_ENABLE_UTC = False

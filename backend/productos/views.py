@@ -29,7 +29,8 @@ from .serializers import (
 )
 from .forms import ProductoForm, PrecioEscalonadoFormSet
 from usuarios.permissions import IsAdminOrSuperAdmin
-
+from suppliers.models import ProductSupplierMap, SupplierProduct
+from rest_framework.viewsets import ReadOnlyModelViewSet
 
 @method_decorator(cache_page(60), name="dispatch")
 class ProductSearchAPIView(APIView):
@@ -85,12 +86,39 @@ class ProductoViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(estado_inventario=estado)
         if marca:
             queryset = queryset.filter(marca_id=marca)
-        return queryset
+          # --- NUEVO: precarga ligas proveedor → producto y SupplierProduct (no rompe nada)
+        product_ids = list(queryset.values_list('id', flat=True))
+        if product_ids:
+            # liga producto -> sku proveedor
+            maps = ProductSupplierMap.objects.filter(product_id__in=product_ids).values('product_id', 'supplier_sku')
+            map_by_product = {m['product_id']: m['supplier_sku'] for m in maps}
+            skus = list(set(map_by_product.values()))
+            if skus:
+                sp_by_sku = {
+                    sp.supplier_sku: sp
+                    for sp in SupplierProduct.objects.filter(supplier_sku__in=skus)
+                }
+                # cache final: product_id -> SupplierProduct
+                self._sp_by_product = {
+                    pid: sp_by_sku.get(sku) for pid, sku in map_by_product.items() if sp_by_sku.get(sku)
+                }
+            else:
+                self._sp_by_product = {}
+        else:
+            self._sp_by_product = {}
 
+        return queryset
+    def get_serializer_context(self):
+        # --- NUEVO: pasa el cache al serializer
+        ctx = super().get_serializer_context()
+        ctx['sp_by_product'] = getattr(self, '_sp_by_product', {})
+        return ctx
+    
     def get_permissions(self):
         if self.action in ["create", "update", "partial_update", "destroy"]:
             return [IsAdminOrSuperAdmin()]
         return [permissions.AllowAny()]
+    
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()

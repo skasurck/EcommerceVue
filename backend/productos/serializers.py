@@ -3,6 +3,8 @@ import json
 import re
 from django.http import QueryDict
 from django.utils.text import slugify
+from suppliers.models import SupplierProduct, ProductSupplierMap
+from suppliers.utils import effective_qty
 
 from .models import (
     Producto,
@@ -139,6 +141,8 @@ class ProductoSerializer(serializers.ModelSerializer):
     galeria = ImagenProductoSerializer(many=True, read_only=True)
     precios_escalonados = PrecioEscalonadoSerializer(many=True, required=False)
     imagen_principal = serializers.ImageField(required=False)
+    effective_qty = serializers.SerializerMethodField()
+    is_virtual_qty = serializers.SerializerMethodField()
 
     class Meta:
         model = Producto
@@ -164,6 +168,9 @@ class ProductoSerializer(serializers.ModelSerializer):
             "fecha_creacion",
             "galeria",
             "precios_escalonados",
+            # NUEVOS:
+            "effective_qty", 
+            "is_virtual_qty",
         ]
         read_only_fields = ["miniatura", "fecha_creacion"]
 
@@ -289,4 +296,33 @@ class ProductoSerializer(serializers.ModelSerializer):
 
         return instance
 
+    def _get_supplierproduct(self, obj: Producto):
+        """
+        Busca el SupplierProduct asociado por medio del mapeo ProductSupplierMap.
+        Tomamos el primero si hay varios.
+        """
+        # 1) Trae todos los SKUs proveedor vinculados a este producto
+        skus = list(
+            ProductSupplierMap.objects
+            .filter(product=obj)
+            .values_list("supplier_sku", flat=True)
+        )
+        if not skus:
+            return None
+        # 2) Busca el SupplierProduct correspondiente
+        return SupplierProduct.objects.filter(supplier_sku__in=skus).first()
+
+    def get_effective_qty(self, obj: Producto) -> int:
+        sp = getattr(obj, "_supplier_cache", None) or self._get_supplierproduct(obj)
+        if not sp:
+            # Sin proveedor → usa tu stock local
+            return obj.stock
+        return effective_qty(sp.available_qty, sp.in_stock)
+
+    def get_is_virtual_qty(self, obj: Producto) -> bool:
+        sp = getattr(obj, "_supplier_cache", None) or self._get_supplierproduct(obj)
+        if not sp:
+            # Sin proveedor → no es virtual (estás usando tu propio stock)
+            return False
+        return not (sp.available_qty and sp.available_qty > 0)
 
