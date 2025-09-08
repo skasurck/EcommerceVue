@@ -268,6 +268,9 @@ def parse_pdp(html: str) -> dict:
     # --- nombre
     name_node = t.css_first("h1[itemprop='name'], h1, .product-title")
     name = name_node.text(strip=True) if name_node else ""
+
+    # Busca nodos clave para validar que la página sea un producto
+    price_node = t.css_first("[itemprop='price']")
     sec = t.css_first("section#product_detail")
     if not (name_node and (price_node or sec)):
         raise ValueError("La página no parece una PDP (producto).")
@@ -298,14 +301,15 @@ def parse_pdp(html: str) -> dict:
             sku = m.group(1)
 
     # --- precio
-    price_node = None          # <- ¡importante! inicializar antes de usar
     price_txt = ""
 
-    # 1) itemprop="price"
-    node = t.css_first("[itemprop='price']")
-    if node:
-        price_node = node
-        price_txt = (node.attributes.get("content") or node.text(strip=True) or "").strip()
+    # 1) itemprop="price" (ya lo buscamos arriba como price_node)
+    if price_node:
+        price_txt = (
+            price_node.attributes.get("content")
+            or price_node.text(strip=True)
+            or ""
+        ).strip()
 
     # 2) Fallbacks Odoo
     if not price_txt:

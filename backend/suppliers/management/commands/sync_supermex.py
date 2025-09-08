@@ -1,5 +1,5 @@
 # suppliers/management/commands/sync_supermex.py
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.conf import settings
 from decimal import Decimal, ROUND_HALF_UP
