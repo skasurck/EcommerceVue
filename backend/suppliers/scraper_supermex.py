@@ -384,8 +384,14 @@ def checksum_record(data: dict) -> str:
     blob = "|".join(str(data[k]) for k in sorted(data.keys()))
     return hashlib.sha256(blob.encode("utf-8")).hexdigest()
 
-def upsert_product(url: str):
-    c = get_client()
+def upsert_product(url: str, client: httpx.Client | None = None):
+    """Obtiene y guarda un producto de Supermex.
+
+    Reutiliza el cliente HTTP si se pasa para evitar abrir conexiones por
+    cada PDP, lo que acelera el rastreo masivo.
+    """
+    c = client or get_client()
+    owns_client = client is None
     try:
         html = get_with(c, url)
         sku, name, price_supplier, in_stock, description_html, imgs, qty = parse_pdp(html)
@@ -431,7 +437,8 @@ def upsert_product(url: str):
         obj.refresh_from_db()
         return obj
     finally:
-        c.close()
+        if owns_client:
+            c.close()
 
 
 def crawl_all():
