@@ -3,6 +3,7 @@ from selectolax.parser import HTMLParser
 import httpx, json, re
 from urllib.parse import urljoin, urlsplit, urlunsplit
 from decimal import Decimal
+from typing import Optional
 from django.utils import timezone
 from django.db.models import F
 from django.db import OperationalError, close_old_connections
@@ -206,6 +207,50 @@ def _extract_qty_from_json(js: dict):
                 return v_int
     return None
 
+
+def _parse_price_text(price_txt: str) -> Optional[Decimal]:
+    """Parsea un texto de precio a Decimal sin dividir por 100."""
+    if not price_txt:
+        return None
+
+    # Quita símbolos de moneda y espacios (incluyendo NBSP)
+    txt = (
+        price_txt.replace("\xa0", " ")
+        .replace("MXN", "")
+        .replace("$", "")
+        .strip()
+    )
+    # Solo deja dígitos y separadores
+    txt = re.sub(r"[^\d.,]", "", txt)
+    if not txt:
+        return None
+
+    if "," in txt and "." in txt:
+        if txt.rfind(".") > txt.rfind(","):
+            # formato en-US: coma miles, punto decimales
+            txt = txt.replace(",", "")
+        else:
+            # formato en-ES: punto miles, coma decimales
+            txt = txt.replace(".", "").replace(",", ".")
+    elif "," in txt:
+        parts = txt.split(",")
+        if len(parts[-1]) == 3 and txt.count(",") == 1:
+            # coma como miles
+            txt = "".join(parts)
+        else:
+            # coma decimal
+            txt = txt.replace(",", ".")
+    elif "." in txt:
+        parts = txt.split(".")
+        if len(parts[-1]) == 3 and txt.count(".") == 1:
+            # punto como miles
+            txt = "".join(parts)
+        # de lo contrario, punto decimal
+    try:
+        return Decimal(txt)
+    except Exception:
+        return None
+
 def parse_plp(html: str) -> list[str]:
     from selectolax.parser import HTMLParser
     t = HTMLParser(html)
@@ -365,29 +410,12 @@ def parse_pdp(html: str, url: str = "") -> dict:
                 break
 
     raw_price_txt = price_txt  # para logs
-    price_supplier = None
-    if price_txt:
-        clean = price_txt.replace("\xa0", " ").replace("MXN", "").replace("$", "").strip()
-        m = re.search(r"(\d{1,3}(?:[\s.,]\d{3})*(?:[.,]\d{2})?|\d+(?:[.,]\d{2})?)", clean)
-        if m:
-            num = m.group(1)
-            num = num.replace("\xa0", "").replace(" ", "")
-            if "," in num and "." in num:
-                if num.rfind(",") > num.rfind("."):
-                    num = num.replace(".", "").replace(",", ".")
-                else:
-                    num = num.replace(",", "")
-            elif "," in num:
-                num = num.replace(".", "").replace(",", ".")
-            else:
-                num = num.replace(",", "")
-            try:
-                price_supplier = Decimal(num)
-            except Exception:
-                price_supplier = None
+    price_supplier = _parse_price_text(price_txt)
 
     if price_supplier is None:
-        print(f"[WARN] [PDP] {url} sin precio visible")
+        print(
+            f"[WARN] [PDP] {url} price_node={'sí' if price_node else 'no'} raw='{raw_price_txt}' parsed=None"
+        )
     else:
         print(
             f"[PDP] {url} price_node={'sí' if price_node else 'no'} raw='{raw_price_txt}' parsed={price_supplier}"
