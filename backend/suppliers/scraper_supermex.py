@@ -455,52 +455,23 @@ def parse_pdp(html: str, url: str = "") -> dict:
         if in_stock is not None:
             break
 
-    # 2) Detector secundario: mensajes en el DOM
+    # 2) Detector secundario: mensaje explícito de agotado en el DOM
     if in_stock is None:
-        selectors = (
-            "#out_of_stock_message, .o_wsale_product_notif, "
-            ".o_wsale_product_availability, .text-danger, "
-            ".o_wsale_stock_warning, .alert, .badge"
-        )
-        for node in t.css(selectors):
-            txt = node.text(separator=" ", strip=True).lower()
-            if any(
-                phrase in txt
-                for phrase in [
-                    "out of stock",
-                    "agotado",
-                    "sin existencias",
-                    "get notified when back in stock",
-                ]
-            ):
-                in_stock = False
-                qty = 0
-                print("[AVAIL] DOM out-of-stock message → qty=0")
-                break
-
-    # 3) Detector terciario: botón de compra
-    if in_stock is None:
-        qty_input = t.css_first("input.quantity")
-        add_btn = None
-        for node in t.css("button, a"):
-            txt = node.text(separator=" ", strip=True).lower()
-            if "add to cart" in txt or "agregar al carrito" in txt:
-                add_btn = node
-                break
-        disabled = False
-        if add_btn:
-            cls = add_btn.attributes.get("class", "").lower()
-            if add_btn.attributes.get("disabled") is not None or "disabled" in cls:
-                disabled = True
-        if add_btn and qty_input and not disabled:
-            in_stock = True
-            print("[AVAIL] Add-to-cart visible → in_stock=True")
-        else:
+        oos_node = t.css_first("#out_of_stock_message")
+        notif_node = t.css_first(".o_wsale_product_notif")
+        if oos_node:
             in_stock = False
             qty = 0
-            print("[AVAIL] No add-to-cart / disabled → qty=0")
+            print("[AVAIL] DOM #out_of_stock_message → qty=0")
+        elif notif_node and "back in stock" in notif_node.text(separator=" ", strip=True).lower():
+            in_stock = False
+            qty = 0
+            print("[AVAIL] DOM out-of-stock notification → qty=0")
+        else:
+            in_stock = True
+            print("[AVAIL] default → in_stock=True")
 
-    # 4) Qty real desde HTML/JS
+    # 3) Qty real desde HTML/JS
     qty_script = extract_qty_from_scripts(html)
     if qty_script is not None:
         qty = qty_script
