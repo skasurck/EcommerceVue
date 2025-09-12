@@ -281,17 +281,19 @@ def plp_collect_all(client, start_url: str, limit: int = 0, sleep_s: float = 0.6
 
     return list(dict.fromkeys(collected))
 
-def parse_pdp(html: str) -> dict:
+def parse_pdp(html: str, url: str = "") -> dict:
     from selectolax.parser import HTMLParser
     t = HTMLParser(html)
+    price_node = None  # inicializa para evitar referencias antes de asignar
+
     # --- nombre
     name_node = t.css_first("h1[itemprop='name'], h1, .product-title")
     name = name_node.text(strip=True) if name_node else ""
     sec = t.css_first("section#product_detail")
-    if not (name_node and (price_node or sec)):
+    if not (name_node and sec):
         raise ValueError("La página no parece una PDP (producto).")
-  
-  # --- sku
+
+    # --- sku
     sku = ""
     sec = t.css_first("section#product_detail")
     if sec and sec.attributes.get("data-product-tracking-info"):
@@ -317,35 +319,79 @@ def parse_pdp(html: str) -> dict:
             sku = m.group(1)
 
     # --- precio
-    price_node = None          # <- ¡importante! inicializar antes de usar
     price_txt = ""
 
-    # 1) itemprop="price"
-    node = t.css_first("[itemprop='price']")
-    if node:
-        price_node = node
-        price_txt = (node.attributes.get("content") or node.text(strip=True) or "").strip()
-
-    # 2) Fallbacks Odoo
-    if not price_txt:
-        node = t.css_first(
-            ".oe_price .oe_currency_value, "
-            ".current-price [itemprop='price'], "
-            ".product_price .oe_currency_value, "
-            ".product-price .oe_currency_value, "
-            "[data-oe-type='monetary'] .oe_currency_value"
-        )
-        if node:
+    selectors = [
+        "[itemprop='price']",
+        ".oe_price .oe_currency_value",
+        ".current-price [itemprop='price']",
+        ".product_price .oe_currency_value",
+        ".product-price .oe_currency_value",
+        "[data-oe-type='monetary'] .oe_currency_value",
+        ".price .oe_currency_value",
+    ]
+    for sel in selectors:
+        node = t.css_first(sel)
+        if not node:
+            continue
+        # evita precios tachados
+        if node.tag in {"del", "s", "strike"}:
+            continue
+        parent = node.parent
+        if parent and parent.tag in {"del", "s", "strike"}:
+            continue
+        txt = node.attributes.get("content") or node.text(separator=" ", strip=True)
+        if txt:
             price_node = node
-            price_txt = node.text(strip=True)
+            price_txt = txt.strip()
+            break
 
-    # Normaliza y convierte
-    price_txt = price_txt.replace("$", "").replace(",", "").replace("\xa0", " ")
-    price_txt = re.sub(r"[^\d\.]", "", price_txt)
-    try:
-        price_supplier = Decimal(price_txt) if price_txt else Decimal("0")
-    except Exception:
-        price_supplier = Decimal("0")
+    # Fallback genérico: buscar cualquier nodo con posible monto
+    if not price_txt:
+        for node in t.css("span, div, p, b, strong, h2, h3, h4"):
+            txt = node.text(separator=" ", strip=True)
+            if not txt:
+                continue
+            if not re.search(r"\d", txt):
+                continue
+            if node.tag in {"del", "s", "strike"}:
+                continue
+            parent = node.parent
+            if parent and parent.tag in {"del", "s", "strike"}:
+                continue
+            if re.search(r"\$|mxn|\d", txt, re.I):
+                price_node = node
+                price_txt = txt.strip()
+                break
+
+    raw_price_txt = price_txt  # para logs
+    price_supplier = None
+    if price_txt:
+        clean = price_txt.replace("\xa0", " ").replace("MXN", "").replace("$", "").strip()
+        m = re.search(r"(\d{1,3}(?:[\s.,]\d{3})*(?:[.,]\d{2})?|\d+(?:[.,]\d{2})?)", clean)
+        if m:
+            num = m.group(1)
+            num = num.replace("\xa0", "").replace(" ", "")
+            if "," in num and "." in num:
+                if num.rfind(",") > num.rfind("."):
+                    num = num.replace(".", "").replace(",", ".")
+                else:
+                    num = num.replace(",", "")
+            elif "," in num:
+                num = num.replace(".", "").replace(",", ".")
+            else:
+                num = num.replace(",", "")
+            try:
+                price_supplier = Decimal(num)
+            except Exception:
+                price_supplier = None
+
+    if price_supplier is None:
+        print(f"[WARN] [PDP] {url} sin precio visible")
+    else:
+        print(
+            f"[PDP] {url} price_node={'sí' if price_node else 'no'} raw='{raw_price_txt}' parsed={price_supplier}"
+        )
 
 
     # --- stock by text (rápido)
@@ -403,7 +449,7 @@ def upsert_product(url: str):
     c = get_client()
     try:
         html = get_with(c, url)
-        sku, name, price_supplier, in_stock, description_html, imgs, qty = parse_pdp(html)
+        sku, name, price_supplier, in_stock, description_html, imgs, qty = parse_pdp(html, url)
 
         # Fallback: saca el SKU del URL si vino vacío
         if not sku:
@@ -421,8 +467,14 @@ def upsert_product(url: str):
                 qty = ajax_qty
                 in_stock = ajax_qty > 0
 
-        data = {"sku": sku, "name": name, "price": str(price_supplier),
-                "in_stock": in_stock, "url": url, "img_count": len(imgs)}
+        data = {
+            "sku": sku,
+            "name": name,
+            "price": str(price_supplier) if price_supplier is not None else "",
+            "in_stock": in_stock,
+            "url": url,
+            "img_count": len(imgs),
+        }
         ch = checksum_record(data)
 
         defaults = {
@@ -431,11 +483,12 @@ def upsert_product(url: str):
             "name": name,
             "description_html": description_html,
             "image_urls": imgs[:8],
-            "price_supplier": price_supplier,
             "in_stock": in_stock,
             "last_seen": timezone.now(),
             "checksum": ch,
         }
+        if price_supplier is not None:
+            defaults["price_supplier"] = price_supplier
         if qty is not None:
             defaults["available_qty"] = qty
 

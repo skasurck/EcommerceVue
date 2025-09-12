@@ -62,7 +62,13 @@ def _download_first_image(sp: SupplierProduct):
                     raise
                 time.sleep(1 * (2 ** attempt))
 
-def create_or_update_producto_from_supplier(sp: SupplierProduct) -> Producto:
+def create_or_update_producto_from_supplier(sp: SupplierProduct) -> Producto | None:
+    if sp.price_supplier is None:
+        print(
+            f"[WARN] SupplierProduct {sp.supplier_sku} sin precio; se omite creación/actualización de Producto"
+        )
+        return None
+
     # precio con markup (ej. +15%)
     price_sale = pricing_apply_markup(Decimal(sp.price_supplier))
 
@@ -441,17 +447,34 @@ class Command(BaseCommand):
                 prod = Producto.objects.filter(sku=sp.supplier_sku).first()
 
                 if not prod:
-                    # Crear nuevo Producto desde SupplierProduct (imagen principal, map, categorías, galería, etc.)
+                    if sp.price_supplier is None:
+                        self.stdout.write(
+                            self.style.WARNING(
+                                f"[SKIP] {sp.supplier_sku} sin precio; no se crea Producto"
+                            )
+                        )
+                        continue
+                    # Crear nuevo Producto desde SupplierProduct
                     if not dry:
                         prod = create_or_update_producto_from_supplier(sp)
-                    self.created_count += 1   # <— usa self.
-                    self.stdout.write(self.style.SUCCESS(
-                        f"[NEW] Producto creado desde proveedor (SKU {sp.supplier_sku})"
-                    ))
+                    self.created_count += 1
+                    self.stdout.write(
+                        self.style.SUCCESS(
+                            f"[NEW] Producto creado desde proveedor (SKU {sp.supplier_sku})"
+                        )
+                    )
                 else:
                     # Actualizar existente: precio + stock + estado + categorías + galería
                     if not dry:
-                        new_price = apply_markup_pct(sp.price_supplier or Decimal("0"), markup_pct)
+                        if sp.price_supplier is not None:
+                            new_price = apply_markup_pct(sp.price_supplier, markup_pct)
+                        else:
+                            new_price = prod.precio_normal
+                            self.stdout.write(
+                                self.style.WARNING(
+                                    f"[SKU {sp.supplier_sku}] sin precio; se mantiene precio actual"
+                                )
+                            )
 
                         # qty efectiva (qty real si está, si no mínimo virtual si hay stock)
                         if sp.in_stock:
@@ -461,7 +484,7 @@ class Command(BaseCommand):
                         estado_inv = "en_existencia" if qty > 0 else "agotado"
 
                         updates = []
-                        if prod.precio_normal != new_price:
+                        if sp.price_supplier is not None and prod.precio_normal != new_price:
                             prod.precio_normal = new_price
                             updates.append("precio_normal")
                         if prod.stock != qty:
@@ -489,7 +512,7 @@ class Command(BaseCommand):
                         except Exception:
                             pass
 
-                    self.updated_count += 1   # <— usa self.
+                    self.updated_count += 1
 
             except Exception as e:
                 self.stderr.write(self.style.ERROR(f"ERROR en {u}: {e}"))
@@ -519,13 +542,25 @@ class Command(BaseCommand):
             producto = Producto.objects.get(sku=sku)
             created_now = False
         except Producto.DoesNotExist:
+            if sp.price_supplier is None:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"[SKIP] {sku} sin precio; no se crea Producto"
+                    )
+                )
+                return
             if dry:
                 self.stdout.write(self.style.NOTICE(f"[DRY] Crear Producto bootstrap para SKU {sku}"))
                 return
-            # Bootstrap: crearlo desde SupplierProduct (incluye imagen y map)
             producto = create_or_update_producto_from_supplier(sp)
+            if not producto:
+                return
             self.created_count += 1
-            self.stdout.write(self.style.SUCCESS(f"[NEW] Producto#{producto.id} creado desde proveedor (SKU {sku})"))
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"[NEW] Producto#{producto.id} creado desde proveedor (SKU {sku})"
+                )
+            )
             return  # ya quedó creado y mapeado; en próximos syncs se actualizará
 
         # Si ya existe, garantizamos el map
@@ -543,8 +578,16 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.SUCCESS(f"[MAP] Vinculado supplier->product para {sku}"))
 
         # Calcula precio con markup
-        price_supplier = sp.price_supplier or Decimal("0")
-        new_price = apply_markup_pct(price_supplier, markup_pct)
+        price_supplier = sp.price_supplier
+        if price_supplier is not None:
+            new_price = apply_markup_pct(price_supplier, markup_pct)
+        else:
+            new_price = producto.precio_normal
+            self.stdout.write(
+                self.style.WARNING(
+                    f"[SKU {sku}] sin precio; se mantiene precio actual"
+                )
+            )
 
         # Qty efectiva
         if sp.in_stock:
@@ -560,8 +603,10 @@ class Command(BaseCommand):
 
         estado_inv = "en_existencia" if qty > 0 else "agotado"
 
+        price_log = price_supplier if price_supplier is not None else "N/A"
+        sale_log = new_price if price_supplier is not None else "N/A"
         self.stdout.write(
-            f"[SKU {sku}] proveedor={price_supplier} ⇒ venta={new_price} | "
+            f"[SKU {sku}] proveedor={price_log} ⇒ venta={sale_log} | "
             f"qty={'virtual ' if is_virtual else ''}{qty} | estado={estado_inv}"
         )
 
@@ -570,7 +615,7 @@ class Command(BaseCommand):
             return
 
         updates = []
-        if producto.precio_normal != new_price:
+        if price_supplier is not None and producto.precio_normal != new_price:
             producto.precio_normal = new_price
             updates.append("precio_normal")
         if producto.stock != qty:
