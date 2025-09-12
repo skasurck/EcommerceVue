@@ -5,6 +5,7 @@ from urllib.parse import urljoin, urlsplit, urlunsplit
 from decimal import Decimal
 from django.utils import timezone
 from django.db.models import F
+from django.db import OperationalError, close_old_connections
 from .models import SupplierProduct
 from .pricing import apply_markup
 import hashlib, time
@@ -16,6 +17,18 @@ BASE = "https://www.supermexdigital.mx"
 
 def abs_url(u: str) -> str:
     return urljoin(BASE, u)
+
+
+def _db_retry(op, *args, retries: int = 5, base_delay: float = 0.5, **kwargs):
+    for attempt in range(retries):
+        try:
+            return op(*args, **kwargs)
+        except OperationalError as exc:
+            if "database is locked" in str(exc).lower() and attempt < retries - 1:
+                time.sleep(base_delay * (2 ** attempt))
+                close_old_connections()
+                continue
+            raise
 
 def get_client(http2: bool = True) -> httpx.Client:
     # timeouts cortos y explícitos
@@ -34,12 +47,18 @@ def get_client(http2: bool = True) -> httpx.Client:
     )
 
 
-def get_with(client: httpx.Client, url: str) -> str:
+def get_with(client: httpx.Client, url: str, retries: int = 3) -> str:
     # log antes del request: así verás si se queda aquí
     print(f"[HTTP] GET {url}")
-    r = client.get(url)
-    r.raise_for_status()
-    return r.text
+    for attempt in range(retries):
+        try:
+            r = client.get(url)
+            r.raise_for_status()
+            return r.text
+        except httpx.HTTPError:
+            if attempt == retries - 1:
+                raise
+            time.sleep(1 * (2 ** attempt))
 
 def _strip_query(u: str) -> str:
     p = urlsplit(u)
@@ -420,7 +439,8 @@ def upsert_product(url: str):
         if qty is not None:
             defaults["available_qty"] = qty
 
-        obj, _ = SupplierProduct.objects.update_or_create(
+        obj, _ = _db_retry(
+            SupplierProduct.objects.update_or_create,
             supplier_sku=sku,
             defaults=defaults,
         )

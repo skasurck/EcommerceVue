@@ -1,7 +1,7 @@
 # suppliers/management/commands/sync_supermex.py
-from django.core.management.base import BaseCommand, CommandError
-from django.db import transaction
+from django.core.management.base import BaseCommand
 from django.conf import settings
+from django.db import OperationalError, close_old_connections, connection
 from decimal import Decimal, ROUND_HALF_UP
 import time
 from suppliers.scraper_supermex import (
@@ -11,7 +11,7 @@ from suppliers.models import SupplierProduct, ProductSupplierMap
 from django.core.files.base import ContentFile
 from urllib.parse import urlparse
 import httpx, os
-from productos.models import Producto, Categoria, Marca, ImagenProducto
+from productos.models import Producto
 from suppliers.pricing import apply_markup as pricing_apply_markup
 from django.db.models import ForeignKey
 from django.utils.text import slugify
@@ -21,21 +21,53 @@ from uuid import uuid4
 
 MIN_VIRTUAL = getattr(settings, "SUPPLIER_MIN_VIRTUAL_QTY", 1)
 
+
+def _db_retry(op, *args, retries: int = 5, base_delay: float = 0.5, **kwargs):
+    for attempt in range(retries):
+        try:
+            return op(*args, **kwargs)
+        except OperationalError as exc:
+            if "database is locked" in str(exc).lower() and attempt < retries - 1:
+                time.sleep(base_delay * (2 ** attempt))
+                close_old_connections()
+                continue
+            raise
+
+
+def retry_save(obj, **kwargs):
+    return _db_retry(obj.save, **kwargs)
+
+
+def retry_get_or_create(manager, **kwargs):
+    return _db_retry(manager.get_or_create, **kwargs)
+
+
+def retry_create(manager, **kwargs):
+    return _db_retry(manager.create, **kwargs)
+
+
 def _download_first_image(sp: SupplierProduct):
     if not sp.image_urls:
         return None
     url = sp.image_urls[0]
     fn = os.path.basename(urlparse(url).path) or "img.jpg"
     with httpx.Client(follow_redirects=True, timeout=30) as c:
-        r = c.get(url)
-        r.raise_for_status()
-        return fn, r.content
+        for attempt in range(3):
+            try:
+                r = c.get(url)
+                r.raise_for_status()
+                return fn, r.content
+            except httpx.HTTPError:
+                if attempt == 2:
+                    raise
+                time.sleep(1 * (2 ** attempt))
 
 def create_or_update_producto_from_supplier(sp: SupplierProduct) -> Producto:
     # precio con markup (ej. +15%)
     price_sale = pricing_apply_markup(Decimal(sp.price_supplier))
 
-    prod, created = Producto.objects.get_or_create(
+    prod, created = retry_get_or_create(
+        Producto.objects,
         sku=sp.supplier_sku,
         defaults={
             "nombre": sp.name[:100],
@@ -56,7 +88,7 @@ def create_or_update_producto_from_supplier(sp: SupplierProduct) -> Producto:
         prod.descripcion_larga = sp.description_html or prod.descripcion_larga
         prod.stock = max(sp.available_qty or 0, MIN_VIRTUAL) if sp.in_stock else 0
         prod.estado_inventario = "en_existencia" if prod.stock > 0 else "agotado"
-        prod.save()
+        retry_save(prod)
 
     # imagen principal (solo si no tiene)
     if created and not prod.imagen_principal:
@@ -64,12 +96,13 @@ def create_or_update_producto_from_supplier(sp: SupplierProduct) -> Producto:
             got = _download_first_image(sp)
             if got:
                 fn, content = got
-                prod.imagen_principal.save(fn, ContentFile(content), save=True)
+                _db_retry(prod.imagen_principal.save, fn, ContentFile(content), save=True)
         except Exception:
             pass
 
     # vincula mapa proveedor↔producto
-    ProductSupplierMap.objects.get_or_create(
+    retry_get_or_create(
+        ProductSupplierMap.objects,
         product=prod,
         supplier="supermex",
         supplier_sku=sp.supplier_sku,
@@ -151,7 +184,8 @@ def _ensure_categories(producto, category_names: list[str]):
         defaults = {"nombre": name_clean[:100]}
 
         if parent_field_name:
-            cat, created = Categoria.objects.get_or_create(
+            cat, created = retry_get_or_create(
+                Categoria.objects,
                 slug=slug,
                 defaults={**defaults, parent_field_name: parent},
             )
@@ -162,17 +196,21 @@ def _ensure_categories(producto, category_names: list[str]):
                 has_id = current_parent.id if current_parent else None
                 if has_id != want_id:
                     setattr(cat, parent_field_name, parent)
-                    cat.save(update_fields=[parent_field_name])
+                    retry_save(cat, update_fields=[parent_field_name])
         else:
-            cat, _ = Categoria.objects.get_or_create(slug=slug, defaults=defaults)
+            cat, _ = retry_get_or_create(
+                Categoria.objects,
+                slug=slug,
+                defaults=defaults,
+            )
 
-        producto.categorias.add(cat)
+        _db_retry(producto.categorias.add, cat)
         parent = cat
         last_cat = cat
 
     if last_cat and not producto.categoria_id:
         producto.categoria = last_cat
-        producto.save(update_fields=["categoria"])
+        retry_save(producto, update_fields=["categoria"])
   
 
 def _ensure_gallery(producto, sp, max_images: int = 12):
@@ -217,22 +255,33 @@ def _ensure_gallery(producto, sp, max_images: int = 12):
         for idx, (orig, clean) in enumerate(clean_urls, start=1):
             if added >= max_images:
                 break
-            try:
-                # nombre único siempre (evita colisiones)
-                ext = os.path.splitext(urlparse(clean).path)[1].lower() or ".jpg"
+            # nombre único siempre (evita colisiones)
+            ext = os.path.splitext(urlparse(clean).path)[1].lower() or ".jpg"
+            fn = f"{producto.pk}_{idx}_{uuid4().hex}{ext}"
+
+            if any(fn in str(p) for p in existing_names):
                 fn = f"{producto.pk}_{idx}_{uuid4().hex}{ext}"
 
-                # si por algún motivo ya existe exactamente ese nombre, genera otro
-                if any(fn in str(p) for p in existing_names):
-                    fn = f"{producto.pk}_{idx}_{uuid4().hex}{ext}"
-
-                r = c.get(orig)
-                r.raise_for_status()
-                img_content = ContentFile(r.content, name=fn)
-                ImagenProducto.objects.create(producto=producto, imagen=img_content)
-                existing_names.add(f"productos/galeria/{fn}")
-                added += 1
-            except Exception:
+            success = False
+            for attempt in range(3):
+                try:
+                    r = c.get(orig)
+                    r.raise_for_status()
+                    img_content = ContentFile(r.content, name=fn)
+                    retry_create(ImagenProducto.objects, producto=producto, imagen=img_content)
+                    existing_names.add(f"productos/galeria/{fn}")
+                    added += 1
+                    success = True
+                    break
+                except httpx.HTTPError:
+                    if attempt == 2:
+                        break
+                    time.sleep(1 * (2 ** attempt))
+                except Exception:
+                    if attempt == 2:
+                        break
+                    time.sleep(1 * (2 ** attempt))
+            if not success:
                 continue
   
 
@@ -285,6 +334,11 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **opts):
+        with connection.cursor() as cursor:
+            cursor.execute("PRAGMA journal_mode=WAL;")
+            cursor.execute("PRAGMA synchronous=NORMAL;")
+            cursor.execute("PRAGMA busy_timeout=8000;")
+
         url = opts.get("url")
         cats = opts.get("category") or []
         do_all = opts.get("all")
@@ -369,6 +423,7 @@ class Command(BaseCommand):
                 self._sync_product_and_map(obj, markup_pct, min_virtual, dry)
                 self.updated_count += 1        # <— usa self.
                 processed += 1
+                close_old_connections()
 
             self.stdout.write(self.style.SUCCESS(f"Actualizados existentes: {processed}"))
             self.stdout.write(self.style.SUCCESS(
@@ -416,7 +471,7 @@ class Command(BaseCommand):
                             prod.estado_inventario = estado_inv
                             updates.append("estado_inventario")
                         if updates:
-                            prod.save(update_fields=updates)
+                            retry_save(prod, update_fields=updates)
 
                         # Categorías (breadcrumb) y galería (imágenes 2..n)
                         try:
@@ -440,6 +495,7 @@ class Command(BaseCommand):
                 self.stderr.write(self.style.ERROR(f"ERROR en {u}: {e}"))
 
             processed += 1
+            close_old_connections()
             time.sleep(sleep_s)
 
         # Resumen final
@@ -448,7 +504,6 @@ class Command(BaseCommand):
         ))
 
 
-    @transaction.atomic
     def _sync_product_and_map(self, sp: SupplierProduct, markup_pct: Decimal, min_virtual: int, dry: bool):
         """
         - Si no existe Producto con el SKU -> lo crea (bootstrap) desde SupplierProduct.
@@ -478,7 +533,8 @@ class Command(BaseCommand):
             if dry:
                 self.stdout.write(self.style.NOTICE(f"[DRY] Crear map para {sku} -> Producto#{producto.id}"))
             else:
-                ProductSupplierMap.objects.create(
+                retry_create(
+                    ProductSupplierMap.objects,
                     product=producto,
                     supplier="supermex",
                     supplier_sku=sku,
@@ -525,7 +581,7 @@ class Command(BaseCommand):
             updates.append("estado_inventario")
 
         if updates:
-            producto.save(update_fields=updates)
+            retry_save(producto, update_fields=updates)
             self.updated_count += 1
             self.stdout.write(self.style.SUCCESS(f"[OK] Producto#{producto.id} actualizado: {', '.join(updates)}"))
         else:
