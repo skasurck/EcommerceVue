@@ -425,51 +425,20 @@ def parse_pdp(html: str, url: str = "") -> dict:
 
     # --- stock
     qty: Optional[int] = None
-    in_stock = True
+    in_stock = False
 
-    # mensaje explícito de sin stock
+    # Caso 1: bloque explícito "Out of Stock"
     if t.css_first("#out_of_stock_message"):
         qty = 0
-        in_stock = False
     else:
-        # extracción por texto/regex si existe
-        node = (
-            t.css_first("#threshold_message")
-            or t.css_first("#product_stock_availability")
-            or t.css_first(".availability_messages")
-        )
-        texts = []
-        if node:
-            texts.append(node.text(separator=" ", strip=True))
-        if t.body:
-            texts.append(t.body.text(separator=" ", strip=True))
-        pats = [
-            r"Only\s+(\d+)\s+Units?\s+left\s+in\s+stock\.?",
-            r"Only\s+(\d+)\s+left\s+in\s+stock\.?",
-            r"Solo\s+(\d+)\s+Unidades?.*existencia",
-            r"Quedan?\s+(\d+)\s+(?:piezas?|unidades?)",
-            r"\b(\d+)\b\s+(?:Units?|unidades?)\b",
-        ]
-        for text in texts:
-            for pat in pats:
-                m = re.search(pat, text, re.I)
-                if m:
-                    try:
-                        qty = int(m.group(1))
-                        break
-                    except Exception:
-                        pass
-            if qty is not None:
-                break
-
-        if qty is not None:
-            in_stock = qty > 0
+        # Caso 2: existe input de cantidad => hay stock, pero se desconoce la cifra real
+        qty_input = t.css_first("input.quantity[name='add_qty']")
+        if qty_input:
+            qty = 9999
+            in_stock = True
         else:
-            # fallback por nodos típicos
-            if t.css_first("#product_unavailable:not(.d-none)"):
-                in_stock = False
-            elif t.css_first("#add_to_cart:not(.disabled)"):
-                in_stock = True
+            # Caso 3: no se pudo determinar inventario (fallback)
+            qty = None  # dejar None para facilitar debugging
 
     # --- descripción
     desc_node = t.css_first("#product_full_description, [itemprop='description'], .product-description")
