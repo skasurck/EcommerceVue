@@ -574,7 +574,9 @@ def upsert_product(url: str):
             "description_html": description_html,
             "image_urls": imgs[:8],
             "in_stock": in_stock,
-            "available_qty": qty,
+            # `available_qty` es NOT NULL en la base de datos; si no se pudo
+            # determinar la cantidad, se guarda 0 para evitar errores
+            "available_qty": qty if isinstance(qty, int) and qty >= 0 else 0,
             "last_seen": timezone.now(),
             "checksum": ch,
         }
