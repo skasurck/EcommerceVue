@@ -3,8 +3,10 @@ from selectolax.parser import HTMLParser
 import httpx, json, re
 from urllib.parse import urljoin, urlsplit, urlunsplit
 from decimal import Decimal
+from typing import Optional
 from django.utils import timezone
 from django.db.models import F
+from django.db import OperationalError, close_old_connections
 from .models import SupplierProduct
 from .pricing import apply_markup
 import hashlib, time
@@ -16,6 +18,18 @@ BASE = "https://www.supermexdigital.mx"
 
 def abs_url(u: str) -> str:
     return urljoin(BASE, u)
+
+
+def _db_retry(op, *args, retries: int = 5, base_delay: float = 0.5, **kwargs):
+    for attempt in range(retries):
+        try:
+            return op(*args, **kwargs)
+        except OperationalError as exc:
+            if "database is locked" in str(exc).lower() and attempt < retries - 1:
+                time.sleep(base_delay * (2 ** attempt))
+                close_old_connections()
+                continue
+            raise
 
 def get_client(http2: bool = True) -> httpx.Client:
     # timeouts cortos y explícitos
@@ -34,12 +48,18 @@ def get_client(http2: bool = True) -> httpx.Client:
     )
 
 
-def get_with(client: httpx.Client, url: str) -> str:
+def get_with(client: httpx.Client, url: str, retries: int = 3) -> str:
     # log antes del request: así verás si se queda aquí
     print(f"[HTTP] GET {url}")
-    r = client.get(url)
-    r.raise_for_status()
-    return r.text
+    for attempt in range(retries):
+        try:
+            r = client.get(url)
+            r.raise_for_status()
+            return r.text
+        except httpx.HTTPError:
+            if attempt == retries - 1:
+                raise
+            time.sleep(1 * (2 ** attempt))
 
 def _strip_query(u: str) -> str:
     p = urlsplit(u)
@@ -115,10 +135,11 @@ def fetch_qty_via_ajax(c: httpx.Client, html: str):
     if not product_id and not product_template_id:
         return None
 
+    # intenta pedir una cantidad muy alta para que el backend devuelva el máximo disponible
     payload_form = {
         "product_id": product_id or "",
         "product_template_id": product_template_id or "",
-        "add_qty": 1,
+        "add_qty": 10000,
         "combination": "[]",
     }
     if csrf_token:
@@ -127,7 +148,7 @@ def fetch_qty_via_ajax(c: httpx.Client, html: str):
     payload_json = {
         "product_id": int(product_id) if product_id.isdigit() else product_id,
         "product_template_id": int(product_template_id) if product_template_id.isdigit() else product_template_id,
-        "add_qty": 1,
+        "add_qty": 10000,
         "combination": [],
     }
 
@@ -186,6 +207,50 @@ def _extract_qty_from_json(js: dict):
             if v_int is not None and v_int >= 0:
                 return v_int
     return None
+
+
+def _parse_price_text(price_txt: str) -> Optional[Decimal]:
+    """Parsea un texto de precio a Decimal sin dividir por 100."""
+    if not price_txt:
+        return None
+
+    # Quita símbolos de moneda y espacios (incluyendo NBSP)
+    txt = (
+        price_txt.replace("\xa0", " ")
+        .replace("MXN", "")
+        .replace("$", "")
+        .strip()
+    )
+    # Solo deja dígitos y separadores
+    txt = re.sub(r"[^\d.,]", "", txt)
+    if not txt:
+        return None
+
+    if "," in txt and "." in txt:
+        if txt.rfind(".") > txt.rfind(","):
+            # formato en-US: coma miles, punto decimales
+            txt = txt.replace(",", "")
+        else:
+            # formato en-ES: punto miles, coma decimales
+            txt = txt.replace(".", "").replace(",", ".")
+    elif "," in txt:
+        parts = txt.split(",")
+        if len(parts[-1]) == 3 and txt.count(",") == 1:
+            # coma como miles
+            txt = "".join(parts)
+        else:
+            # coma decimal
+            txt = txt.replace(",", ".")
+    elif "." in txt:
+        parts = txt.split(".")
+        if len(parts[-1]) == 3 and txt.count(".") == 1:
+            # punto como miles
+            txt = "".join(parts)
+        # de lo contrario, punto decimal
+    try:
+        return Decimal(txt)
+    except Exception:
+        return None
 
 def parse_plp(html: str) -> list[str]:
     from selectolax.parser import HTMLParser
@@ -262,17 +327,19 @@ def plp_collect_all(client, start_url: str, limit: int = 0, sleep_s: float = 0.6
 
     return list(dict.fromkeys(collected))
 
-def parse_pdp(html: str) -> dict:
+def parse_pdp(html: str, url: str = "") -> dict:
     from selectolax.parser import HTMLParser
     t = HTMLParser(html)
+    price_node = None  # inicializa para evitar referencias antes de asignar
+
     # --- nombre
     name_node = t.css_first("h1[itemprop='name'], h1, .product-title")
     name = name_node.text(strip=True) if name_node else ""
     sec = t.css_first("section#product_detail")
-    if not (name_node and (price_node or sec)):
+    if not (name_node and sec):
         raise ValueError("La página no parece una PDP (producto).")
-  
-  # --- sku
+
+    # --- sku
     sku = ""
     sec = t.css_first("section#product_detail")
     if sec and sec.attributes.get("data-product-tracking-info"):
@@ -298,68 +365,155 @@ def parse_pdp(html: str) -> dict:
             sku = m.group(1)
 
     # --- precio
-    price_node = None          # <- ¡importante! inicializar antes de usar
     price_txt = ""
 
-    # 1) itemprop="price"
-    node = t.css_first("[itemprop='price']")
-    if node:
-        price_node = node
-        price_txt = (node.attributes.get("content") or node.text(strip=True) or "").strip()
-
-    # 2) Fallbacks Odoo
-    if not price_txt:
-        node = t.css_first(
-            ".oe_price .oe_currency_value, "
-            ".current-price [itemprop='price'], "
-            ".product_price .oe_currency_value, "
-            ".product-price .oe_currency_value, "
-            "[data-oe-type='monetary'] .oe_currency_value"
-        )
-        if node:
-            price_node = node
-            price_txt = node.text(strip=True)
-
-    # Normaliza y convierte
-    price_txt = price_txt.replace("$", "").replace(",", "").replace("\xa0", " ")
-    price_txt = re.sub(r"[^\d\.]", "", price_txt)
-    try:
-        price_supplier = Decimal(price_txt) if price_txt else Decimal("0")
-    except Exception:
-        price_supplier = Decimal("0")
-
-
-    # --- stock by text (rápido)
-    qty = None
-    node = t.css_first("#threshold_message") or t.css_first("#product_stock_availability") or t.css_first(".availability_messages")
-    texts = []
-    if node: texts.append(node.text(separator=" ", strip=True))
-    if t.body: texts.append(t.body.text(separator=" ", strip=True))
-    pats = [
-        r"Only\s+(\d+)\s+Units?\s+left\s+in\s+stock\.?",
-        r"Only\s+(\d+)\s+left\s+in\s+stock\.?",
-        r"Solo\s+(\d+)\s+Unidades?.*existencia",
-        r"Quedan?\s+(\d+)\s+(?:piezas?|unidades?)",
-        r"\b(\d+)\b\s+(?:Units?|unidades?)\b",
+    selectors = [
+        "[itemprop='price']",
+        ".oe_price .oe_currency_value",
+        ".current-price [itemprop='price']",
+        ".product_price .oe_currency_value",
+        ".product-price .oe_currency_value",
+        "[data-oe-type='monetary'] .oe_currency_value",
+        ".price .oe_currency_value",
     ]
-    for text in texts:
-        for pat in pats:
-            m = re.search(pat, text, re.I)
-            if m:
-                try:
-                    qty = int(m.group(1)); break
-                except: pass
-        if qty is not None: break
+    for sel in selectors:
+        node = t.css_first(sel)
+        if not node:
+            continue
+        # evita precios tachados
+        if node.tag in {"del", "s", "strike"}:
+            continue
+        parent = node.parent
+        if parent and parent.tag in {"del", "s", "strike"}:
+            continue
+        txt = node.attributes.get("content") or node.text(separator=" ", strip=True)
+        if txt:
+            price_node = node
+            price_txt = txt.strip()
+            break
 
-    # --- in_stock
-    if qty is not None:
-        in_stock = qty > 0
+    # Fallback genérico: buscar cualquier nodo con posible monto
+    if not price_txt:
+        for node in t.css("span, div, p, b, strong, h2, h3, h4"):
+            txt = node.text(separator=" ", strip=True)
+            if not txt:
+                continue
+            if not re.search(r"\d", txt):
+                continue
+            if node.tag in {"del", "s", "strike"}:
+                continue
+            parent = node.parent
+            if parent and parent.tag in {"del", "s", "strike"}:
+                continue
+            if re.search(r"\$|mxn|\d", txt, re.I):
+                price_node = node
+                price_txt = txt.strip()
+                break
+
+    raw_price_txt = price_txt  # para logs
+    price_supplier = _parse_price_text(price_txt)
+
+    if price_supplier is None:
+        print(
+            f"[WARN] [PDP] {url} price_node={'sí' if price_node else 'no'} raw='{raw_price_txt}' parsed=None"
+        )
     else:
-        in_stock = True
-        if t.css_first("#product_unavailable:not(.d-none)"):
-            in_stock = False
-        if t.css_first("#add_to_cart:not(.disabled)"):
+        print(
+            f"[PDP] {url} price_node={'sí' if price_node else 'no'} raw='{raw_price_txt}' parsed={price_supplier}"
+        )
+
+
+    # --- stock
+    qty: Optional[int] = None
+    in_stock: Optional[bool] = None
+
+    # 1) Detector primario: JSON-LD (schema.org)
+    for script in t.css("script[type='application/ld+json']"):
+        try:
+            data = json.loads(script.text())
+        except Exception:
+            continue
+        items = data if isinstance(data, list) else [data]
+        for item in items:
+            if not isinstance(item, dict) or item.get("@type") != "Product":
+                continue
+            offers = item.get("offers")
+            offer_list = offers if isinstance(offers, list) else [offers] if offers else []
+            for offer in offer_list:
+                availability = str((offer or {}).get("availability", ""))
+                if "OutOfStock" in availability:
+                    in_stock = False
+                    qty = 0
+                    print("[AVAIL] JSON-LD availability=OutOfStock → qty=0")
+                    break
+                if "InStock" in availability:
+                    in_stock = True
+                    print("[AVAIL] JSON-LD availability=InStock")
+                    break
+            if in_stock is not None:
+                break
+        if in_stock is not None:
+            break
+
+    # 2) Detector secundario: mensajes en el DOM
+    if in_stock is None:
+        selectors = (
+            "#out_of_stock_message, .o_wsale_product_notif, "
+            ".o_wsale_product_availability, .text-danger, "
+            ".o_wsale_stock_warning, .alert, .badge"
+        )
+        for node in t.css(selectors):
+            txt = node.text(separator=" ", strip=True).lower()
+            if any(
+                phrase in txt
+                for phrase in [
+                    "out of stock",
+                    "agotado",
+                    "sin existencias",
+                    "get notified when back in stock",
+                ]
+            ):
+                in_stock = False
+                qty = 0
+                print("[AVAIL] DOM out-of-stock message → qty=0")
+                break
+
+    # 3) Detector terciario: botón de compra
+    if in_stock is None:
+        qty_input = t.css_first("input.quantity")
+        add_btn = None
+        for node in t.css("button, a"):
+            txt = node.text(separator=" ", strip=True).lower()
+            if "add to cart" in txt or "agregar al carrito" in txt:
+                add_btn = node
+                break
+        disabled = False
+        if add_btn:
+            cls = add_btn.attributes.get("class", "").lower()
+            if add_btn.attributes.get("disabled") is not None or "disabled" in cls:
+                disabled = True
+        if add_btn and qty_input and not disabled:
             in_stock = True
+            print("[AVAIL] Add-to-cart visible → in_stock=True")
+        else:
+            in_stock = False
+            qty = 0
+            print("[AVAIL] No add-to-cart / disabled → qty=0")
+
+    # 4) Qty real desde HTML/JS
+    qty_script = extract_qty_from_scripts(html)
+    if qty_script is not None:
+        qty = qty_script
+        print(f"[QTY] available_qty detectado = {qty}")
+        if qty > 0 and in_stock is not False:
+            in_stock = True
+        if qty <= 0:
+            in_stock = False
+
+    if in_stock is False:
+        qty = 0
+
+    in_stock = bool(in_stock)
 
     # --- descripción
     desc_node = t.css_first("#product_full_description, [itemprop='description'], .product-description")
@@ -384,7 +538,7 @@ def upsert_product(url: str):
     c = get_client()
     try:
         html = get_with(c, url)
-        sku, name, price_supplier, in_stock, description_html, imgs, qty = parse_pdp(html)
+        sku, name, price_supplier, in_stock, description_html, imgs, qty = parse_pdp(html, url)
 
         # Fallback: saca el SKU del URL si vino vacío
         if not sku:
@@ -395,15 +549,22 @@ def upsert_product(url: str):
                 # último recurso: hash corto del URL para no romper update_or_create
                 sku = hashlib.sha1(url.encode("utf-8")).hexdigest()[:12]
 
-        # si qty no vino en texto, intenta AJAX
-        if qty is None:
+        # si qty no vino en texto y el producto aparenta tener stock, intenta AJAX
+        if qty is None and in_stock:
             ajax_qty = fetch_qty_via_ajax(c, html)
             if isinstance(ajax_qty, int) and ajax_qty >= 0:
                 qty = ajax_qty
                 in_stock = ajax_qty > 0
+                print(f"[QTY] AJAX available_qty = {qty}")
 
-        data = {"sku": sku, "name": name, "price": str(price_supplier),
-                "in_stock": in_stock, "url": url, "img_count": len(imgs)}
+        data = {
+            "sku": sku,
+            "name": name,
+            "price": str(price_supplier) if price_supplier is not None else "",
+            "in_stock": in_stock,
+            "url": url,
+            "img_count": len(imgs),
+        }
         ch = checksum_record(data)
 
         defaults = {
@@ -412,19 +573,21 @@ def upsert_product(url: str):
             "name": name,
             "description_html": description_html,
             "image_urls": imgs[:8],
-            "price_supplier": price_supplier,
             "in_stock": in_stock,
+            "available_qty": qty,
             "last_seen": timezone.now(),
             "checksum": ch,
         }
-        if qty is not None:
-            defaults["available_qty"] = qty
+        if price_supplier is not None:
+            defaults["price_supplier"] = price_supplier
 
-        obj, _ = SupplierProduct.objects.update_or_create(
+        obj, _ = _db_retry(
+            SupplierProduct.objects.update_or_create,
             supplier_sku=sku,
             defaults=defaults,
         )
         obj.refresh_from_db()
+        print(f"[PDP] {url} → in_stock={in_stock} qty={qty}")
         return obj
     finally:
         c.close()
