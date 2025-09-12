@@ -135,10 +135,11 @@ def fetch_qty_via_ajax(c: httpx.Client, html: str):
     if not product_id and not product_template_id:
         return None
 
+    # intenta pedir una cantidad muy alta para que el backend devuelva el máximo disponible
     payload_form = {
         "product_id": product_id or "",
         "product_template_id": product_template_id or "",
-        "add_qty": 1,
+        "add_qty": 10000,
         "combination": "[]",
     }
     if csrf_token:
@@ -147,7 +148,7 @@ def fetch_qty_via_ajax(c: httpx.Client, html: str):
     payload_json = {
         "product_id": int(product_id) if product_id.isdigit() else product_id,
         "product_template_id": int(product_template_id) if product_template_id.isdigit() else product_template_id,
-        "add_qty": 1,
+        "add_qty": 10000,
         "combination": [],
     }
 
@@ -422,37 +423,53 @@ def parse_pdp(html: str, url: str = "") -> dict:
         )
 
 
-    # --- stock by text (rápido)
-    qty = None
-    node = t.css_first("#threshold_message") or t.css_first("#product_stock_availability") or t.css_first(".availability_messages")
-    texts = []
-    if node: texts.append(node.text(separator=" ", strip=True))
-    if t.body: texts.append(t.body.text(separator=" ", strip=True))
-    pats = [
-        r"Only\s+(\d+)\s+Units?\s+left\s+in\s+stock\.?",
-        r"Only\s+(\d+)\s+left\s+in\s+stock\.?",
-        r"Solo\s+(\d+)\s+Unidades?.*existencia",
-        r"Quedan?\s+(\d+)\s+(?:piezas?|unidades?)",
-        r"\b(\d+)\b\s+(?:Units?|unidades?)\b",
-    ]
-    for text in texts:
-        for pat in pats:
-            m = re.search(pat, text, re.I)
-            if m:
-                try:
-                    qty = int(m.group(1)); break
-                except: pass
-        if qty is not None: break
+    # --- stock
+    qty: Optional[int] = None
+    in_stock = True
 
-    # --- in_stock
-    if qty is not None:
-        in_stock = qty > 0
+    # mensaje explícito de sin stock
+    if t.css_first("#out_of_stock_message"):
+        qty = 0
+        in_stock = False
     else:
-        in_stock = True
-        if t.css_first("#product_unavailable:not(.d-none)"):
-            in_stock = False
-        if t.css_first("#add_to_cart:not(.disabled)"):
-            in_stock = True
+        # extracción por texto/regex si existe
+        node = (
+            t.css_first("#threshold_message")
+            or t.css_first("#product_stock_availability")
+            or t.css_first(".availability_messages")
+        )
+        texts = []
+        if node:
+            texts.append(node.text(separator=" ", strip=True))
+        if t.body:
+            texts.append(t.body.text(separator=" ", strip=True))
+        pats = [
+            r"Only\s+(\d+)\s+Units?\s+left\s+in\s+stock\.?",
+            r"Only\s+(\d+)\s+left\s+in\s+stock\.?",
+            r"Solo\s+(\d+)\s+Unidades?.*existencia",
+            r"Quedan?\s+(\d+)\s+(?:piezas?|unidades?)",
+            r"\b(\d+)\b\s+(?:Units?|unidades?)\b",
+        ]
+        for text in texts:
+            for pat in pats:
+                m = re.search(pat, text, re.I)
+                if m:
+                    try:
+                        qty = int(m.group(1))
+                        break
+                    except Exception:
+                        pass
+            if qty is not None:
+                break
+
+        if qty is not None:
+            in_stock = qty > 0
+        else:
+            # fallback por nodos típicos
+            if t.css_first("#product_unavailable:not(.d-none)"):
+                in_stock = False
+            elif t.css_first("#add_to_cart:not(.disabled)"):
+                in_stock = True
 
     # --- descripción
     desc_node = t.css_first("#product_full_description, [itemprop='description'], .product-description")
@@ -488,12 +505,15 @@ def upsert_product(url: str):
                 # último recurso: hash corto del URL para no romper update_or_create
                 sku = hashlib.sha1(url.encode("utf-8")).hexdigest()[:12]
 
-        # si qty no vino en texto, intenta AJAX
-        if qty is None:
+        # si qty no vino en texto y el producto aparenta tener stock, intenta AJAX
+        if qty is None and in_stock:
             ajax_qty = fetch_qty_via_ajax(c, html)
             if isinstance(ajax_qty, int) and ajax_qty >= 0:
                 qty = ajax_qty
                 in_stock = ajax_qty > 0
+            else:
+                # no se pudo determinar cantidad exacta, pero hay inventario
+                qty = 9999
 
         data = {
             "sku": sku,
