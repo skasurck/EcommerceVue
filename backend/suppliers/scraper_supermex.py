@@ -426,60 +426,110 @@ def parse_pdp(html: str, url: str = "") -> dict:
     # --- stock
     qty: Optional[int] = None
     in_stock: Optional[bool] = None
+    avail_source = "fallback"
 
-    # 1) Detector primario: JSON-LD (schema.org)
-    for script in t.css("script[type='application/ld+json']"):
-        try:
-            data = json.loads(script.text())
-        except Exception:
-            continue
-        items = data if isinstance(data, list) else [data]
-        for item in items:
-            if not isinstance(item, dict) or item.get("@type") != "Product":
+    # 1) DOM: mensajes de agotado/notify-back-in-stock
+    oos_selectors = [
+        "#out_of_stock_message",
+        "#product_stock_availability #out_of_stock_message",
+    ]
+    for sel in oos_selectors:
+        node = t.css_first(sel)
+        if node:
+            in_stock = False
+            qty = 0
+            avail_source = "DOM"
+            print("[AVAIL] DOM #out_of_stock_message → qty=0")
+            break
+
+    if in_stock is None:
+        notif_node = t.css_first("#stock_notification_div") or t.css_first(
+            "#product_stock_notification_message"
+        )
+        if (
+            notif_node
+            and "back in stock" in notif_node.text(separator=" ", strip=True).lower()
+            and "d-none" not in notif_node.attributes.get("class", "")
+        ):
+            in_stock = False
+            qty = 0
+            avail_source = "DOM"
+            print("[AVAIL] DOM notify-back-in-stock → qty=0")
+
+    if in_stock is None:
+        text_all = t.root.text(separator=" ", strip=True).lower() if t.root else ""
+        if "out of stock" in text_all or "agotado" in text_all:
+            in_stock = False
+            qty = 0
+            avail_source = "DOM"
+            print("[AVAIL] DOM text out-of-stock → qty=0")
+
+    # 2) JSON-LD (solo si el DOM no decidió)
+    if in_stock is None:
+        for script in t.css("script[type='application/ld+json']"):
+            try:
+                data = json.loads(script.text())
+            except Exception:
                 continue
-            offers = item.get("offers")
-            offer_list = offers if isinstance(offers, list) else [offers] if offers else []
-            for offer in offer_list:
-                availability = str((offer or {}).get("availability", ""))
-                if "OutOfStock" in availability:
-                    in_stock = False
-                    qty = 0
-                    print("[AVAIL] JSON-LD availability=OutOfStock → qty=0")
-                    break
-                if "InStock" in availability:
-                    in_stock = True
-                    print("[AVAIL] JSON-LD availability=InStock")
+            items = data if isinstance(data, list) else [data]
+            for item in items:
+                if not isinstance(item, dict) or item.get("@type") != "Product":
+                    continue
+                offers = item.get("offers")
+                offer_list = offers if isinstance(offers, list) else [offers] if offers else []
+                for offer in offer_list:
+                    availability = str((offer or {}).get("availability", ""))
+                    if "OutOfStock" in availability:
+                        in_stock = False
+                        qty = 0
+                        avail_source = "JSONLD"
+                        print("[AVAIL] JSON-LD OutOfStock")
+                        break
+                    if "InStock" in availability:
+                        in_stock = True
+                        avail_source = "JSONLD"
+                        print("[AVAIL] JSON-LD InStock")
+                        break
+                if in_stock is not None:
                     break
             if in_stock is not None:
                 break
-        if in_stock is not None:
-            break
 
-    # 2) Detector secundario: mensaje explícito de agotado en el DOM
+    # 3) Señales de compra (CTA)
     if in_stock is None:
-        oos_node = t.css_first("#out_of_stock_message")
-        notif_node = t.css_first(".o_wsale_product_notif")
-        if oos_node:
-            in_stock = False
-            qty = 0
-            print("[AVAIL] DOM #out_of_stock_message → qty=0")
-        elif notif_node and "back in stock" in notif_node.text(separator=" ", strip=True).lower():
-            in_stock = False
-            qty = 0
-            print("[AVAIL] DOM out-of-stock notification → qty=0")
-        else:
+        cta = None
+        for node in t.css("button, a"):
+            txt = node.text(separator=" ", strip=True).lower()
+            if any(pat in txt for pat in ["add to cart", "agregar al carrito"]):
+                if (
+                    "disabled" not in node.attributes
+                    and node.attributes.get("aria-disabled") != "true"
+                ):
+                    cta = node
+                    break
+        qty_input = t.css_first("input.quantity[name='add_qty']") or t.css_first(
+            "input[name='add_qty'].quantity"
+        )
+        if cta or qty_input:
             in_stock = True
-            print("[AVAIL] default → in_stock=True")
+            avail_source = "CTA"
+            print("[AVAIL] Add-to-cart visible → in_stock=True")
+        else:
+            in_stock = False
+            qty = 0
+            avail_source = "CTA"
+            print("[AVAIL] No add-to-cart / disabled → qty=0")
 
-    # 3) Qty real desde HTML/JS
+    # Qty real (opcional)
     qty_script = extract_qty_from_scripts(html)
     if qty_script is not None:
-        qty = qty_script
-        print(f"[QTY] available_qty detectado = {qty}")
-        if qty > 0 and in_stock is not False:
+        print(f"[QTY] available_qty = {qty_script}")
+        if qty_script > 0 and in_stock is not False:
+            qty = qty_script
             in_stock = True
-        if qty <= 0:
+        else:
             in_stock = False
+            qty = 0
 
     if in_stock is False:
         qty = 0
@@ -499,7 +549,7 @@ def parse_pdp(html: str, url: str = "") -> dict:
         src = _strip_query(src)
         if src not in imgs: imgs.append(src)
 
-    return sku, name, price_supplier, in_stock, description_html, imgs, qty
+    return sku, name, price_supplier, in_stock, description_html, imgs, qty, avail_source
 
 def checksum_record(data: dict) -> str:
     blob = "|".join(str(data[k]) for k in sorted(data.keys()))
@@ -509,7 +559,16 @@ def upsert_product(url: str):
     c = get_client()
     try:
         html = get_with(c, url)
-        sku, name, price_supplier, in_stock, description_html, imgs, qty = parse_pdp(html, url)
+        (
+            sku,
+            name,
+            price_supplier,
+            in_stock,
+            description_html,
+            imgs,
+            qty,
+            avail_source,
+        ) = parse_pdp(html, url)
 
         # Fallback: saca el SKU del URL si vino vacío
         if not sku:
@@ -560,7 +619,7 @@ def upsert_product(url: str):
             defaults=defaults,
         )
         obj.refresh_from_db()
-        print(f"[PDP] {url} → in_stock={in_stock} qty={qty}")
+        print(f"[PDP] {url} → in_stock={in_stock} qty={qty} (source={avail_source})")
         return obj
     finally:
         c.close()

@@ -608,7 +608,11 @@ class Command(BaseCommand):
             )
 
         # Qty efectiva
-        if sp.in_stock:
+        if not sp.in_stock:
+            qty = 0
+            is_virtual = False
+            self.stdout.write("[SYNC] OOS → qty=0")
+        else:
             if getattr(sp, "available_qty", None) and sp.available_qty > 0:
                 qty = int(sp.available_qty)
                 is_virtual = False
@@ -619,10 +623,6 @@ class Command(BaseCommand):
                 self.stdout.write(
                     f"[SYNC] In stock sin qty → qty=MIN_VIRTUAL({min_virtual})"
                 )
-        else:
-            qty = 0
-            is_virtual = False
-            self.stdout.write("[SYNC] OOS → qty=0")
 
         estado_inv = "en_existencia" if qty > 0 else "agotado"
 
