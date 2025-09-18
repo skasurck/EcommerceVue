@@ -14,7 +14,6 @@ from pathlib import Path
 from datetime import timedelta
 import os
 
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -63,13 +62,18 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
     'corsheaders',
     'rest_framework',
+    #'productos.apps.ProductosConfig',
+
+    'tienda',  # el proyecto
+
+    'usuarios.apps.UsuariosConfig',
+    'carrito.apps.CarritoConfig',
+    'pedidos.apps.PedidosConfig',
+    'suppliers.apps.SuppliersConfig',
     'productos.apps.ProductosConfig',
-    'usuarios',
-    'carrito',
-    'pedidos',
-    'suppliers',
 ]
 
 MIDDLEWARE = [
@@ -171,7 +175,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 SUPPLIER_MIN_VIRTUAL_QTY = 1     # cantidad mínima para considerar "en stock" un producto de proveedor
 # Celery
-CELERY_BROKER_URL = "redis://127.0.0.1:6379/0"
-CELERY_RESULT_BACKEND = "redis://127.0.0.1:6379/1"
-CELERY_TIMEZONE = "America/Mexico_City"
-CELERY_ENABLE_UTC = False
+# CELERY_BROKER_URL = "redis://127.0.0.1:6379/0"
+# CELERY_RESULT_BACKEND = "redis://127.0.0.1:6379/1"
+# CELERY_TIMEZONE = "America/Mexico_City"
+# CELERY_ENABLE_UTC = False
