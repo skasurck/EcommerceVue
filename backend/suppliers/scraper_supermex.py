@@ -339,15 +339,28 @@ def parse_pdp(html: str, url: str = "") -> dict:
     if not (name_node and sec):
         raise ValueError("La página no parece una PDP (producto).")
 
+    tracking_info: dict | list | None = {}
+    raw_tracking = sec.attributes.get("data-product-tracking-info") if sec else None
+    if raw_tracking:
+        try:
+            parsed_tracking = json.loads(raw_tracking)
+            if isinstance(parsed_tracking, dict):
+                tracking_info = parsed_tracking
+            elif isinstance(parsed_tracking, list):
+                tracking_info = parsed_tracking
+        except Exception:
+            tracking_info = {}
+
     # --- sku
     sku = ""
-    sec = t.css_first("section#product_detail")
-    if sec and sec.attributes.get("data-product-tracking-info"):
-        try:
-            info = json.loads(sec.attributes["data-product-tracking-info"])
-            sku = str(info.get("item_id") or "").strip()
-        except Exception:
-            pass
+    tracking_dict = tracking_info if isinstance(tracking_info, dict) else None
+    if not tracking_dict and isinstance(tracking_info, list):
+        for item in tracking_info:
+            if isinstance(item, dict):
+                tracking_dict = item
+                break
+    if tracking_dict:
+        sku = str(tracking_dict.get("item_id") or "").strip()
     if not sku:
         url_node = t.css_first("span[itemprop='url']")
         if url_node:
@@ -428,7 +441,111 @@ def parse_pdp(html: str, url: str = "") -> dict:
     in_stock: Optional[bool] = None
     avail_source = "fallback"
 
-    # 1) DOM: mensajes de agotado/notify-back-in-stock
+    NEGATIVE_KEYWORDS = [
+        "agotado",
+        "sin existencias",
+        "sin existencia",
+        "sin stock",
+        "sin inventario",
+        "sin disponibilidad",
+        "no disponible",
+        "no disponible temporalmente",
+        "no esta disponible",
+        "no está disponible",
+        "no se encuentra disponible",
+        "no hay stock",
+        "no hay existencias",
+        "no hay inventario",
+        "temporalmente agotado",
+        "agotado temporalmente",
+        "producto no disponible",
+        "out of stock",
+        "out_of_stock",
+        "out-of-stock",
+        "sold out",
+        "sold-out",
+        "soldout",
+        "not available",
+        "not in stock",
+        "without stock",
+    ]
+    POSITIVE_KEYWORDS = [
+        "en existencia",
+        "en existencias",
+        "en stock",
+        "hay existencias",
+        "disponible",
+        "disponibles",
+        "stock disponible",
+        "stock en tienda",
+        "stock al momento",
+        "available",
+        "in stock",
+        "instock",
+    ]
+    AVAILABILITY_SELECTORS = [
+        "#product_stock_availability",
+        "#product_stock",
+        "#availability_messages",
+        "#inventory_availability",
+        ".o_wsale_stock_message",
+        ".o_wsale_product_availability",
+        ".o_wsale_stock_container",
+        ".oe_website_sale_stock_message",
+        ".oe_website_sale_stock_warning",
+        ".oe_website_sale_stock_container",
+    ]
+
+    def _normalize_spaces(text: str) -> str:
+        return re.sub(r"\s+", " ", text or "").strip()
+
+    def _availability_from_text(text: str, source: str) -> bool:
+        nonlocal in_stock, qty, avail_source
+        normalized = _normalize_spaces(text)
+        if not normalized:
+            return False
+        lowered = normalized.lower()
+        if any(neg in lowered for neg in NEGATIVE_KEYWORDS):
+            in_stock = False
+            qty = 0
+            avail_source = source
+            print(f"[AVAIL] {source} → agotado (texto)")
+            return True
+
+        qty_match = re.search(
+            r"(?:existencias?|stock|disponibles?|piezas?|pzas?|pz|unidades?|uds?)\D*(\d+)",
+            lowered,
+        )
+        if not qty_match:
+            qty_match = re.search(r"\b(\d+)\b(?=\s*(?:pz|pzas?|piezas?|unidades?|uds?\b))", lowered)
+        if not qty_match:
+            qty_match = re.search(r"[:=]\s*(\d+)", lowered)
+        qty_candidate = _to_int(qty_match.group(1)) if qty_match else None
+        if qty_candidate is None and lowered.isdigit():
+            qty_candidate = _to_int(lowered)
+
+        stop = False
+        if qty_candidate is not None:
+            qty = qty_candidate
+            avail_source = source
+            if qty_candidate <= 0:
+                in_stock = False
+                qty = 0
+                print(f"[AVAIL] {source} → qty=0")
+                return True
+            if in_stock is None:
+                in_stock = qty_candidate > 0
+                print(f"[AVAIL] {source} → qty={qty_candidate}")
+            stop = True
+
+        if in_stock is None and any(pos in lowered for pos in POSITIVE_KEYWORDS):
+            in_stock = True
+            avail_source = source
+            print(f"[AVAIL] {source} → in_stock=True")
+
+        return stop
+
+    # 1) DOM: mensajes explícitos de agotado
     oos_selectors = [
         "#out_of_stock_message",
         "#product_stock_availability #out_of_stock_message",
@@ -442,6 +559,113 @@ def parse_pdp(html: str, url: str = "") -> dict:
             print("[AVAIL] DOM #out_of_stock_message → qty=0")
             break
 
+    # 2) Datos en data-product-tracking-info
+    if in_stock is None:
+        tracking_candidates: list[dict] = []
+        if isinstance(tracking_dict, dict):
+            tracking_candidates.append(tracking_dict)
+            for key in ("product", "item", "data"):
+                nested = tracking_dict.get(key)
+                if isinstance(nested, dict):
+                    tracking_candidates.append(nested)
+        if isinstance(tracking_info, list):
+            for item in tracking_info:
+                if isinstance(item, dict) and item not in tracking_candidates:
+                    tracking_candidates.append(item)
+
+        for info_dict in tracking_candidates:
+            status_val = ""
+            for key in (
+                "item_availability",
+                "availability",
+                "availability_state",
+                "stock_state",
+                "state",
+            ):
+                val = info_dict.get(key)
+                if isinstance(val, str) and val.strip():
+                    status_val = val.strip()
+                    break
+            if status_val:
+                status_lower = status_val.lower()
+                if any(neg in status_lower for neg in NEGATIVE_KEYWORDS):
+                    in_stock = False
+                    qty = 0
+                    avail_source = "TRACKING"
+                    print("[AVAIL] tracking info → agotado")
+                    break
+                if in_stock is None and any(
+                    pos in status_lower for pos in POSITIVE_KEYWORDS
+                ):
+                    in_stock = True
+                    avail_source = "TRACKING"
+
+            if qty is None or in_stock is None:
+                for key in (
+                    "available_qty",
+                    "available_quantity",
+                    "quantity_available",
+                    "qty_available",
+                    "virtual_available",
+                    "free_qty",
+                    "stock_qty",
+                    "stock_on_hand",
+                ):
+                    val = info_dict.get(key)
+                    if isinstance(val, dict):
+                        for nested_key in ("value", "qty", "quantity", "count"):
+                            if nested_key in val:
+                                val = val[nested_key]
+                                break
+                    qty_candidate = _to_int(val)
+                    if qty_candidate is not None:
+                        qty = qty_candidate
+                        in_stock = qty_candidate > 0
+                        avail_source = "TRACKING_QTY"
+                        print(f"[AVAIL] tracking info → qty={qty_candidate}")
+                        break
+
+            if in_stock is False:
+                break
+
+    # 3) Mensajes de disponibilidad en el DOM
+    if in_stock is None:
+        for sel in AVAILABILITY_SELECTORS:
+            for node in t.css(sel):
+                classes = node.attributes.get("class", "").lower()
+                if any(token in classes for token in ["out_of_stock", "oe_out_of_stock", "o_out_of_stock", "stock_unavailable", "text-danger"]):
+                    in_stock = False
+                    qty = 0
+                    avail_source = f"DOM:{sel}"
+                    print(f"[AVAIL] {sel} (clase) → agotado")
+                    break
+                data_state = (
+                    node.attributes.get("data-availability-state")
+                    or node.attributes.get("data-stock-state")
+                    or node.attributes.get("data-state")
+                )
+                if data_state:
+                    lowered_state = data_state.lower()
+                    if any(neg in lowered_state for neg in NEGATIVE_KEYWORDS):
+                        in_stock = False
+                        qty = 0
+                        avail_source = f"DOM:{sel}"
+                        print(f"[AVAIL] {sel} (data-state) → agotado")
+                        break
+                    if in_stock is None and any(
+                        pos in lowered_state for pos in POSITIVE_KEYWORDS
+                    ):
+                        in_stock = True
+                        avail_source = f"DOM:{sel}"
+
+                text = node.text(separator=" ", strip=True)
+                if text and _availability_from_text(text, f"DOM:{sel}"):
+                    break
+
+            if in_stock is False:
+                break
+
+    # 4) Mensajes de notificación "avísame cuando vuelva"
     if in_stock is None:
         notif_node = t.css_first("#stock_notification_div") or t.css_first(
             "#product_stock_notification_message"
@@ -458,13 +682,13 @@ def parse_pdp(html: str, url: str = "") -> dict:
 
     if in_stock is None:
         text_all = t.root.text(separator=" ", strip=True).lower() if t.root else ""
-        if "out of stock" in text_all or "agotado" in text_all:
+        if any(neg in text_all for neg in NEGATIVE_KEYWORDS):
             in_stock = False
             qty = 0
             avail_source = "DOM"
             print("[AVAIL] DOM text out-of-stock → qty=0")
 
-    # 2) JSON-LD (solo si el DOM no decidió)
+    # 5) JSON-LD (solo si el DOM no decidió)
     if in_stock is None:
         for script in t.css("script[type='application/ld+json']"):
             try:
@@ -495,31 +719,6 @@ def parse_pdp(html: str, url: str = "") -> dict:
             if in_stock is not None:
                 break
 
-    # 3) Señales de compra (CTA)
-    if in_stock is None:
-        cta = None
-        for node in t.css("button, a"):
-            txt = node.text(separator=" ", strip=True).lower()
-            if any(pat in txt for pat in ["add to cart", "agregar al carrito"]):
-                if (
-                    "disabled" not in node.attributes
-                    and node.attributes.get("aria-disabled") != "true"
-                ):
-                    cta = node
-                    break
-        qty_input = t.css_first("input.quantity[name='add_qty']") or t.css_first(
-            "input[name='add_qty'].quantity"
-        )
-        if cta or qty_input:
-            in_stock = True
-            avail_source = "CTA"
-            print("[AVAIL] Add-to-cart visible → in_stock=True")
-        else:
-            in_stock = False
-            qty = 0
-            avail_source = "CTA"
-            print("[AVAIL] No add-to-cart / disabled → qty=0")
-
     # Qty real (opcional)
     qty_script = extract_qty_from_scripts(html)
     if qty_script is not None:
@@ -530,6 +729,11 @@ def parse_pdp(html: str, url: str = "") -> dict:
         else:
             in_stock = False
             qty = 0
+
+    if in_stock is None:
+        in_stock = True
+        avail_source = avail_source or "fallback"
+        print("[AVAIL] fallback → in_stock=True")
 
     if in_stock is False:
         qty = 0
