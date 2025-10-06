@@ -499,6 +499,39 @@ def parse_pdp(html: str, url: str = "") -> dict:
     def _normalize_spaces(text: str) -> str:
         return re.sub(r"\s+", " ", text or "").strip()
 
+    HIDDEN_CLASS_TOKENS = {
+        "d-none",
+        "o_hidden",
+        "o_invisible",
+        "oe_hidden",
+        "o_is_hidden",
+        "visually-hidden",
+        "sr-only",
+        "collapse",
+    }
+
+    def _node_is_hidden(node) -> bool:
+        current = node
+        while current is not None:
+            attrs = getattr(current, "attributes", {}) or {}
+            cls = attrs.get("class", "").lower()
+            if cls:
+                tokens = {
+                    tok.strip()
+                    for tok in cls.replace("\xa0", " ").split()
+                    if tok.strip()
+                }
+                if tokens & HIDDEN_CLASS_TOKENS:
+                    return True
+            style = attrs.get("style", "").replace(" ", "").lower()
+            if style:
+                if "display:none" in style or "visibility:hidden" in style:
+                    return True
+            if "hidden" in attrs or attrs.get("aria-hidden") == "true":
+                return True
+            current = current.parent
+        return False
+
     def _availability_from_text(text: str, source: str) -> bool:
         nonlocal in_stock, qty, avail_source
         normalized = _normalize_spaces(text)
@@ -552,7 +585,7 @@ def parse_pdp(html: str, url: str = "") -> dict:
     ]
     for sel in oos_selectors:
         node = t.css_first(sel)
-        if node:
+        if node and not _node_is_hidden(node):
             in_stock = False
             qty = 0
             avail_source = "DOM"
@@ -632,6 +665,8 @@ def parse_pdp(html: str, url: str = "") -> dict:
     if in_stock is None:
         for sel in AVAILABILITY_SELECTORS:
             for node in t.css(sel):
+                if _node_is_hidden(node):
+                    continue
                 classes = node.attributes.get("class", "").lower()
                 if any(token in classes for token in ["out_of_stock", "oe_out_of_stock", "o_out_of_stock", "stock_unavailable", "text-danger"]):
                     in_stock = False
@@ -665,6 +700,17 @@ def parse_pdp(html: str, url: str = "") -> dict:
             if in_stock is False:
                 break
 
+    if in_stock is None:
+        cta_wrapper = t.css_first("#o_wsale_cta_wrapper")
+        if cta_wrapper and (
+            "out_of_stock" in cta_wrapper.attributes.get("class", "").lower()
+            or _node_is_hidden(cta_wrapper)
+        ):
+            in_stock = False
+            qty = 0
+            avail_source = "DOM:cta_wrapper"
+            print("[AVAIL] CTA wrapper oculto/out_of_stock → qty=0")
+
     # 4) Mensajes de notificación "avísame cuando vuelva"
     if in_stock is None:
         notif_node = t.css_first("#stock_notification_div") or t.css_first(
@@ -672,21 +718,13 @@ def parse_pdp(html: str, url: str = "") -> dict:
         )
         if (
             notif_node
+            and not _node_is_hidden(notif_node)
             and "back in stock" in notif_node.text(separator=" ", strip=True).lower()
-            and "d-none" not in notif_node.attributes.get("class", "")
         ):
             in_stock = False
             qty = 0
             avail_source = "DOM"
             print("[AVAIL] DOM notify-back-in-stock → qty=0")
-
-    if in_stock is None:
-        text_all = t.root.text(separator=" ", strip=True).lower() if t.root else ""
-        if any(neg in text_all for neg in NEGATIVE_KEYWORDS):
-            in_stock = False
-            qty = 0
-            avail_source = "DOM"
-            print("[AVAIL] DOM text out-of-stock → qty=0")
 
     # 5) JSON-LD (solo si el DOM no decidió)
     if in_stock is None:
