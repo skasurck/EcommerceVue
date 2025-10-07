@@ -332,13 +332,70 @@ def parse_pdp(html: str, url: str = "") -> dict:
     t = HTMLParser(html)
     price_node = None  # inicializa para evitar referencias antes de asignar
 
-    # --- nombre
+    # --- CONSTANTES Y FUNCIONES DE AYUDA ---
+    NEGATIVE_KEYWORDS = [
+        "agotado", "sin existencias", "sin stock", "no disponible", "out of stock",
+    ]
+    POSITIVE_KEYWORDS = [
+        "en existencia", "en stock", "disponible", "available", "in stock",
+    ]
+    AVAILABILITY_SELECTORS = [
+        "#product_stock_availability", ".o_wsale_stock_message",
+        ".o_wsale_product_availability", ".oe_website_sale_stock_message",
+    ]
+    HIDDEN_CLASS_TOKENS = {
+        "d-none", "o_hidden", "o_invisible", "oe_hidden", "o_is_hidden",
+        "visually-hidden", "sr-only", "collapse",
+    }
+
+    def _normalize_spaces(text: str) -> str:
+        return re.sub(r"\s+", " ", text or "").strip()
+
+    def _node_is_hidden(node) -> bool:
+        current = node
+        while current is not None:
+            attrs = getattr(current, "attributes", {}) or {}
+            cls = attrs.get("class", "").lower()
+            if cls:
+                tokens = {
+                    tok.strip()
+                    for tok in cls.replace("\xa0", " ").split()
+                    if tok.strip()
+                }
+                if tokens & HIDDEN_CLASS_TOKENS:
+                    return True
+            style = attrs.get("style", "").replace(" ", "").lower()
+            if style:
+                if "display:none" in style or "visibility:hidden" in style:
+                    return True
+            if "hidden" in attrs or attrs.get("aria-hidden") == "true":
+                return True
+            current = current.parent
+        return False
+
+    def _availability_from_text(text: str, source: str) -> bool:
+        nonlocal in_stock, qty, avail_source
+        lowered = _normalize_spaces(text).lower()
+        if any(neg in lowered for neg in NEGATIVE_KEYWORDS):
+            in_stock = False
+            qty = 0
+            avail_source = source
+            print(f"[AVAIL] {source} → agotado (texto)")
+            return True
+        if in_stock is None and any(pos in lowered for pos in POSITIVE_KEYWORDS):
+            in_stock = True
+            avail_source = source
+            print(f"[AVAIL] {source} → in_stock=True")
+        return in_stock is not None
+
+    # --- INICIO DE PARSEO ---
+    # ... (nombre, sku, precio - SIN CAMBIOS) ...
     name_node = t.css_first("h1[itemprop='name'], h1, .product-title")
     name = name_node.text(strip=True) if name_node else ""
     sec = t.css_first("section#product_detail")
     if not (name_node and sec):
         raise ValueError("La página no parece una PDP (producto).")
-
+    
     tracking_info: dict | list | None = {}
     raw_tracking = sec.attributes.get("data-product-tracking-info") if sec else None
     if raw_tracking:
@@ -441,159 +498,35 @@ def parse_pdp(html: str, url: str = "") -> dict:
     in_stock: Optional[bool] = None
     avail_source = "fallback"
 
-    NEGATIVE_KEYWORDS = [
-        "agotado",
-        "sin existencias",
-        "sin existencia",
-        "sin stock",
-        "sin inventario",
-        "sin disponibilidad",
-        "no disponible",
-        "no disponible temporalmente",
-        "no esta disponible",
-        "no está disponible",
-        "no se encuentra disponible",
-        "no hay stock",
-        "no hay existencias",
-        "no hay inventario",
-        "temporalmente agotado",
-        "agotado temporalmente",
-        "producto no disponible",
-        "out of stock",
-        "out_of_stock",
-        "out-of-stock",
-        "sold out",
-        "sold-out",
-        "soldout",
-        "not available",
-        "not in stock",
-        "without stock",
-    ]
-    POSITIVE_KEYWORDS = [
-        "en existencia",
-        "en existencias",
-        "en stock",
-        "hay existencias",
-        "disponible",
-        "disponibles",
-        "stock disponible",
-        "stock en tienda",
-        "stock al momento",
-        "available",
-        "in stock",
-        "instock",
-    ]
-    AVAILABILITY_SELECTORS = [
-        "#product_stock_availability",
-        "#product_stock",
-        "#availability_messages",
-        "#inventory_availability",
-        ".o_wsale_stock_message",
-        ".o_wsale_product_availability",
-        ".o_wsale_stock_container",
-        ".oe_website_sale_stock_message",
-        ".oe_website_sale_stock_warning",
-        ".oe_website_sale_stock_container",
-    ]
 
-    def _normalize_spaces(text: str) -> str:
-        return re.sub(r"\s+", " ", text or "").strip()
-
-    HIDDEN_CLASS_TOKENS = {
-        "d-none",
-        "o_hidden",
-        "o_invisible",
-        "oe_hidden",
-        "o_is_hidden",
-        "visually-hidden",
-        "sr-only",
-        "collapse",
-    }
-
-    def _node_is_hidden(node) -> bool:
-        current = node
-        while current is not None:
-            attrs = getattr(current, "attributes", {}) or {}
-            cls = attrs.get("class", "").lower()
-            if cls:
-                tokens = {
-                    tok.strip()
-                    for tok in cls.replace("\xa0", " ").split()
-                    if tok.strip()
-                }
-                if tokens & HIDDEN_CLASS_TOKENS:
-                    return True
-            style = attrs.get("style", "").replace(" ", "").lower()
-            if style:
-                if "display:none" in style or "visibility:hidden" in style:
-                    return True
-            if "hidden" in attrs or attrs.get("aria-hidden") == "true":
-                return True
-            current = current.parent
-        return False
-
-    def _availability_from_text(text: str, source: str) -> bool:
-        nonlocal in_stock, qty, avail_source
-        normalized = _normalize_spaces(text)
-        if not normalized:
-            return False
-        lowered = normalized.lower()
-        if any(neg in lowered for neg in NEGATIVE_KEYWORDS):
-            in_stock = False
-            qty = 0
-            avail_source = source
-            print(f"[AVAIL] {source} → agotado (texto)")
-            return True
-
-        qty_match = re.search(
-            r"(?:existencias?|stock|disponibles?|piezas?|pzas?|pz|unidades?|uds?)\D*(\d+)",
-            lowered,
-        )
-        if not qty_match:
-            qty_match = re.search(r"\b(\d+)\b(?=\s*(?:pz|pzas?|piezas?|unidades?|uds?\b))", lowered)
-        if not qty_match:
-            qty_match = re.search(r"[:=]\s*(\d+)", lowered)
-        qty_candidate = _to_int(qty_match.group(1)) if qty_match else None
-        if qty_candidate is None and lowered.isdigit():
-            qty_candidate = _to_int(lowered)
-
-        stop = False
-        if qty_candidate is not None:
-            qty = qty_candidate
-            avail_source = source
-            if qty_candidate <= 0:
-                in_stock = False
-                qty = 0
-                print(f"[AVAIL] {source} → qty=0")
-                return True
-            if in_stock is None:
-                in_stock = qty_candidate > 0
-                print(f"[AVAIL] {source} → qty={qty_candidate}")
-            stop = True
-
-        if in_stock is None and any(pos in lowered for pos in POSITIVE_KEYWORDS):
-            in_stock = True
-            avail_source = source
-            print(f"[AVAIL] {source} → in_stock=True")
-
-        return stop
-
-    # 1) DOM: mensajes explícitos de agotado
+    # 1) Detección de agotado por elementos inequívocos
     oos_selectors = [
-        "#out_of_stock_message",
+        "#out_of_stock_message", # Tu elemento claro
         "#product_stock_availability #out_of_stock_message",
     ]
-    for sel in oos_selectors:
-        node = t.css_first(sel)
-        if node and not _node_is_hidden(node):
-            in_stock = False
-            qty = 0
-            avail_source = "DOM"
-            print("[AVAIL] DOM #out_of_stock_message → qty=0")
-            break
+    cta_wrapper = t.css_first("#o_wsale_cta_wrapper")
+    
+    # PRIORITY 1: #out_of_stock_message (incluso si está oculto, si está en el DOM, Odoo lo pone)
+    if t.css_first("#out_of_stock_message"):
+        in_stock = False
+        qty = 0
+        avail_source = "DOM:OOS_MESSAGE"
+        print("[AVAIL] DOM #out_of_stock_message → qty=0")
 
-    # 2) Datos en data-product-tracking-info
+    # PRIORITY 2: Botón CTA oculto y con clase de agotado
+    elif cta_wrapper and (
+        "out_of_stock" in cta_wrapper.attributes.get("class", "").lower()
+        or _node_is_hidden(cta_wrapper)
+    ):
+        in_stock = False
+        qty = 0
+        avail_source = "DOM:cta_wrapper"
+        print("[AVAIL] CTA wrapper oculto/out_of_stock → qty=0")
+
+    # 2) Datos en data-product-tracking-info (sigue siendo útil)
     if in_stock is None:
+        # ... (Mantener lógica de detección por tracking_info) ...
+
         tracking_candidates: list[dict] = []
         if isinstance(tracking_dict, dict):
             tracking_candidates.append(tracking_dict)
@@ -660,7 +593,7 @@ def parse_pdp(html: str, url: str = "") -> dict:
 
             if in_stock is False:
                 break
-
+    
     # 3) Mensajes de disponibilidad en el DOM
     if in_stock is None:
         for sel in AVAILABILITY_SELECTORS:
@@ -700,17 +633,6 @@ def parse_pdp(html: str, url: str = "") -> dict:
             if in_stock is False:
                 break
 
-    if in_stock is None:
-        cta_wrapper = t.css_first("#o_wsale_cta_wrapper")
-        if cta_wrapper and (
-            "out_of_stock" in cta_wrapper.attributes.get("class", "").lower()
-            or _node_is_hidden(cta_wrapper)
-        ):
-            in_stock = False
-            qty = 0
-            avail_source = "DOM:cta_wrapper"
-            print("[AVAIL] CTA wrapper oculto/out_of_stock → qty=0")
-
     # 4) Mensajes de notificación "avísame cuando vuelva"
     if in_stock is None:
         notif_node = t.css_first("#stock_notification_div") or t.css_first(
@@ -723,10 +645,10 @@ def parse_pdp(html: str, url: str = "") -> dict:
         ):
             in_stock = False
             qty = 0
-            avail_source = "DOM"
+            avail_source = "DOM:notify"
             print("[AVAIL] DOM notify-back-in-stock → qty=0")
 
-    # 5) JSON-LD (solo si el DOM no decidió)
+    # 5) JSON-LD (sigue siendo útil)
     if in_stock is None:
         for script in t.css("script[type='application/ld+json']"):
             try:
@@ -767,22 +689,28 @@ def parse_pdp(html: str, url: str = "") -> dict:
         else:
             in_stock = False
             qty = 0
-
+    
+    # 6) FALLBACK FINAL (Revertido a "asumir disponible" si tiene precio y falló todo)
     if in_stock is None:
-        in_stock = True
-        avail_source = avail_source or "fallback"
-        print("[AVAIL] fallback → in_stock=True")
-
+        if price_supplier is not None:
+            in_stock = True
+            avail_source = avail_source or "fallback-price"
+            print("[AVAIL] fallback-price → in_stock=True (con precio)")
+        else:
+            in_stock = False
+            qty = 0
+            avail_source = avail_source or "fallback-no-price"
+            print("[AVAIL] fallback-no-price → in_stock=False/qty=0")
+    
     if in_stock is False:
         qty = 0
 
     in_stock = bool(in_stock)
 
-    # --- descripción
+    # --- descripción y imágenes (SIN CAMBIOS) ---
     desc_node = t.css_first("#product_full_description, [itemprop='description'], .product-description")
     description_html = desc_node.html if desc_node else ""
 
-    # --- imágenes (solo carrusel, dedup sin query)
     imgs = []
     for img in t.css(".o_wsale_product_images .carousel-inner img"):
         src = img.attributes.get("src") or img.attributes.get("data-src") or ""
