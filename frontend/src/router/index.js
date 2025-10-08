@@ -19,6 +19,7 @@ import AdminConfiguracion from '../views/AdminConfiguracion.vue'
 import MetodosPago from '../views/MetodosPago.vue'
 import MetodosEnvio from '../views/MetodosEnvio.vue'
 import EditarProducto from '../views/EditarProducto.vue'
+import ClasificarProductos from '../views/ClasificarProductos.vue'
 import { useAuthStore } from '../stores/auth'
 import { useAdminUsersStore } from '../stores/adminUsers'
 import AdminLayout from '@/layouts/AdminLayout.vue'
@@ -131,11 +132,17 @@ const routes = [
         component: () => import('@/views/AdminUsuarioDetalle.vue'), 
         meta: { title: 'Usuario' } 
       },
-      { 
-        path: 'configuracion', 
-        name: 'admin-configuracion', 
-        component: () => import('@/views/AdminConfiguracion.vue'), 
-        meta: { title: 'Configuración', roles:['super_admin'] } 
+      {
+        path: 'configuracion',
+        name: 'admin-configuracion',
+        component: () => import('@/views/AdminConfiguracion.vue'),
+        meta: { title: 'Configuración', roles:['super_admin'] }
+      },
+      {
+        path: 'ai/clasificar-productos',
+        name: 'admin-ai-clasificar-productos',
+        component: ClasificarProductos,
+        meta: { title: 'Clasificación con IA', requiresAuth: true, roles: ['admin', 'super_admin'] }
       },
       {
         path: 'configuracion/metodos-pago',

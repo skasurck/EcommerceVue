@@ -1,6 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
+    ProductClassificationAPIView,
     ProductoViewSet,
     CategoriaViewSet,
     MarcaViewSet,
@@ -19,6 +20,7 @@ router.register(r'atributos-base', AtributoViewSet)
 router.register(r'atributos', ValorAtributoViewSet)
 
 urlpatterns = [
+    path('ai/classify-products/', ProductClassificationAPIView.as_view(), name='ai-classify-products'),
     path('search/products/', ProductSearchAPIView.as_view(), name='product-search'),
     path('', include(router.urls)),
     path(
