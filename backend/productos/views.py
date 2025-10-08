@@ -1,6 +1,7 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.views import APIView
+from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
@@ -8,6 +9,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from rest_framework.response import Response
+from .ai import build_text_from_product, classify_text
 from .models import (
     Producto,
     Categoria,
@@ -31,6 +33,74 @@ from .forms import ProductoForm, PrecioEscalonadoFormSet
 from usuarios.permissions import IsAdminOrSuperAdmin
 from suppliers.models import ProductSupplierMap, SupplierProduct
 from rest_framework.viewsets import ReadOnlyModelViewSet
+
+
+class ProductClassificationAPIView(APIView):
+    permission_classes = [IsAdminOrSuperAdmin]
+
+    def post(self, request):
+        data = request.data or {}
+        product_ids = data.get("product_ids") or []
+        try:
+            limit = int(data.get("limit", 100))
+        except (TypeError, ValueError):
+            limit = 100
+        limit = max(1, min(limit, 500))
+        overwrite = bool(data.get("overwrite", False))
+
+        queryset = Producto.objects.all().order_by("-fecha_creacion")
+        if product_ids:
+            queryset = queryset.filter(id__in=product_ids)
+        else:
+            queryset = queryset[:limit]
+
+        products = list(queryset)
+        results = []
+
+        for product in products:
+            if product.category_ai_main and not overwrite:
+                results.append(
+                    {
+                        "product_id": product.id,
+                        "main": product.category_ai_main,
+                        "sub": product.category_ai_sub,
+                        "conf_main": product.category_ai_conf_main,
+                        "conf_sub": product.category_ai_conf_sub,
+                    }
+                )
+                continue
+
+            text = build_text_from_product(product)
+            if not text:
+                text = product.nombre or f"Producto {product.pk}"
+
+            classification = classify_text(text)
+
+            with transaction.atomic():
+                product.category_ai_main = classification.main
+                product.category_ai_sub = classification.sub
+                product.category_ai_conf_main = classification.main_score
+                product.category_ai_conf_sub = classification.sub_score
+                product.save(
+                    update_fields=[
+                        "category_ai_main",
+                        "category_ai_sub",
+                        "category_ai_conf_main",
+                        "category_ai_conf_sub",
+                    ]
+                )
+
+            results.append(
+                {
+                    "product_id": product.id,
+                    "main": product.category_ai_main,
+                    "sub": product.category_ai_sub,
+                    "conf_main": product.category_ai_conf_main,
+                    "conf_sub": product.category_ai_conf_sub,
+                }
+            )
+
+        return Response({"results": results, "count": len(results)})
 
 @method_decorator(cache_page(60), name="dispatch")
 class ProductSearchAPIView(APIView):

@@ -165,14 +165,25 @@ class ProductoSerializer(serializers.ModelSerializer):
             "marca",
             "atributos",
             "stock",
+            "category_ai_main",
+            "category_ai_sub",
+            "category_ai_conf_main",
+            "category_ai_conf_sub",
             "fecha_creacion",
             "galeria",
             "precios_escalonados",
             # NUEVOS:
-            "effective_qty", 
+            "effective_qty",
             "is_virtual_qty",
         ]
-        read_only_fields = ["miniatura", "fecha_creacion"]
+        read_only_fields = [
+            "miniatura",
+            "fecha_creacion",
+            "category_ai_main",
+            "category_ai_sub",
+            "category_ai_conf_main",
+            "category_ai_conf_sub",
+        ]
 
     def to_internal_value(self, data):
         """Permite recibir precios escalonados desde FormData con notación de corchetes."""

@@ -60,6 +60,10 @@ class Producto(models.Model):
     marca = models.ForeignKey(Marca, on_delete=models.SET_NULL, null=True, blank=True)
     atributos = models.ManyToManyField(ValorAtributo, blank=True)
     stock = models.PositiveIntegerField(default=0)
+    category_ai_main = models.CharField(max_length=64, null=True, blank=True)
+    category_ai_sub = models.CharField(max_length=64, null=True, blank=True)
+    category_ai_conf_main = models.FloatField(null=True, blank=True)
+    category_ai_conf_sub = models.FloatField(null=True, blank=True)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 
     def save(self, *args, **kwargs):
