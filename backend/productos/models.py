@@ -10,6 +10,13 @@ import os
 class Categoria(models.Model):
     nombre = models.CharField(max_length=100)
     slug = models.SlugField(unique=True)
+    parent = models.ForeignKey(
+        'self',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='subcategorias'
+    )
 
     def __str__(self):
         return self.nombre
