@@ -67,10 +67,16 @@ const classify = async () => {
   loading.value = true
   error.value = ''
   try {
-    const { data } = await api.post('ai/classify-products/', {
-      limit: 200,
-      overwrite: false,
-    })
+    const { data } = await api.post(
+      'ai/classify-products/',
+      { // 1. El cuerpo de la petición (data)
+        limit: 200,
+        overwrite: false,
+      },
+      { // 2. La configuración específica para esta petición (config)
+        timeout: 1300000, // Timeout de 5 minutos solo para esta llamada
+      }
+    )
     results.value = data?.results ?? []
   } catch (err) {
     const message = err?.response?.data?.detail || err?.message || 'No se pudo clasificar los productos.'
