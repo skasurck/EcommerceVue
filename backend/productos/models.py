@@ -4,12 +4,13 @@ from io import BytesIO
 from django.core.files.base import ContentFile
 from django.utils.crypto import get_random_string
 from django.utils.html import format_html
+from django.utils.text import slugify
 import os
 
 # ──────────── CATEGORÍAS ────────────
 class Categoria(models.Model):
     nombre = models.CharField(max_length=100)
-    slug = models.SlugField(unique=True)
+    slug = models.SlugField(max_length=100, blank=True)
     parent = models.ForeignKey(
         'self',
         on_delete=models.CASCADE,
@@ -17,6 +18,15 @@ class Categoria(models.Model):
         blank=True,
         related_name='subcategorias'
     )
+    # 2. AÑADE ESTA CLASE META
+    class Meta:
+        # Esto asegura que el slug sea único para cada nivel de categoría padre.
+        unique_together = ('slug', 'parent')
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.nombre)
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.nombre
