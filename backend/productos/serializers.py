@@ -72,6 +72,23 @@ class CategoriaSerializer(serializers.ModelSerializer):
         return super().update(instance, validated_data)
 
 
+class CategoryTreeSerializer(serializers.ModelSerializer):
+    subcategorias = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Categoria
+        fields = ["id", "nombre", "subcategorias"]
+
+    def get_subcategorias(self, obj):
+        subcategories = obj.subcategorias.all().order_by("nombre")
+        serializer = CategoryTreeSerializer(
+            subcategories,
+            many=True,
+            context=self.context,
+        )
+        return serializer.data
+
+
 class MarcaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Marca
@@ -129,6 +146,32 @@ class PrecioEscalonadoSerializer(serializers.ModelSerializer):
         model = PrecioEscalonado
         fields = ["id", "cantidad_minima", "precio_unitario"]
         list_serializer_class = PrecioEscalonadoListSerializer
+
+
+class PendingReviewProductSerializer(serializers.ModelSerializer):
+    imagen_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Producto
+        fields = [
+            "id",
+            "nombre",
+            "imagen_url",
+            "category_ai_main",
+            "category_ai_sub",
+            "category_ai_conf_main",
+            "category_ai_conf_sub",
+        ]
+
+    def get_imagen_url(self, obj):
+        request = self.context.get("request")
+        image_field = obj.miniatura or obj.imagen_principal
+        if not image_field:
+            return None
+        url = image_field.url
+        if request:
+            return request.build_absolute_uri(url)
+        return url
 
 
 class ProductoSerializer(serializers.ModelSerializer):

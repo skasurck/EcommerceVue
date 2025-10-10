@@ -66,6 +66,30 @@
               </RouterLink>
             </li>
 
+            <li>
+              <RouterLink to="/admin/ai/clasificar-productos"
+                class="group flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800"
+                :class="sectionActive('/admin/ai/clasificar-productos') ? 'bg-slate-800 text-white' : 'text-slate-300'">
+                <span>🤖</span><span>Clasificar con IA</span>
+              </RouterLink>
+            </li>
+
+            <li>
+              <RouterLink to="/admin/ai/revisar-clasificaciones"
+                class="group flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800"
+                :class="sectionActive('/admin/ai/revisar-clasificaciones') ? 'bg-slate-800 text-white' : 'text-slate-300'">
+                <span>✅</span><span>Revisar clasificaciones</span>
+              </RouterLink>
+            </li>
+
+            <li>
+              <RouterLink to="/admin/suppliers/supermex"
+                class="group flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800"
+                :class="sectionActive('/admin/suppliers/supermex') ? 'bg-slate-800 text-white' : 'text-slate-300'">
+                <span>🚚</span><span>Importar Supermex</span>
+              </RouterLink>
+            </li>
+
             <li v-if="auth.hasRole('super_admin')">
               <RouterLink to="/admin/configuracion"
                 class="group flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800"

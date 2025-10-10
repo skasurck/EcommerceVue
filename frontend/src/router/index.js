@@ -20,6 +20,7 @@ import MetodosPago from '../views/MetodosPago.vue'
 import MetodosEnvio from '../views/MetodosEnvio.vue'
 import EditarProducto from '../views/EditarProducto.vue'
 import ClasificarProductos from '../views/ClasificarProductos.vue'
+import RevisarClasificaciones from '../views/RevisarClasificaciones.vue'
 import { useAuthStore } from '../stores/auth'
 import { useAdminUsersStore } from '../stores/adminUsers'
 import AdminLayout from '@/layouts/AdminLayout.vue'
@@ -143,6 +144,22 @@ const routes = [
         name: 'admin-ai-clasificar-productos',
         component: ClasificarProductos,
         meta: { title: 'Clasificación con IA', requiresAuth: true, roles: ['admin', 'super_admin'] }
+      },
+      {
+        path: 'ai/revisar-clasificaciones',
+        name: 'admin-ai-revisar-clasificaciones',
+        component: RevisarClasificaciones,
+        meta: { title: 'Revisión de clasificaciones', requiresAuth: true, roles: ['admin', 'super_admin'] }
+      },
+      {
+        path: 'suppliers/supermex',
+        name: 'admin-suppliers-supermex',
+        component: () => import('@/views/SupermexImporter.vue'),
+        meta: {
+          title: 'Importar catálogo Supermex',
+          requiresAuth: true,
+          roles: ['admin', 'super_admin']
+        }
       },
       {
         path: 'configuracion/metodos-pago',

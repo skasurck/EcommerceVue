@@ -22,12 +22,14 @@ from .models import (
 from .serializers import (
     ProductoSerializer,
     CategoriaSerializer,
+    CategoryTreeSerializer,
     MarcaSerializer,
     AtributoSerializer,
     ValorAtributoSerializer,
     ImagenProductoSerializer,
     PrecioEscalonadoSerializer,
     ProductSearchSerializer,
+    PendingReviewProductSerializer,
 )
 from .forms import ProductoForm, PrecioEscalonadoFormSet
 from usuarios.permissions import IsAdminOrSuperAdmin
@@ -129,6 +131,70 @@ class ProductSearchAPIView(APIView):
             queryset, many=True, context={"request": request}
         )
         return Response(serializer.data)
+
+
+class PendingReviewProductsAPIView(APIView):
+    permission_classes = [IsAdminOrSuperAdmin]
+
+    def get(self, request):
+        queryset = Producto.objects.filter(
+            category_ai_main__isnull=False,
+            categoria__isnull=True,
+        ).order_by("-fecha_creacion")
+        serializer = PendingReviewProductSerializer(
+            queryset,
+            many=True,
+            context={"request": request},
+        )
+        return Response(serializer.data)
+
+
+class AllCategoriesAPIView(APIView):
+    permission_classes = [IsAdminOrSuperAdmin]
+
+    def get(self, request):
+        categorias = Categoria.objects.filter(parent__isnull=True).order_by("nombre")
+        serializer = CategoryTreeSerializer(categorias, many=True)
+        return Response(serializer.data)
+
+
+class ApplyCategoryAPIView(APIView):
+    permission_classes = [IsAdminOrSuperAdmin]
+
+    def post(self, request, pk):
+        product = get_object_or_404(Producto, pk=pk)
+        category_id = request.data.get("category_id")
+
+        if not category_id:
+            return Response(
+                {"detail": "Se requiere 'category_id'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            category = Categoria.objects.get(pk=category_id)
+        except Categoria.DoesNotExist:
+            return Response(
+                {"detail": "Categoría no encontrada."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        product.categoria = category
+        product.category_ai_main = None
+        product.category_ai_sub = None
+        product.category_ai_conf_main = None
+        product.category_ai_conf_sub = None
+        product.save(
+            update_fields=[
+                "categoria",
+                "category_ai_main",
+                "category_ai_sub",
+                "category_ai_conf_main",
+                "category_ai_conf_sub",
+            ]
+        )
+
+        return Response({"detail": "Categoría aplicada correctamente."})
 
 class StandardResultsSetPagination(PageNumberPagination):
     page_size = 10
