@@ -82,6 +82,14 @@
               </RouterLink>
             </li>
 
+            <li>
+              <RouterLink to="/admin/suppliers/supermex"
+                class="group flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800"
+                :class="sectionActive('/admin/suppliers/supermex') ? 'bg-slate-800 text-white' : 'text-slate-300'">
+                <span>🚚</span><span>Importar Supermex</span>
+              </RouterLink>
+            </li>
+
             <li v-if="auth.hasRole('super_admin')">
               <RouterLink to="/admin/configuracion"
                 class="group flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800"

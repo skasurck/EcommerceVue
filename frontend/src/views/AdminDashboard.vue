@@ -32,6 +32,12 @@
           <span>Revisar clasificaciones de IA</span>
         </router-link>
       </li>
+      <li>
+        <router-link to="/admin/suppliers/supermex" class="flex items-center gap-2 text-blue-600 hover:underline">
+          <span aria-hidden="true">🚚</span>
+          <span>Importar catálogo de Supermex</span>
+        </router-link>
+      </li>
       <li v-if="auth.hasRole('super_admin')">
         <router-link to="/admin/configuracion" class="text-blue-600 hover:underline">Configuración</router-link>
       </li>

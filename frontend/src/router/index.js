@@ -152,6 +152,16 @@ const routes = [
         meta: { title: 'Revisión de clasificaciones', requiresAuth: true, roles: ['admin', 'super_admin'] }
       },
       {
+        path: 'suppliers/supermex',
+        name: 'admin-suppliers-supermex',
+        component: () => import('@/views/SupermexImporter.vue'),
+        meta: {
+          title: 'Importar catálogo Supermex',
+          requiresAuth: true,
+          roles: ['admin', 'super_admin']
+        }
+      },
+      {
         path: 'configuracion/metodos-pago',
         name: 'admin-configuracion-metodos-pago',
         component: () => import('@/views/MetodosPago.vue'),
