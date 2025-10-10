@@ -164,9 +164,8 @@ def _extract_categories_from_html(html: str) -> list[str]:
 def _ensure_categories(producto, category_names: list[str]):
     """
     Construye la jerarquía a partir del breadcrumb: [Computadoras, Componentes, ...]
-    - Crea/ajusta padre->hijo si el modelo tiene FK a sí mismo ('padre' o 'parent').
-    - Añade TODAS las categorías al M2M 'categorias'.
-    - Asigna como 'categoria' principal la última (hoja) si el campo está vacío.
+    - Crea/ajusta la relación padre↔hijo si el modelo tiene FK a sí mismo ('padre' o 'parent').
+    - Devuelve la cadena detectada para guardar la sugerencia de IA en el producto.
     """
     from productos.models import Categoria
 
@@ -179,7 +178,7 @@ def _ensure_categories(producto, category_names: list[str]):
                 break
 
     parent = None
-    last_cat = None
+    chain = []
 
     for name in category_names:
         name_clean = (name or "").strip()
@@ -210,13 +209,25 @@ def _ensure_categories(producto, category_names: list[str]):
                 defaults=defaults,
             )
 
-        _db_retry(producto.categorias.add, cat)
         parent = cat
-        last_cat = cat
+        chain.append(cat)
 
-    if last_cat and not producto.categoria_id:
-        producto.categoria = last_cat
-        retry_save(producto, update_fields=["categoria"])
+    if chain:
+        main_cat = chain[0]
+        sub_cat = chain[-1] if len(chain) > 1 else None
+        producto.category_ai_main = main_cat.nombre
+        producto.category_ai_sub = sub_cat.nombre if sub_cat else None
+        producto.category_ai_conf_main = None
+        producto.category_ai_conf_sub = None
+        retry_save(
+            producto,
+            update_fields=[
+                "category_ai_main",
+                "category_ai_sub",
+                "category_ai_conf_main",
+                "category_ai_conf_sub",
+            ],
+        )
   
 
 def _ensure_gallery(producto, sp, max_images: int = 12):
