@@ -10,6 +10,9 @@ from .views import (
     ImagenProductoViewSet,
     PrecioEscalonadoViewSet,
     ProductSearchAPIView,
+    PendingReviewProductsAPIView,
+    AllCategoriesAPIView,
+    ApplyCategoryAPIView,
 )
 
 router = DefaultRouter()
@@ -20,6 +23,21 @@ router.register(r'atributos-base', AtributoViewSet)
 router.register(r'atributos', ValorAtributoViewSet)
 
 urlpatterns = [
+    path(
+        'ai/pending-review/',
+        PendingReviewProductsAPIView.as_view(),
+        name='ai-pending-review',
+    ),
+    path(
+        'all-categories/',
+        AllCategoriesAPIView.as_view(),
+        name='all-categories',
+    ),
+    path(
+        'productos/<int:pk>/apply-category/',
+        ApplyCategoryAPIView.as_view(),
+        name='producto-apply-category',
+    ),
     path('ai/classify-products/', ProductClassificationAPIView.as_view(), name='ai-classify-products'),
     path('search/products/', ProductSearchAPIView.as_view(), name='product-search'),
     path('', include(router.urls)),
