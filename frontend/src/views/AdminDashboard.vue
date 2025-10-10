@@ -5,6 +5,16 @@
       <li><router-link to="/admin/productos" class="text-blue-600 hover:underline">Gestión de productos</router-link></li>
       <li><router-link to="/admin/pedidos" class="text-blue-600 hover:underline">Gestión de pedidos</router-link></li>
       <li><router-link to="/admin/usuarios" class="text-blue-600 hover:underline">Gestión de usuarios</router-link></li>
+      <li>
+        <router-link to="/admin/ai/clasificar-productos" class="text-blue-600 hover:underline">
+          Clasificar productos con IA
+        </router-link>
+      </li>
+      <li>
+        <router-link to="/admin/ai/revisar-clasificaciones" class="text-blue-600 hover:underline">
+          Revisar clasificaciones de IA
+        </router-link>
+      </li>
       <li v-if="auth.hasRole('super_admin')">
         <router-link to="/admin/configuracion" class="text-blue-600 hover:underline">Configuración</router-link>
       </li>
