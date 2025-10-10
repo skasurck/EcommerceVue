@@ -379,7 +379,11 @@ const runScraper = async () => {
       payload.start_url = form.startUrl
     }
 
-    const { data } = await api.post('suppliers/supermex/run/', payload)
+    const { data } = await api.post(
+      'suppliers/supermex/run/', 
+      payload,
+      { timeout: 600000 } // Timeout de 10 minutos SOLO para el scraper
+    )
     runSummary.value = data
     await fetchLatest()
   } catch (error) {
