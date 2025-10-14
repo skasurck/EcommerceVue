@@ -3,7 +3,7 @@ from django.db import transaction
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from .models import Direccion, MetodoEnvio, Pedido, PedidoItem, PedidoHistorial
-from carrito.models import CartItem
+from carrito.services import clear_cart, ensure_cart_for_request
 from productos.models import Producto
 from usuarios.models import Perfil
 
@@ -94,16 +94,19 @@ class PedidoSerializer(serializers.ModelSerializer):
     historial = PedidoHistorialSerializer(many=True, read_only=True)
     cliente_nombre_completo = serializers.SerializerMethodField(read_only=True)
     direccion_resumen = serializers.SerializerMethodField(read_only=True)
+    cart_id = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Pedido
         fields = ['id', 'direccion', 'metodo_envio', 'metodo_envio_detalle', 'metodo_pago',
                   'metodo_pago_display', 'indicaciones', 'subtotal', 'costo_envio', 'total',
                   'datos_pago', 'items', 'detalles', 'save_address', 'estado', 'historial',
-                  'creado', 'papelera', 'cliente_nombre_completo', 'direccion_resumen']
+                  'creado', 'papelera', 'cliente_nombre_completo', 'direccion_resumen',
+                  'cart_id']
         read_only_fields = ['id', 'creado', 'subtotal', 'costo_envio', 'total', 'detalles',
                             'historial', 'metodo_envio_detalle', 'metodo_pago_display',
-                            'papelera', 'cliente_nombre_completo', 'direccion_resumen']
+                            'papelera', 'cliente_nombre_completo', 'direccion_resumen',
+                            'cart_id']
         extra_kwargs = {'estado': {'required': False}}
 
     def get_cliente_nombre_completo(self, obj):
@@ -124,6 +127,9 @@ class PedidoSerializer(serializers.ModelSerializer):
         ]
         return ", ".join([p for p in partes if p])
 
+    def get_cart_id(self, obj):
+        return obj.cart_id
+
     def create(self, validated_data):
         request = self.context.get('request')
         direccion_data = validated_data.pop('direccion')
@@ -132,15 +138,19 @@ class PedidoSerializer(serializers.ModelSerializer):
         validated_data.pop('user', None)
         user = request.user if request and request.user.is_authenticated else None
 
+        cart = None
         items_from_cart = items_data is None
         if items_from_cart:
-            if user:
-                cart_items = CartItem.objects.filter(user=user)
-                if not cart_items.exists():
-                    raise ValidationError('El carrito está vacío')
-                items_data = [{'producto': ci.producto, 'cantidad': ci.cantidad} for ci in cart_items]
-            else:
+            if not request:
                 raise ValidationError('No hay productos para el pedido')
+            cart = ensure_cart_for_request(request)
+            cart_items = cart.items.select_related('producto')
+            if not cart_items.exists():
+                raise ValidationError('El carrito está vacío')
+            items_data = [
+                {'producto': ci.producto, 'cantidad': ci.cantidad}
+                for ci in cart_items
+            ]
 
         metodo_envio = validated_data['metodo_envio']
         with transaction.atomic():
@@ -177,7 +187,9 @@ class PedidoSerializer(serializers.ModelSerializer):
                     updated_perfil.append('empresa')
                 if updated_perfil:
                     perfil.save(update_fields=updated_perfil)
-            pedido = Pedido.objects.create(user=user, direccion=direccion, **validated_data)
+            pedido = Pedido.objects.create(
+                user=user, cart=cart, direccion=direccion, **validated_data
+            )
 
             subtotal = Decimal('0')
             for item in items_data:
@@ -214,8 +226,8 @@ class PedidoSerializer(serializers.ModelSerializer):
             pedido.total = subtotal + metodo_envio.costo
             pedido.save(update_fields=['subtotal', 'costo_envio', 'total'])
 
-            if user:
-                CartItem.objects.filter(user=user).delete()
+            if cart:
+                clear_cart(cart)
 
             return pedido
 

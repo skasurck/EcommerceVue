@@ -1,29 +1,23 @@
-from rest_framework import viewsets, permissions, serializers
 from django.utils import timezone
+from rest_framework import permissions, serializers, viewsets
+
 from .models import CartItem, CartReservation
 from .serializers import CartItemSerializer
+from .services import ensure_cart_for_request
 
 
 class CartItemViewSet(viewsets.ModelViewSet):
     serializer_class = CartItemSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
 
     def get_queryset(self):
-        self._clear_expired()
-        return CartItem.objects.filter(user=self.request.user)
+        cart = self._get_cart()
+        self._clear_expired(cart)
+        return cart.items.select_related("producto", "cart").order_by("id")
 
     def perform_create(self, serializer):
-        """Add items to the cart merging with existing ones.
-
-        The original implementation always attempted to create a new
-        ``CartItem`` which triggered an ``IntegrityError`` when the same
-        user tried to add the same product twice (the model has a
-        ``unique_together`` constraint on ``user`` and ``producto``).  This
-        method now checks if an item for the given product already exists and
-        simply increases its quantity instead of creating a duplicate.
-        """
-
-        self._clear_expired()
+        cart = self._get_cart()
+        self._clear_expired(cart)
         producto = serializer.validated_data['producto']
         cantidad = serializer.validated_data.get('cantidad', 1)
 
@@ -31,7 +25,7 @@ class CartItemViewSet(viewsets.ModelViewSet):
             raise serializers.ValidationError('No hay suficiente stock disponible')
 
         item, created = CartItem.objects.get_or_create(
-            user=self.request.user, producto=producto, defaults={'cantidad': 0}
+            cart=cart, producto=producto, defaults={'cantidad': 0}
         )
 
         if created:
@@ -39,44 +33,66 @@ class CartItemViewSet(viewsets.ModelViewSet):
         else:
             item.cantidad += cantidad
 
-        item.save()
+        item.save(update_fields=['cantidad'])
         serializer.instance = item  # ensure response uses the updated item
 
         producto.stock -= cantidad
-        producto.save()
-        self._update_reservation()
+        producto.save(update_fields=['stock'])
+        self._update_reservation(cart)
 
     def perform_update(self, serializer):
-        self._clear_expired()
+        cart = self._get_cart()
+        self._clear_expired(cart)
         instance = serializer.instance
+        if instance.cart_id != cart.pk:
+            raise serializers.ValidationError('No puedes modificar este producto')
         nueva_cantidad = serializer.validated_data.get('cantidad', instance.cantidad)
         diff = nueva_cantidad - instance.cantidad
         if diff > 0 and instance.producto.stock < diff:
             raise serializers.ValidationError('No hay suficiente stock disponible')
         instance.producto.stock -= diff
-        instance.producto.save()
+        instance.producto.save(update_fields=['stock'])
         serializer.save()
-        self._update_reservation()
+        if cart.items.exists():
+            self._update_reservation(cart)
+        else:
+            CartReservation.objects.filter(cart=cart).delete()
 
     def perform_destroy(self, instance):
-        self._clear_expired()
+        cart = self._get_cart()
+        self._clear_expired(cart)
+        if instance.cart_id != cart.pk:
+            raise serializers.ValidationError('No puedes eliminar este producto')
         instance.producto.stock += instance.cantidad
-        instance.producto.save()
-        instance.delete()
+        instance.producto.save(update_fields=['stock'])
+        super().perform_destroy(instance)
+        if cart.items.exists():
+            self._update_reservation(cart)
+        else:
+            CartReservation.objects.filter(cart=cart).delete()
 
-    def _clear_expired(self):
+    def _get_cart(self):
+        if not hasattr(self, '_cart'):
+            self._cart = ensure_cart_for_request(self.request)
+        return self._cart
+
+    def _clear_expired(self, cart):
         now = timezone.now()
-        reserva = CartReservation.objects.filter(user=self.request.user).first()
-        if reserva and reserva.expires_at < now:
-            items = CartItem.objects.filter(user=self.request.user)
-            for item in items:
+        try:
+            reserva = cart.reservation
+        except CartReservation.DoesNotExist:
+            return
+        if reserva.expires_at < now:
+            for item in cart.items.select_related('producto'):
                 prod = item.producto
                 prod.stock += item.cantidad
-                prod.save()
-            items.delete()
+                prod.save(update_fields=['stock'])
+            cart.items.all().delete()
             reserva.delete()
 
-    def _update_reservation(self):
+    def _update_reservation(self, cart):
         now = timezone.now()
-        reserva, created = CartReservation.objects.get_or_create(user=self.request.user, defaults={'expires_at': now})
+        reserva, _ = CartReservation.objects.get_or_create(
+            cart=cart, defaults={'started_at': now, 'expires_at': now}
+        )
         reserva.refresh_expiration()

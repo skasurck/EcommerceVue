@@ -372,11 +372,10 @@ const moreResults = () => {
 const fmt = (n) => Number(n).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })
 
 onMounted(() => {
-  if (auth.isAuthenticated) carrito.cargar()
+  carrito.cargar()
 })
-watch(() => auth.isAuthenticated, (v) => {
-  if (v) carrito.cargar()
-  else { carrito.items = []; carrito.reservaExpira = null }
+watch(() => auth.isAuthenticated, () => {
+  carrito.cargar()
 })
 
 // close dropdown on route change

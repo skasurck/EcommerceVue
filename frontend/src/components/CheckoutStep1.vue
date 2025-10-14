@@ -1,6 +1,6 @@
 <template>
   <div>
-    <div v-if="direcciones.length">
+    <div v-if="auth.isAuthenticated && direcciones.length">
       <label>Direcciones guardadas</label>
       <select v-model="seleccionada" @change="seleccionarDireccion">
         <option :value="null">Nueva dirección</option>
@@ -33,7 +33,7 @@
       <input v-model="telefono" placeholder="Teléfono" />
       <span class="error">{{ errors.telefono }}</span>
       <textarea v-model="referencias" placeholder="Referencias"></textarea>
-      <label v-if="!tieneDireccion"><input type="checkbox" v-model="save" /> Guardar dirección</label>
+      <label v-if="auth.isAuthenticated && !tieneDireccion"><input type="checkbox" v-model="save" /> Guardar dirección</label>
       <button type="submit">Continuar</button>
     </form>
     <div class="mt-4 p-4 border rounded">
@@ -57,6 +57,7 @@
 import { ref, onMounted, computed } from 'vue';
 import { useForm } from 'vee-validate';
 import * as yup from 'yup';
+import { useAuthStore } from '../stores/auth';
 import { useCheckoutStore } from '../stores/checkout';
 import { useCarritoStore } from '../stores/carrito';
 import { obtenerDirecciones } from '../services/checkout';
@@ -64,6 +65,7 @@ import { obtenerDirecciones } from '../services/checkout';
 const emit = defineEmits(['next']);
 const store = useCheckoutStore();
 const carrito = useCarritoStore();
+const auth = useAuthStore();
 
 const schema = yup.object({
   nombre: yup.string().required(),
@@ -105,6 +107,12 @@ const seleccionada = ref(null);
 const tieneDireccion = ref(false);
 
 onMounted(async () => {
+  if (!auth.isAuthenticated) {
+    direcciones.value = [];
+    tieneDireccion.value = false;
+    setValues({ ...store.direccion, save: false });
+    return;
+  }
   try {
     const { data } = await obtenerDirecciones();
     direcciones.value = data.direcciones;

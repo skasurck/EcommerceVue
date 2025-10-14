@@ -43,6 +43,7 @@
 
 <script setup>
 import { ref, computed } from 'vue';
+import { useAuthStore } from '../stores/auth';
 import { useCheckoutStore } from '../stores/checkout';
 import { useCarritoStore } from '../stores/carrito';
 import { crearPedido } from '../services/checkout';
@@ -50,6 +51,7 @@ import { crearPedido } from '../services/checkout';
 const emit = defineEmits(['back', 'complete']);
 const store = useCheckoutStore();
 const carrito = useCarritoStore();
+const auth = useAuthStore();
 const metodoPago = ref(store.metodoPago || 'transferencia');
 const error = ref('');
 
@@ -63,7 +65,7 @@ const finalizar = async () => {
       metodo_envio: store.metodoEnvio?.id,
       metodo_pago: store.metodoPago,
       indicaciones: store.indicaciones,
-      save_address: save,
+      save_address: auth.isAuthenticated && save,
     });
     await carrito.cargar();
     emit('complete');

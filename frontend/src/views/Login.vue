@@ -25,8 +25,9 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useCarritoStore } from '@/stores/carrito'
 
 defineOptions({ name: 'LoginView' })
 
@@ -35,7 +36,9 @@ const password = ref('')
 const error = ref('')
 const isSubmitting = ref(false)
 const router = useRouter()
+const route = useRoute()
 const auth = useAuthStore()
+const carrito = useCarritoStore()
 
 let inFlightController = null
 let debounceTimer
@@ -50,9 +53,11 @@ const onSubmit = () => {
     isSubmitting.value = true
     try {
       await auth.login({ username: username.value, password: password.value }, inFlightController.signal)
+      await carrito.cargar()
       error.value = ''
-      if (import.meta.env.DEV) console.debug('redirecting to /products')
-      router.push('/products')
+      const redirectTo = route.query.redirect ? String(route.query.redirect) : '/products'
+      if (import.meta.env.DEV) console.debug('redirecting to', redirectTo)
+      router.push(redirectTo)
     } catch (err) {
       if (err.name === 'CanceledError') return
       if (err.response?.status === 401) {

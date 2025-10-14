@@ -3,7 +3,7 @@ from django.urls import reverse
 from rest_framework.test import APITestCase
 from django.contrib.auth import get_user_model
 
-from .models import Producto, PrecioEscalonado
+from productos.models import Producto, PrecioEscalonado
 
 
 class PrecioEscalonadoAPITests(APITestCase):

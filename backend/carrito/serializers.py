@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import CartItem
+from .models import CartItem, CartReservation
 from productos.serializers import ProductoSerializer
 
 class CartItemSerializer(serializers.ModelSerializer):
@@ -7,12 +7,15 @@ class CartItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CartItem
-        fields = ['id', 'user', 'producto', 'cantidad', 'reserva_expira']
-        read_only_fields = ['user']
+        fields = ['id', 'producto', 'cantidad', 'reserva_expira']
+        read_only_fields = ['reserva_expira']
 
     def get_reserva_expira(self, obj):
-        reserva = getattr(obj.user, 'cart_reservation', None)
-        return reserva.expires_at if reserva else None
+        try:
+            reserva = obj.cart.reservation
+        except CartReservation.DoesNotExist:
+            return None
+        return reserva.expires_at
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

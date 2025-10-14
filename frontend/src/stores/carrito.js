@@ -25,7 +25,7 @@ export const useCarritoStore = defineStore('carrito', {
     async cargar() {
       const res = await api.get('carrito/')
       this.items = res.data
-      this.reservaExpira = res.data[0]?.reserva_expira || null
+      this.reservaExpira = res.data.length ? res.data[0].reserva_expira : null
     },
     async agregar(producto, cantidad = 1) {
       if (!producto || producto.stock <= 0) return

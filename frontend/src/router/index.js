@@ -39,13 +39,11 @@ const routes = [
     path: '/carrito',
     name: 'carrito',
     component: () => import('../views/CarritoView.vue'),
-    meta: { requiresAuth: true }
   },
   {
     path: '/checkout',
     name: 'checkout',
     component: () => import('../views/CheckoutView.vue'),
-    meta: { requiresAuth: true }
   },
   {
     path: '/mi-cuenta',

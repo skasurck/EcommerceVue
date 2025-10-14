@@ -58,6 +58,8 @@ class PedidoViewSet(viewsets.ModelViewSet):
     ordering = ['-creado']
 
     def get_permissions(self):
+        if self.action == "create":
+            return [permissions.AllowAny()]
         if self.action in ["update", "partial_update", "destroy"]:
             return [IsAdminOrSuperAdmin()]
         return [permissions.IsAuthenticated()]
@@ -88,7 +90,8 @@ class PedidoViewSet(viewsets.ModelViewSet):
         return qs
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        user = self.request.user if self.request.user.is_authenticated else None
+        serializer.save(user=user)
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)

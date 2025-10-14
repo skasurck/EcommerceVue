@@ -1,6 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import User
 
+from carrito.models import Cart
+
 
 class Direccion(models.Model):
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='direcciones')
@@ -42,6 +44,7 @@ METODO_PAGO_CHOICES = (
 
 class Pedido(models.Model):
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='pedidos')
+    cart = models.ForeignKey(Cart, on_delete=models.SET_NULL, null=True, blank=True, related_name='pedidos')
     direccion = models.ForeignKey(Direccion, on_delete=models.SET_NULL, null=True, related_name='pedidos')
     metodo_envio = models.ForeignKey(MetodoEnvio, on_delete=models.PROTECT)
     metodo_pago = models.CharField(max_length=20, choices=METODO_PAGO_CHOICES)

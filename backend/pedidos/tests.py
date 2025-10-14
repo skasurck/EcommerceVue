@@ -1,11 +1,16 @@
 from decimal import Decimal
 from django.urls import reverse
-from rest_framework.test import APITestCase
-from rest_framework import status
+from decimal import Decimal
+
 from django.contrib.auth import get_user_model
-from .models import Direccion, MetodoEnvio, Pedido
+from django.urls import reverse
+from rest_framework import status
+from rest_framework.test import APITestCase
+
+from carrito.models import Cart
 from productos.models import Producto
-from carrito.models import CartItem
+
+from pedidos.models import Direccion, MetodoEnvio, Pedido
 
 class PedidoAPITests(APITestCase):
     def setUp(self):
@@ -14,7 +19,8 @@ class PedidoAPITests(APITestCase):
         self.client.force_authenticate(self.user)
         self.metodo = MetodoEnvio.objects.create(nombre='Estafeta', costo=299)
         self.producto = Producto.objects.create(nombre='Prod', precio_normal=100, stock=5)
-        CartItem.objects.create(user=self.user, producto=self.producto, cantidad=2)
+        self.cart = Cart.objects.create(user=self.user)
+        self.cart.items.create(producto=self.producto, cantidad=2)
         self.producto.stock -= 2
         self.producto.save()
 
@@ -53,7 +59,7 @@ class PedidoAPITests(APITestCase):
         self.assertEqual(item.subtotal, Decimal('200'))
         self.producto.refresh_from_db()
         self.assertEqual(self.producto.stock, 3)
-        self.assertEqual(CartItem.objects.filter(user=self.user).count(), 0)
+        self.assertEqual(self.cart.items.count(), 0)
 
     def test_cancelar_pedido_devuelve_stock(self):
         url = reverse('pedido-list')

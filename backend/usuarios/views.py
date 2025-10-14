@@ -4,6 +4,7 @@ from rest_framework import status, viewsets, permissions
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework.decorators import action
 from django.contrib.auth.models import User
 from django.db.models import Q
@@ -21,6 +22,7 @@ from .serializers import (
 )
 from .models import Perfil
 from pedidos.models import Direccion, Pedido
+from carrito.services import sync_session_cart_with_user
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -41,6 +43,18 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
 class LoginView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except TokenError as exc:
+            raise InvalidToken(exc.args[0])
+
+        response = Response(serializer.validated_data, status=status.HTTP_200_OK)
+        if request.session is not None:
+            sync_session_cart_with_user(request.session, serializer.user)
+        return response
 
 
 class RegisterView(APIView):
