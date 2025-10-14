@@ -60,11 +60,16 @@ const filtros = reactive({ search: '', categoria: '' })
 const pagination = reactive({ page: 1, totalPages: 1, pageSize: 10 })
 const loading = ref(false)
 const error = ref(null)
+const unwrapList = (payload) => {
+  if (Array.isArray(payload?.results)) return payload.results
+  if (Array.isArray(payload)) return payload
+  return []
+}
 
 
 async function fetchCategorias() {
   const res = await api.get('categorias/')
-  categorias.value = res.data
+  categorias.value = unwrapList(res.data)
 }
 
 async function fetchProductos() {
@@ -77,10 +82,10 @@ async function fetchProductos() {
     if (filtros.categoria) params.categoria = filtros.categoria
 
     const res = await obtenerProductos(params)
-    const raw = res.data?.results ?? res.data ?? []
-    productos.value = Array.isArray(raw) ? raw : []
+    const raw = unwrapList(res.data)
+    productos.value = raw
 
-    const total = typeof res.data?.count === 'number' ? res.data.count : productos.value.length
+    const total = typeof res.data?.count === 'number' ? res.data.count : raw.length
     const totalPages = Math.max(1, Math.ceil(total / pagination.pageSize))
     if (currentPage > totalPages && total > 0) {
       pagination.page = totalPages

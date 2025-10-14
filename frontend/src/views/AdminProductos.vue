@@ -251,6 +251,11 @@ const error = ref(null)
 
 const money = (v) => `\$${Number(v ?? 0).toFixed(2)}`
 const formatDate = (d) => new Date(d).toLocaleDateString()
+const unwrapList = (payload) => {
+  if (Array.isArray(payload?.results)) return payload.results
+  if (Array.isArray(payload)) return payload
+  return []
+}
 
 const onSearch = () => {
   pagination.page = 1
@@ -266,8 +271,8 @@ async function fetchFiltros() {
     api.get('categorias/'),
     api.get('marcas/')
   ])
-  categorias.value = catRes.data
-  marcas.value = marcaRes.data
+  categorias.value = unwrapList(catRes.data)
+  marcas.value = unwrapList(marcaRes.data)
 }
 
 async function fetchProductos() {
@@ -285,10 +290,10 @@ async function fetchProductos() {
     if (filtros.marca) params.marca = filtros.marca
 
     const res = await api.get('productos/', { params })
-    const raw = res.data?.results ?? res.data ?? []
-    productos.value = Array.isArray(raw) ? raw : []
+    const raw = unwrapList(res.data)
+    productos.value = raw
 
-    const total = typeof res.data?.count === 'number' ? res.data.count : productos.value.length
+    const total = typeof res.data?.count === 'number' ? res.data.count : raw.length
     const totalPages = Math.max(1, Math.ceil(total / pagination.pageSize))
     if (currentPage > totalPages && total > 0) {
       pagination.page = totalPages

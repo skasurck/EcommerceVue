@@ -222,6 +222,11 @@ const seleccionarTodo = ref(false)
 const estadoBulk = ref('')
 const verPapelera = ref(false)
 const router = useRouter()
+const unwrapList = (payload) => {
+  if (Array.isArray(payload?.results)) return payload.results
+  if (Array.isArray(payload)) return payload
+  return []
+}
 
 async function fetchPedidos(p = 1) {
   pagina.value = p
@@ -229,8 +234,8 @@ async function fetchPedidos(p = 1) {
   if (estadoFiltro.value) params.estado = estadoFiltro.value
   if (verPapelera.value) params.papelera = 1
   const res = await axios.get('pedidos/', { params })
-  pedidos.value = res.data.results || res.data
-  siguiente.value = !!res.data.next
+  pedidos.value = unwrapList(res.data)
+  siguiente.value = Boolean(res.data?.next)
   seleccionados.value = []
   seleccionarTodo.value = false
 }
