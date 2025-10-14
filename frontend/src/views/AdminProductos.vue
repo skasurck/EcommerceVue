@@ -83,7 +83,17 @@
           </thead>
 
           <tbody>
-            <tr v-for="p in productos" :key="p.id" class="border-b last:border-0 hover:bg-slate-50">
+            <tr v-if="loading" class="border-b last:border-0">
+              <td colspan="9" class="px-3 py-6 text-center text-slate-500">Cargando productos...</td>
+            </tr>
+            <tr v-else-if="error" class="border-b last:border-0">
+              <td colspan="9" class="px-3 py-6 text-center text-rose-500">{{ error }}</td>
+            </tr>
+            <tr v-else-if="!productos.length" class="border-b last:border-0">
+              <td colspan="9" class="px-3 py-6 text-center text-slate-500">No se encontraron productos.</td>
+            </tr>
+            <template v-else>
+              <tr v-for="p in productos" :key="p.id" class="border-b last:border-0 hover:bg-slate-50">
               <!-- Imagen -->
               <td class="px-3 py-2">
                 <img v-if="p.miniatura_url" :src="p.miniatura_url" class="w-12 h-12 object-cover rounded border" alt="">
@@ -183,11 +193,12 @@
                       class="px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-700 text-white"
                     >
                       Editar
-                    </RouterLink>
+                  </RouterLink>
                   </template>
                 </div>
               </td>
             </tr>
+            </template>
           </tbody>
         </table>
       </div>
@@ -235,6 +246,8 @@ const filtros = reactive({ search: '', categoria: '', estado: '', marca: '' })
 const pagination = reactive({ page: 1, totalPages: 1, pageSize: 10 })
 const editingId = ref(null)
 const cache = ref({})
+const loading = ref(false)
+const error = ref(null)
 
 const money = (v) => `\$${Number(v ?? 0).toFixed(2)}`
 const formatDate = (d) => new Date(d).toLocaleDateString()
@@ -258,19 +271,39 @@ async function fetchFiltros() {
 }
 
 async function fetchProductos() {
-  const params = {
-    page: pagination.page,
-    page_size: pagination.pageSize,
-  }
-  if (filtros.search) params.search = filtros.search
-  if (filtros.categoria) params.categoria = filtros.categoria
-  if (filtros.estado) params.estado_inventario = filtros.estado
-  if (filtros.marca) params.marca = filtros.marca
+  loading.value = true
+  error.value = null
+  try {
+    const currentPage = pagination.page
+    const params = {
+      page: currentPage,
+      page_size: pagination.pageSize,
+    }
+    if (filtros.search) params.search = filtros.search
+    if (filtros.categoria) params.categoria = filtros.categoria
+    if (filtros.estado) params.estado_inventario = filtros.estado
+    if (filtros.marca) params.marca = filtros.marca
 
-  const res = await api.get('productos/', { params })
-  productos.value = res.data.results
-  const total = res.data.count
-  pagination.totalPages = Math.ceil(total / pagination.pageSize) || 1
+    const res = await api.get('productos/', { params })
+    const raw = res.data?.results ?? res.data ?? []
+    productos.value = Array.isArray(raw) ? raw : []
+
+    const total = typeof res.data?.count === 'number' ? res.data.count : productos.value.length
+    const totalPages = Math.max(1, Math.ceil(total / pagination.pageSize))
+    if (currentPage > totalPages && total > 0) {
+      pagination.page = totalPages
+      await fetchProductos()
+      return
+    }
+    pagination.totalPages = totalPages
+  } catch (err) {
+    console.error('Error cargando productos (admin):', err)
+    error.value = 'No se pudieron cargar los productos. Intenta nuevamente más tarde.'
+    productos.value = []
+    pagination.totalPages = 1
+  } finally {
+    loading.value = false
+  }
 }
 
 function cambiarPagina(page) {

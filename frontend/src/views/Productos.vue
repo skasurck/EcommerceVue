@@ -19,7 +19,9 @@
       </select>
     </div>
 
-    <div v-if="productos.length === 0" class="text-center text-gray-500">Cargando productos...</div>
+    <div v-if="loading" class="text-center text-gray-500">Cargando productos...</div>
+    <div v-else-if="error" class="text-center text-red-500">{{ error }}</div>
+    <div v-else-if="productos.length === 0" class="text-center text-gray-500">No se encontraron productos.</div>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
       <ProductCard
@@ -56,6 +58,8 @@ const productos = ref([])
 const categorias = ref([])
 const filtros = reactive({ search: '', categoria: '' })
 const pagination = reactive({ page: 1, totalPages: 1, pageSize: 10 })
+const loading = ref(false)
+const error = ref(null)
 
 
 async function fetchCategorias() {
@@ -64,13 +68,34 @@ async function fetchCategorias() {
 }
 
 async function fetchProductos() {
-  const params = { page: pagination.page, page_size: pagination.pageSize }
-  if (filtros.search) params.search = filtros.search
-  if (filtros.categoria) params.categoria = filtros.categoria
-  const res = await obtenerProductos(params)
-  productos.value = res.data.results
-  const total = res.data.count
-  pagination.totalPages = Math.ceil(total / pagination.pageSize) || 1
+  loading.value = true
+  error.value = null
+  try {
+    const currentPage = pagination.page
+    const params = { page: currentPage, page_size: pagination.pageSize }
+    if (filtros.search) params.search = filtros.search
+    if (filtros.categoria) params.categoria = filtros.categoria
+
+    const res = await obtenerProductos(params)
+    const raw = res.data?.results ?? res.data ?? []
+    productos.value = Array.isArray(raw) ? raw : []
+
+    const total = typeof res.data?.count === 'number' ? res.data.count : productos.value.length
+    const totalPages = Math.max(1, Math.ceil(total / pagination.pageSize))
+    if (currentPage > totalPages && total > 0) {
+      pagination.page = totalPages
+      await fetchProductos()
+      return
+    }
+    pagination.totalPages = totalPages
+  } catch (err) {
+    console.error('Error cargando productos:', err)
+    error.value = 'No se pudieron cargar los productos. Intenta nuevamente más tarde.'
+    productos.value = []
+    pagination.totalPages = 1
+  } finally {
+    loading.value = false
+  }
 }
 
 function cambiarPagina(p) {

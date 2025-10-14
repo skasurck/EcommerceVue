@@ -1,8 +1,25 @@
 import axios from 'axios'
 import { getAccessToken, getRefreshToken, refreshAccessToken, logout } from './auth'
 
+const buildBaseURL = () => {
+  const rawBase = import.meta.env?.VITE_API_BASE?.trim()
+  if (rawBase) {
+    return `${rawBase.replace(/\/+$/, '')}/api/`
+  }
+
+  if (import.meta.env?.DEV) {
+    return 'http://localhost:8000/api/'
+  }
+
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return `${window.location.origin.replace(/\/+$/, '')}/api/`
+  }
+
+  return '/api/'
+}
+
 export const api = axios.create({
-  baseURL: 'http://127.0.0.1:8000/api/',
+  baseURL: buildBaseURL(),
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
