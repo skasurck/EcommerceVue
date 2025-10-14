@@ -1,15 +1,16 @@
 <template>
   <Suspense>
     <template #default>
+      
       <div class="max-w-3xl mx-auto p-4" v-if="producto">
         <h1 class="text-2xl font-bold mb-4 flex items-center space-x-2">
           <span>{{ producto.nombre }}</span>
           <span v-if="producto.stock <= 0" class="bg-red-600 text-white text-xs px-2 py-1 rounded">Agotado</span>
         </h1>
-
-        <img
+        <div class='columns-2'>
+          <img
           :src="producto.imagen_principal || 'https://via.placeholder.com/150'"
-          class="w-full max-h-96 object-cover rounded shadow"
+          class="size-[1200px] max-h-96 object-cover rounded shadow"
           :alt="`Imagen de ${producto.nombre}`"
           loading="lazy"
         />
@@ -73,6 +74,8 @@
           </tbody>
         </table>
 
+        </div>
+        <h2 class="text-xl font-semibold mt-6 mb-2">Descripción</h2>        
         <p class="text-gray-700 whitespace-pre-line">{{ producto.descripcion_larga }}</p>
       </div>
     </template>
