@@ -21,6 +21,9 @@ const buildBaseURL = () => {
 export const api = axios.create({
   baseURL: buildBaseURL(),
   timeout: 10000,
+  withCredentials: true,
+  xsrfCookieName: 'csrftoken',
+  xsrfHeaderName: 'X-CSRFToken',
   headers: {
     'Content-Type': 'application/json',
   },

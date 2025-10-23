@@ -55,6 +55,11 @@ export const useCarritoStore = defineStore('carrito', {
   },
 
   actions: {
+    async ensureSession() {
+      if (this._loaded) return
+      await this.cargar()
+    },
+
     async cargar() {
       const res = await api.get('carrito/')
       const items = normalizeItems(res?.data)
@@ -66,6 +71,7 @@ export const useCarritoStore = defineStore('carrito', {
 
     async agregar(producto, cantidad = 1) {
       if (!producto || Number(producto.stock ?? 0) <= 0) return
+      await this.ensureSession()
       const items = Array.isArray(this.items) ? this.items : []
       const existente = items.find(i => i?.producto?.id === producto.id)
       const max = Number(producto.stock ?? 0) + Number(existente?.cantidad ?? 0)
@@ -81,6 +87,7 @@ export const useCarritoStore = defineStore('carrito', {
     },
 
     async actualizar(id, cantidad) {
+      await this.ensureSession()
       const items = Array.isArray(this.items) ? this.items : []
       const item = items.find(i => i.id === id)
       if (!item) return
@@ -93,6 +100,7 @@ export const useCarritoStore = defineStore('carrito', {
     },
 
     async eliminar(id) {
+      await this.ensureSession()
       await api.delete(`carrito/${id}/`)
       await this.cargar()
     },
