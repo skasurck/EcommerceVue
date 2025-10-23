@@ -124,6 +124,7 @@ const cargarPedidos = async () => {
 const ver = async (id) => {
   if (!id) return
   cargandoDetalle.value = true
+  errorMsg.value = ''
   try {
     const r = await obtenerPedido(id)
     // Normalmente el detalle viene directo en data
@@ -131,6 +132,11 @@ const ver = async (id) => {
   } catch (e) {
     console.error('Error al cargar detalle', e)
     detalle.value = null
+    if (e?.response?.status === 404 || e?.response?.status === 403) {
+      errorMsg.value = 'Pedido no encontrado o sin acceso.'
+    } else {
+      errorMsg.value = 'Error al cargar detalle del pedido.'
+    }
   } finally {
     cargandoDetalle.value = false
   }
