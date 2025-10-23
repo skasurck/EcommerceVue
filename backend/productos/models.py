@@ -22,6 +22,7 @@ class Categoria(models.Model):
     class Meta:
         # Esto asegura que el slug sea único para cada nivel de categoría padre.
         unique_together = ('slug', 'parent')
+        ordering = ['nombre']
 
     def save(self, *args, **kwargs):
         if not self.slug:

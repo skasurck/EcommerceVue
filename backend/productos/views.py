@@ -1,5 +1,7 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.filters import OrderingFilter
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.views import APIView
 from django.db import transaction
 from django.db.models import Q
@@ -268,8 +270,11 @@ class ProductoViewSet(viewsets.ModelViewSet):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
 class CategoriaViewSet(viewsets.ModelViewSet):
-    queryset = Categoria.objects.all()
+    queryset = Categoria.objects.all().order_by('id') 
     serializer_class = CategoriaSerializer
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    ordering_fields = ['id', 'nombre', 'created_at']
+    ordering = ['id']
 
     def get_permissions(self):
         if self.action in ["create", "update", "partial_update", "destroy"]:

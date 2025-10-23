@@ -23,18 +23,13 @@ export const refreshAccessToken = async () => {
   const refresh = auth.refreshToken
   if (!refresh) throw new Error('No refresh token')
   try {
-    const { data } = await api.post('auth/refresh/', { refresh })
+    const { data } = await api.post('auth/refresh/', { refresh }) // 👈 SIN CAMBIOS
     if (import.meta.env.DEV) console.debug('refresh response', data)
     const access =
-      data.access ||
-      data.access_token ||
-      data.token ||
-      data.auth_token ||
-      data?.jwt?.access ||
-      data?.tokens?.access ||
-      null
+      data.access || data.access_token || data.token || data.auth_token ||
+      data?.jwt?.access || data?.tokens?.access || null
     if (!access) throw new Error('No access token in refresh response')
-    auth.setTokens(access, refresh)
+    auth.setTokens(access, data.refresh || refresh) // si rotas refresh en backend, guarda data.refresh si viene
     return access
   } catch (err) {
     logout()
