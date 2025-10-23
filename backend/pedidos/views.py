@@ -43,7 +43,7 @@ class DireccionViewSet(viewsets.ModelViewSet):
 
 
 class MetodoEnvioViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = MetodoEnvio.objects.all()
+    queryset = MetodoEnvio.objects.all().order_by('id')
     serializer_class = MetodoEnvioSerializer
     permission_classes = [permissions.AllowAny]
 

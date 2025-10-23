@@ -45,11 +45,12 @@ const indicaciones = ref(store.indicaciones);
 onMounted(async () => {
   try {
     const { data } = await obtenerMetodosEnvio();
-    metodos.value = data;
+    metodos.value = Array.isArray(data) ? data : (data?.results ?? []);
   } catch {
     metodos.value = [];
   }
 });
+
 
 const onSubmit = () => {
   store.metodoEnvio = metodo.value;

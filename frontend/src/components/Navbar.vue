@@ -110,7 +110,7 @@
           <RouterLink v-if="auth.isAuthenticated" to="/carrito"
             class="relative inline-flex items-center justify-center w-9 h-9 rounded-md hover:bg-slate-800 text-slate-200"
             aria-label="Carrito">
-            <span>🛒</span>
+            <span>🛒 Carrito</span>
             <span v-if="carrito.totalCantidad"
                   class="absolute -top-1 -right-1 min-w-[18px] h-[18px] text-[11px] leading-[18px] text-center rounded-full bg-fuchsia-600 text-white px-1">
               {{ carrito.totalCantidad }}
