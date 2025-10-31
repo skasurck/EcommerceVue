@@ -24,6 +24,31 @@ class PedidoAPITests(APITestCase):
         self.producto.stock -= 2
         self.producto.save()
 
+    def _crear_pedido_simple(self, user, email='john@example.com', subtotal='100', envio='20'):
+        direccion = Direccion.objects.create(
+            user=user,
+            nombre='John',
+            apellidos='Doe',
+            email=email,
+            calle='Calle 1',
+            numero_exterior='123',
+            colonia='Centro',
+            ciudad='CDMX',
+            pais='MX',
+            estado='CDMX',
+            codigo_postal='01010',
+            telefono='5555555555',
+        )
+        return Pedido.objects.create(
+            user=user,
+            direccion=direccion,
+            metodo_envio=self.metodo,
+            metodo_pago='transferencia',
+            subtotal=Decimal(subtotal),
+            costo_envio=Decimal(envio),
+            total=Decimal(subtotal) + Decimal(envio),
+        )
+
     def test_crear_pedido_guarda_items_y_totales(self):
         url = reverse('pedido-list')
         data = {
@@ -99,6 +124,37 @@ class PedidoAPITests(APITestCase):
         self.assertEqual(self.producto.stock, 5)
         pedido.refresh_from_db()
         self.assertEqual(pedido.historial.filter(descripcion__icontains='Stock devuelto').count(), 1)
+
+    def test_listado_solo_incluye_pedidos_del_usuario(self):
+        propio = self._crear_pedido_simple(self.user, email='tester@example.com')
+        User = get_user_model()
+        otro = User.objects.create_user(username='other', password='pass1234')
+        self._crear_pedido_simple(otro, email='other@example.com')
+
+        response = self.client.get(reverse('pedido-list'))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        resultados = response.data['results'] if 'results' in response.data else response.data
+        ids = {item['id'] for item in resultados}
+        self.assertEqual(ids, {propio.id})
+
+    def test_admin_puede_ver_todos_los_pedidos(self):
+        propio = self._crear_pedido_simple(self.user, email='tester@example.com')
+        User = get_user_model()
+        otro = User.objects.create_user(username='other-admin', password='pass1234')
+        ajeno = self._crear_pedido_simple(otro, email='other-admin@example.com')
+
+        admin = User.objects.create_user(username='admin', password='pass1234', is_staff=True)
+        admin.is_superuser = True
+        admin.save(update_fields=['is_superuser'])
+        admin.perfil.rol = 'admin'
+        admin.perfil.save(update_fields=['rol'])
+
+        self.client.force_authenticate(admin)
+        response = self.client.get(reverse('pedido-list'))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        resultados = response.data['results'] if 'results' in response.data else response.data
+        ids = {item['id'] for item in resultados}
+        self.assertEqual(ids, {propio.id, ajeno.id})
 
 
 class DireccionUserPopulateTests(APITestCase):

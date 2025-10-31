@@ -55,7 +55,7 @@ const onSubmit = () => {
       await auth.login({ username: username.value, password: password.value }, inFlightController.signal)
       await carrito.cargar()
       error.value = ''
-      const redirectTo = route.query.redirect ? String(route.query.redirect) : '/products'
+      const redirectTo = route.query.redirect ? String(route.query.redirect) : '/productos'
       if (import.meta.env.DEV) console.debug('redirecting to', redirectTo)
       router.push(redirectTo)
     } catch (err) {

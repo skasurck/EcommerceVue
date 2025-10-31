@@ -113,13 +113,6 @@ const agregar = async () => {
   }
 }
 
-watch(cantidad, (val) => {
-  if (producto.value) {
-    if (val > producto.value.stock) cantidad.value = producto.value.stock
-    else if (val < 1) cantidad.value = 1
-  }
-})
-
 // Cargar producto
 onMounted(async () => {
   try {

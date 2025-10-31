@@ -16,31 +16,23 @@ from .views import (
 )
 
 router = DefaultRouter()
-router.register(r'productos', ProductoViewSet)
-router.register(r'categorias', CategoriaViewSet)
-router.register(r'marcas', MarcaViewSet)
-router.register(r'atributos-base', AtributoViewSet)
-router.register(r'atributos', ValorAtributoViewSet)
+router.register(r'productos', ProductoViewSet, basename='productos')
+router.register(r'categorias', CategoriaViewSet, basename='categorias')
+router.register(r'marcas', MarcaViewSet, basename='marcas')
+router.register(r'atributos-base', AtributoViewSet, basename='atributos-base')
+router.register(r'atributos', ValorAtributoViewSet, basename='atributos')
 
 urlpatterns = [
-    path(
-        'ai/pending-review/',
-        PendingReviewProductsAPIView.as_view(),
-        name='ai-pending-review',
-    ),
-    path(
-        'all-categories/',
-        AllCategoriesAPIView.as_view(),
-        name='all-categories',
-    ),
-    path(
-        'productos/<int:pk>/apply-category/',
-        ApplyCategoryAPIView.as_view(),
-        name='producto-apply-category',
-    ),
+    path('ai/pending-review/', PendingReviewProductsAPIView.as_view(), name='ai-pending-review'),
+    path('all-categories/', AllCategoriesAPIView.as_view(), name='all-categories'),
+    path('productos/<int:pk>/apply-category/', ApplyCategoryAPIView.as_view(), name='producto-apply-category'),
     path('ai/classify-products/', ProductClassificationAPIView.as_view(), name='ai-classify-products'),
     path('search/products/', ProductSearchAPIView.as_view(), name='product-search'),
+
+    # Rutas del router (list, retrieve, create, update, delete)
     path('', include(router.urls)),
+
+    # Galería anidada bajo producto
     path(
         'productos/<int:producto_pk>/galeria/',
         ImagenProductoViewSet.as_view({'get': 'list', 'post': 'create'}),
@@ -51,6 +43,8 @@ urlpatterns = [
         ImagenProductoViewSet.as_view({'delete': 'destroy'}),
         name='galeria-detalle',
     ),
+
+    # Precios escalonados anidados bajo producto
     path(
         'productos/<int:producto_pk>/precios-escalonados/',
         PrecioEscalonadoViewSet.as_view({'get': 'list', 'post': 'create'}),

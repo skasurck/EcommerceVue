@@ -1,5 +1,8 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.filters import OrderingFilter
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters
 from rest_framework.views import APIView
 from django.db import transaction
 from django.db.models import Q
@@ -9,6 +12,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from rest_framework.response import Response
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from .ai import build_text_from_product, classify_text
 from .models import (
     Producto,
@@ -202,33 +206,49 @@ class StandardResultsSetPagination(PageNumberPagination):
     max_page_size = 100
 
 
+from django.db.models import Q
+
 class ProductoViewSet(viewsets.ModelViewSet):
-    queryset = Producto.objects.all().order_by('-fecha_creacion')
     serializer_class = ProductoSerializer
     pagination_class = StandardResultsSetPagination
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_queryset(self):
-        queryset = super().get_queryset()
-        search = self.request.query_params.get('search')
-        categoria = self.request.query_params.get('categoria')
-        estado = self.request.query_params.get('estado_inventario')
-        marca = self.request.query_params.get('marca')
+        # Base optimizada (NO uses .all() si no quieres)
+        qs = (
+            Producto.objects
+            .select_related("marca", "categoria")
+            .prefetch_related("categorias", "atributos__atributo", "galeria", "precios_escalonados")
+            .order_by("-fecha_creacion")
+        )
+
+        # Filtros existentes
+        params = self.request.query_params
+        search   = params.get('search')
+        categoria = params.get('categoria')
+        estado   = params.get('estado_inventario')
+        marca    = params.get('marca')
 
         if search:
-            queryset = queryset.filter(Q(nombre__icontains=search) | Q(sku__icontains=search))
+            qs = qs.filter(Q(nombre__icontains=search) | Q(sku__icontains=search))
         if categoria:
-            queryset = queryset.filter(categorias__id=categoria)
+            # al filtrar por M2M puede duplicar filas; usa distinct() SOLO en este caso
+            qs = qs.filter(categorias__id=categoria).distinct()
         if estado:
-            queryset = queryset.filter(estado_inventario=estado)
+            qs = qs.filter(estado_inventario=estado)
         if marca:
-            queryset = queryset.filter(marca_id=marca)
-          # --- NUEVO: precarga ligas proveedor → producto y SupplierProduct (no rompe nada)
-        product_ids = list(queryset.values_list('id', flat=True))
+            qs = qs.filter(marca_id=marca)
+
+        # --- Precarga de suppliers SIN romper nada de arriba ---
+        product_ids = list(qs.values_list('id', flat=True))
         if product_ids:
-            # liga producto -> sku proveedor
-            maps = ProductSupplierMap.objects.filter(product_id__in=product_ids).values('product_id', 'supplier_sku')
+            maps = ProductSupplierMap.objects.filter(
+                product_id__in=product_ids
+            ).values('product_id', 'supplier_sku')
+
             map_by_product = {m['product_id']: m['supplier_sku'] for m in maps}
             skus = list(set(map_by_product.values()))
+
             if skus:
                 sp_by_sku = {
                     sp.supplier_sku: sp
@@ -236,40 +256,52 @@ class ProductoViewSet(viewsets.ModelViewSet):
                 }
                 # cache final: product_id -> SupplierProduct
                 self._sp_by_product = {
-                    pid: sp_by_sku.get(sku) for pid, sku in map_by_product.items() if sp_by_sku.get(sku)
+                    pid: sp_by_sku.get(sku)
+                    for pid, sku in map_by_product.items()
+                    if sp_by_sku.get(sku)
                 }
             else:
                 self._sp_by_product = {}
         else:
             self._sp_by_product = {}
 
-        return queryset
+        return qs
+
     def get_serializer_context(self):
-        # --- NUEVO: pasa el cache al serializer
         ctx = super().get_serializer_context()
+        # pasa el cache al serializer
         ctx['sp_by_product'] = getattr(self, '_sp_by_product', {})
         return ctx
-    
-    def get_permissions(self):
-        if self.action in ["create", "update", "partial_update", "destroy"]:
-            return [IsAdminOrSuperAdmin()]
-        return [permissions.AllowAny()]
-    
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            self.perform_create(serializer)
+            return Response(serializer.data, status=201)
+        print("❌ Serializer errors:", serializer.errors)
+        return Response(serializer.errors, status=400)
+
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
-
         if serializer.is_valid():
             self.perform_update(serializer)
             return Response(serializer.data)
-        else:
-            print("❌ Errores del serializer:", serializer.errors)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
+        print("❌ Errores del serializer:", serializer.errors)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def get_permissions(self):
+        if self.action in ["create", "update", "partial_update", "destroy"]:
+            return [IsAdminOrSuperAdmin()]
+        return [permissions.AllowAny()]
+
 class CategoriaViewSet(viewsets.ModelViewSet):
-    queryset = Categoria.objects.all()
+    queryset = Categoria.objects.all().order_by('id') 
     serializer_class = CategoriaSerializer
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    ordering_fields = ['id', 'nombre', 'created_at']
+    ordering = ['id']
 
     def get_permissions(self):
         if self.action in ["create", "update", "partial_update", "destroy"]:
@@ -277,7 +309,10 @@ class CategoriaViewSet(viewsets.ModelViewSet):
         return [permissions.AllowAny()]
 
 class MarcaViewSet(viewsets.ModelViewSet):
-    queryset = Marca.objects.all()
+    queryset = Marca.objects.all().order_by("nombre", "id")
+    filter_backends = [filters.OrderingFilter]
+    ordering_fields = ["nombre", "id", "created_at"]  # lo que tengas
+    ordering = ["nombre", "id"]  # default estable
     serializer_class = MarcaSerializer
 
     def get_permissions(self):
@@ -287,7 +322,7 @@ class MarcaViewSet(viewsets.ModelViewSet):
 
 
 class AtributoViewSet(viewsets.ModelViewSet):
-    queryset = Atributo.objects.all()
+    queryset = Atributo.objects.all().order_by("nombre", "id")
     serializer_class = AtributoSerializer
 
     def get_permissions(self):
@@ -297,7 +332,7 @@ class AtributoViewSet(viewsets.ModelViewSet):
 
 
 class ValorAtributoViewSet(viewsets.ModelViewSet):
-    queryset = ValorAtributo.objects.all()
+    queryset = ValorAtributo.objects.all().order_by("valor", "id")
     serializer_class = ValorAtributoSerializer
 
     def get_permissions(self):

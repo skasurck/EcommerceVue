@@ -64,13 +64,18 @@ class PedidoViewSet(viewsets.ModelViewSet):
             return [IsAdminOrSuperAdmin()]
         return [permissions.IsAuthenticated()]
 
+    def _user_can_view_all(self, user):
+        perfil = getattr(user, "perfil", None)
+        if perfil and perfil.rol in ("admin", "super_admin"):
+            return True
+        return user.is_staff or user.is_superuser
+
     def get_queryset(self):
         user = self.request.user
-        qs = (
-            Pedido.objects.all()
-            if hasattr(user, "perfil") and user.perfil.rol in ("admin", "super_admin")
-            else Pedido.objects.filter(user=user)
-        )
+        if not user.is_authenticated:
+            return Pedido.objects.none()
+
+        qs = Pedido.objects.all() if self._user_can_view_all(user) else Pedido.objects.filter(user=user)
         params = self.request.query_params
         estado = params.get("estado")
         if estado:
