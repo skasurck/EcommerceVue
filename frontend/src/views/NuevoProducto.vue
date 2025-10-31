@@ -18,16 +18,28 @@
       <InputText v-model="producto.sku" label="SKU" />
 
       <!-- Imagen principal -->
-      <ImageUpload label="Imagen principal" @cambio="e => producto.imagen_principal = e" />
+      <ImageUpload
+        label="Imagen principal"
+        @cambio="onImagenPrincipal"
+      />
 
       <!-- Galería -->
-      <ImageUpload label="Galería de imágenes" :multiple="true" @cambio="e => producto.galeria = e" />
+      <ImageUpload
+        label="Galería de imágenes"
+        :multiple="true"
+        @cambio="onGaleria"
+      />
 
       <!-- Stock -->
       <InputNumber v-model="producto.stock" label="Stock" />
 
       <!-- Estado inventario -->
-      <SelectInput v-model="producto.estado_inventario" label="Estado de inventario" :options="['en_existencia', 'agotado']" />
+      <div>
+  <InputLabel label="Estado de inventario" />
+  <div class="px-3 py-2 rounded bg-gray-100 inline-block">
+    {{ estadoInventario }}
+  </div>
+</div>
 
       <!-- Disponible -->
       <SwitchInput v-model="producto.disponible" label="Disponible" />
@@ -38,17 +50,23 @@
       <!-- Estado publicación -->
       <SelectInput v-model="producto.estado" label="Estado" :options="['borrador', 'publicado']" />
 
-      <!-- Categoría -->
-      <div class="flex items-center gap-2">
-        <SelectInput
-          v-model="producto.categoria"
-          label="Categoría"
-          :options="categorias"
-          option-label="nombre"
-          option-value="id"
-        />
-        <button type="button" @click="abrirModalCategoria = true" class="text-blue-600 underline">+ Nueva</button>
-      </div>
+      <!-- Categoría principal (FK) -->
+      <SelectInput
+        v-model="producto.categoria"
+        label="Categoría (principal)"
+        :options="categorias"
+        option-label="nombre"
+        option-value="id"
+      />
+
+      <!-- Subcategorías / categorías extra (M2M) -->
+      <MultiSelect
+        v-model="producto.categorias"         
+        label="Subcategorías / categorías extra"
+        :options="categorias"                 
+        option-label="nombre"
+        option-value="id"
+      />
 
       <!-- Marca -->
       <div class="flex items-center gap-2">
@@ -97,6 +115,7 @@ import { useRouter } from 'vue-router'
 import InputText from '../inputs/InputText.vue'
 import InputTextarea from '../inputs/InputTextarea.vue'
 import InputNumber from '../inputs/InputNumber.vue'
+import InputLabel from '../inputs/InputLabel.vue'
 import SelectInput from '../inputs/SelectInput.vue'
 import SwitchInput from '../inputs/SwitchInput.vue'
 import ImageUpload from '../inputs/ImageUpload.vue'
@@ -104,6 +123,31 @@ import MultiCheckbox from '../inputs/MultiCheckbox.vue'
 import EscalonadoInput from '../inputs/EscalonadoInput.vue'
 import ModalInput from '../inputs/ModalInput.vue'
 import ModalAtributo from '../inputs/ModalAtributo.vue'
+import { postMultipart } from '../api/api-multipart'
+
+
+
+// Devuelve un File o null desde distintos formatos comunes de uploaders
+const toFile = (x) => {
+  if (!x) return null
+  const FileCtor = (typeof window !== 'undefined' && window.File) ? window.File : null
+  if (FileCtor && x instanceof FileCtor) return x
+  if (FileCtor && x?.file instanceof FileCtor) return x.file   // muchos componentes emiten { file }
+  if (FileCtor && x?.raw  instanceof FileCtor) return x.raw    // otros emiten { raw }
+  return null
+}
+
+const onImagenPrincipal = (e) => {
+  // algunos uploaders envían un objeto, otros un array
+  const first = Array.isArray(e) ? e[0] : e
+  producto.imagen_principal = toFile(first)
+}
+
+const onGaleria = (e) => {
+  const list = Array.isArray(e) ? e : [e]
+  producto.galeria = list.map(toFile).filter(Boolean)
+}
+
 
 const router = useRouter()
 const producto = reactive({
@@ -111,33 +155,13 @@ const producto = reactive({
   precio_normal: 0, precio_rebajado: null, sku: '', imagen_principal: null,
   galeria: [], stock: 0, estado_inventario: 'agotado', disponible: true,
   visibilidad: true, estado: 'borrador', categoria: null, marca: null,
-  atributos: [], precios_escalonados: []
+  atributos: [], precios_escalonados: [],categorias: [],
 })
 
-watch(
-  () => producto.stock,
-  (nuevoStock) => {
-    producto.estado_inventario = nuevoStock > 0 ? 'en_existencia' : 'agotado'
-  }
+const estadoInventario = computed(() =>
+  (producto.stock > 0 ? 'en_existencia' : 'agotado')
 )
 
-watch(
-  () => producto.precio_normal,
-  (nuevo) => {
-    if (producto.precio_rebajado !== null && producto.precio_rebajado > nuevo) {
-      producto.precio_rebajado = nuevo
-    }
-  }
-)
-
-watch(
-  () => producto.precio_rebajado,
-  (nuevo) => {
-    if (nuevo !== null && nuevo > producto.precio_normal) {
-      producto.precio_rebajado = producto.precio_normal
-    }
-  }
-)
 
 const categorias = ref([])
 const marcas = ref([])
@@ -149,16 +173,20 @@ const abrirModalMarca = ref(false)
 const abrirModalAtributo = ref(false)
 
 const opcionesAtributos = computed(() =>
-  atributos.value.map(a => ({ ...a, label: `${a.atributo.nombre}: ${a.valor}` }))
+  (Array.isArray(atributos.value) ? atributos.value : [])
+    .filter(Boolean)
+    .map(a => ({ ...a, label: `${a?.atributo?.nombre ?? 'Atributo'}: ${a?.valor ?? ''}` }))
 )
 
-const crearCategoria = async (nombre) => {
+
+const crearCategoria = async ({ nombre, parentId = null }) => {
   try {
-    const res = await api.post('categorias/', { nombre: nombre }) // <-- así debe ir
+    const payload = parentId ? { nombre, parent: parentId } : { nombre }
+    const res = await api.post('categorias/', payload)
     categorias.value.push(res.data)
   } catch (e) {
     console.error('Error creando categoría', e)
-    console.log('Detalles del error:', e.response?.data) // Esto te muestra el error que lanza el serializer
+    console.log('Detalles del error:', e.response?.data)
   }
 }
 
@@ -173,60 +201,106 @@ const crearMarca = async (nombre) => {
 
 const crearAtributo = async ({ nombre, valor }) => {
   try {
-    let atributo = atributosBase.value.find(
-      a => a.nombre.toLowerCase() === nombre.toLowerCase()
-    )
-    if (!atributo) {
-      const { data } = await api.post('atributos-base/', { nombre })
-      atributo = data
-      atributosBase.value.push(data)
+    let base = atributosBase.value.find(a => a.nombre.toLowerCase() === nombre.toLowerCase())
+    if (!base) {
+      const { data } = await api.post('atributos-base/', { nombre })  // ← ruta correcta
+      base = data
+      atributosBase.value.push(base)
     }
-    const res = await api.post('atributos/', { atributo_id: atributo.id, valor })
+    const res = await api.post('atributos/', { atributo_id: base.id, valor }) // ← ruta correcta
     atributos.value.push(res.data)
-    producto.atributos.push(res.data.id)
+    producto.atributos.push(res.data.id)  // ← agrega ID numérico del ValorAtributo
   } catch (e) {
     console.error('Error creando atributo', e)
   }
 }
 
 onMounted(async () => {
-  const [catRes, marcaRes, attrRes, baseRes] = await Promise.all([
+  const [catRes, marcaRes, valoresRes, basesRes] = await Promise.all([
     api.get('categorias/'),
     api.get('marcas/'),
-    api.get('atributos/'),
-    api.get('atributos-base/')
+    api.get('atributos/'),       // ← ValorAtributo (NO valores-atributo)
+    api.get('atributos-base/'),  // ← Atributo base
   ])
-  categorias.value = catRes.data
-  marcas.value = marcaRes.data
-  atributos.value = attrRes.data
-  atributosBase.value = baseRes.data
+  // helper para paginación DRF
+  const unpage = (d) => Array.isArray(d) ? d : (d && Array.isArray(d.results) ? d.results : [])
+
+  categorias.value = unpage(catRes.data)   // si no está paginada, igual funciona
+  marcas.value     = unpage(marcaRes.data)
+  atributos.value  = unpage(valoresRes.data)
+  atributosBase.value = unpage(basesRes.data)
 })
 
 const crearProducto = async () => {
-  const cantidades = producto.precios_escalonados.map(t => t.cantidad_minima)
+  // Reglas previas
+  const cantidades = (producto.precios_escalonados || []).map(t => t.cantidad_minima)
   if (new Set(cantidades).size !== cantidades.length) {
     alert('Cantidades mínimas duplicadas')
     return
   }
 
-  const formData = new FormData()
-  Object.entries(producto).forEach(([k, v]) => {
-    if (k === 'atributos') v.forEach(id => formData.append('atributos', id))
-    else if (k === 'precios_escalonados') {
-      formData.append('precios_escalonados', JSON.stringify(v))
+  // Normalización
+  if (producto.categoria != null) producto.categoria = Number(producto.categoria) || null
+  if (producto.marca != null)     producto.marca     = Number(producto.marca) || null
+
+  producto.atributos  = (producto.atributos  || []).map(x => Number(x)).filter(Boolean)
+  producto.categorias = (producto.categorias || []).map(x => Number(x)).filter(Boolean)
+
+  producto.precio_normal   = producto.precio_normal   === '' ? null : Number(producto.precio_normal)
+  producto.precio_rebajado = producto.precio_rebajado === '' ? null : Number(producto.precio_rebajado)
+  producto.stock           = Number(producto.stock || 0)
+
+  // Corrige rebajado sin watchers
+  if (producto.precio_rebajado != null && producto.precio_normal != null) {
+    if (producto.precio_rebajado > producto.precio_normal) {
+      producto.precio_rebajado = producto.precio_normal
     }
-    else if (k === 'galeria') v.forEach(f => formData.append('galeria', f))
-    else if (v !== null) formData.append(k, v)
-  })
+  }
+
+  producto.precios_escalonados = (producto.precios_escalonados || []).map(t => ({
+    cantidad_minima: Number(t.cantidad_minima),
+    precio_unitario: Number(t.precio_unitario),
+  }))
+
+  // FormData
+  const formData = new FormData()
+
+  // Campos simples
+  formData.append('nombre', producto.nombre ?? '')
+  if (producto.descripcion_corta != null) formData.append('descripcion_corta', producto.descripcion_corta)
+  if (producto.descripcion_larga != null) formData.append('descripcion_larga', producto.descripcion_larga)
+  if (producto.precio_normal != null)     formData.append('precio_normal', String(producto.precio_normal))
+  if (producto.precio_rebajado != null)   formData.append('precio_rebajado', String(producto.precio_rebajado))
+  if (producto.sku != null)               formData.append('sku', producto.sku)
+  if (producto.imagen_principal)          formData.append('imagen_principal', producto.imagen_principal)
+  formData.append('disponible', String(!!producto.disponible))
+  formData.append('visibilidad', String(!!producto.visibilidad))
+  formData.append('estado', producto.estado || 'borrador')
+  if (producto.categoria != null)         formData.append('categoria', String(producto.categoria))
+  if (producto.marca != null)             formData.append('marca', String(producto.marca))
+  formData.append('stock', String(producto.stock))
+
+  // Derivado (sin watchers)
+  formData.append('estado_inventario', estadoInventario.value)
+
+  // M2M
+  for (const id of producto.categorias) formData.append('categorias', String(id))
+  for (const id of producto.atributos)  formData.append('atributos',  String(id))
+
+  // Galería
+  for (const f of (producto.galeria || [])) formData.append('galeria', f)
+
+  // Escalonados
+  formData.append('precios_escalonados', JSON.stringify(producto.precios_escalonados || []))
+
   try {
-    await api.post('productos/', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
+    const { data } = await postMultipart('productos/', formData) // sin forzar Content-Type
     mensaje.value = 'Producto guardado correctamente'
     router.push('/productos')
   } catch (err) {
-    console.error(err)
+    console.error('❌ POST /productos error:', err?.response?.data || err)
     mensaje.value = 'Error al guardar producto'
   }
 }
-</script>
 
-<!-- This is a simple form to create a new product. It uses Vue's reactivity system to bind the form inputs to a `producto` object. When the form is submitted, it sends a POST request to the API to create the product. If successful, it displays a success message and resets the form. If there's an error, it logs the error and displays an error message. The form includes fields for name, description, price, and availability. -->
+</script>

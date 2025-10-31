@@ -34,21 +34,32 @@ class Categoria(models.Model):
 
 # ──────────── MARCAS ────────────
 class Marca(models.Model):
-    nombre = models.CharField(max_length=100)
+    nombre = models.CharField(max_length=150, db_index=True)
+
+    class Meta:
+        ordering = ["nombre", "id"]  # agrega un campo único al final para estabilidad
 
     def __str__(self):
         return self.nombre
 
 # ──────────── ATRIBUTOS ────────────
 class Atributo(models.Model):
-    nombre = models.CharField(max_length=100)
-
+    nombre = models.CharField(max_length=150, db_index=True)
+    class Meta:
+        ordering = ["nombre", "id"]
     def __str__(self):
         return self.nombre
 
 class ValorAtributo(models.Model):
-    atributo = models.ForeignKey(Atributo, on_delete=models.CASCADE)
-    valor = models.CharField(max_length=100)
+    atributo = models.ForeignKey(Atributo, on_delete=models.CASCADE, related_name="valores")
+    valor = models.CharField(max_length=150, db_index=True)
+
+    class Meta:
+        ordering = ["valor", "id"]
+        # evita duplicados globales del tipo (RAM, 8GB) repetidos
+        constraints = [
+            models.UniqueConstraint(fields=["atributo", "valor"], name="uniq_atributo_valor")
+        ]
 
     def __str__(self):
         return f"{self.atributo.nombre}: {self.valor}"

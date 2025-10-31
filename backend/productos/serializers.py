@@ -183,7 +183,7 @@ class ProductoSerializer(serializers.ModelSerializer):
     )
     galeria = ImagenProductoSerializer(many=True, read_only=True)
     precios_escalonados = PrecioEscalonadoSerializer(many=True, required=False)
-    imagen_principal = serializers.ImageField(required=False)
+    imagen_principal = serializers.ImageField(required=False, allow_null=True)
     effective_qty = serializers.SerializerMethodField()
     is_virtual_qty = serializers.SerializerMethodField()
 
@@ -292,6 +292,12 @@ class ProductoSerializer(serializers.ModelSerializer):
         producto.categorias.set(categorias)
         producto.atributos.set(atributos)
 
+        # --- NUEVO: Galería desde multipart ---
+        request = self.context.get("request")
+        if request:
+            for f in request.FILES.getlist("galeria"):
+                ImagenProducto.objects.create(producto=producto, imagen=f)
+
         for tier in precios_data:
             tier = dict(tier)
             tier.pop("id", None)
@@ -319,6 +325,11 @@ class ProductoSerializer(serializers.ModelSerializer):
             instance.categorias.set(categorias)
         if atributos is not None:
             instance.atributos.set(atributos)
+         # --- NUEVO: anexar nuevas imágenes de galería si vienen ---
+        request = self.context.get("request")
+        if request:
+            for f in request.FILES.getlist("galeria"):
+                ImagenProducto.objects.create(producto=instance, imagen=f)
 
         # Procesar precios escalonados si vienen
         try:
