@@ -76,7 +76,7 @@
 
         </div>
         <h2 class="text-xl font-semibold mt-6 mb-2">Descripción</h2>        
-        <p class="text-gray-700 whitespace-pre-line">{{ producto.descripcion_larga }}</p>
+        <p class="text-gray-700 whitespace-pre-line" v-html="producto.descripcion_larga"></p>
       </div>
     </template>
 

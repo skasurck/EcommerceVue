@@ -7,8 +7,14 @@ export const useProductoStore = defineStore('producto', {
   actions: {
     async get(id) {
       if (!this.cache[id]) {
-        const { data } = await obtenerProducto(id)
-        this.cache[id] = data
+        try {
+          const { data } = await obtenerProducto(id)
+          console.log('Fetched product data:', data)
+          this.cache[id] = data
+        } catch (error) {
+          console.error('Error fetching product:', error)
+          this.cache[id] = null
+        }
       }
       return this.cache[id]
     }

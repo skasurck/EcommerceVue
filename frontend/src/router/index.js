@@ -150,7 +150,7 @@ const routes = [
         meta: { title: 'Métodos de envío', requiresAuth: true, roles: ['super_admin'] }
       },
       {
-        path: '/productos/editar/:id',
+        path: 'productos/editar/:id',
         name: 'editar-producto',
         component: () => import('../views/EditarProducto.vue'),
         meta: { requiresAuth: true, roles: ['admin', 'super_admin'] }

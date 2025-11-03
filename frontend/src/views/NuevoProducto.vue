@@ -60,7 +60,7 @@
       />
 
       <!-- Subcategorías / categorías extra (M2M) -->
-      <MultiSelect
+      <MultiCheckbox
         v-model="producto.categorias"         
         label="Subcategorías / categorías extra"
         :options="categorias"                 
@@ -120,6 +120,7 @@ import SelectInput from '../inputs/SelectInput.vue'
 import SwitchInput from '../inputs/SwitchInput.vue'
 import ImageUpload from '../inputs/ImageUpload.vue'
 import MultiCheckbox from '../inputs/MultiCheckbox.vue'
+//import MultiSelect from '../inputs/MultiSelect.vue'
 import EscalonadoInput from '../inputs/EscalonadoInput.vue'
 import ModalInput from '../inputs/ModalInput.vue'
 import ModalAtributo from '../inputs/ModalAtributo.vue'
@@ -280,8 +281,8 @@ const crearProducto = async () => {
   if (producto.marca != null)             formData.append('marca', String(producto.marca))
   formData.append('stock', String(producto.stock))
 
-  // Derivado (sin watchers)
-  formData.append('estado_inventario', estadoInventario.value)
+  // Derivado (calculado al momento para evitar bucles recursivos)
+  formData.append('estado_inventario', producto.stock > 0 ? 'en_existencia' : 'agotado')
 
   // M2M
   for (const id of producto.categorias) formData.append('categorias', String(id))

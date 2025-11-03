@@ -31,25 +31,14 @@
       />
     </div>
 
-    <div class="mt-4 flex justify-center items-center gap-2">
-      <button
-        @click="cambiarPagina(pagination.page - 1)"
-        :disabled="pagination.page === 1"
-        class="px-3 py-1.5 rounded bg-blue-600 text-white disabled:opacity-50"
-      >Anterior</button>
-      <span>Página {{ pagination.page }} de {{ pagination.totalPages }}</span>
-      <button
-        @click="cambiarPagina(pagination.page + 1)"
-        :disabled="pagination.page === pagination.totalPages"
-        class="px-3 py-1.5 rounded bg-blue-600 text-white disabled:opacity-50"
-      >Siguiente</button>
-    </div>
+    <div v-if="loading && productos.length > 0" class="text-center text-gray-500 py-4">Cargando más productos...</div>
+    <div v-if="!loading && pagination.page >= pagination.totalPages" class="text-center text-gray-500 py-4">No hay más productos.</div>
   </div>
 </template>
 
 <script setup>
 import ProductCard from '@/components/ProductCard.vue'
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { obtenerProductos } from '../services/api.js'
 import api from '../axios'
 defineOptions({ name: 'ProductosView' })
@@ -72,46 +61,61 @@ async function fetchCategorias() {
   categorias.value = unwrapList(res.data)
 }
 
-async function fetchProductos() {
+async function fetchProductos(append = false) {
   loading.value = true
   error.value = null
   try {
-    const currentPage = pagination.page
-    const params = { page: currentPage, page_size: pagination.pageSize }
+    if (!append) {
+      pagination.page = 1
+    }
+    const params = { page: pagination.page, page_size: pagination.pageSize }
     if (filtros.search) params.search = filtros.search
     if (filtros.categoria) params.categoria = filtros.categoria
 
     const res = await obtenerProductos(params)
     const raw = unwrapList(res.data)
-    productos.value = raw
+
+    if (append) {
+      productos.value.push(...raw)
+    } else {
+      productos.value = raw
+    }
 
     const total = typeof res.data?.count === 'number' ? res.data.count : raw.length
-    const totalPages = Math.max(1, Math.ceil(total / pagination.pageSize))
-    if (currentPage > totalPages && total > 0) {
-      pagination.page = totalPages
-      await fetchProductos()
-      return
-    }
-    pagination.totalPages = totalPages
+    pagination.totalPages = Math.max(1, Math.ceil(total / pagination.pageSize))
   } catch (err) {
     console.error('Error cargando productos:', err)
     error.value = 'No se pudieron cargar los productos. Intenta nuevamente más tarde.'
-    productos.value = []
-    pagination.totalPages = 1
+    if (!append) {
+      productos.value = []
+      pagination.totalPages = 1
+    }
   } finally {
     loading.value = false
   }
 }
 
-function cambiarPagina(p) {
-  if (p < 1 || p > pagination.totalPages) return
-  pagination.page = p
-  fetchProductos()
+const loadMore = () => {
+  if (loading.value || pagination.page >= pagination.totalPages) return
+  pagination.page++
+  fetchProductos(true)
+}
+
+const handleScroll = () => {
+  const { scrollTop, scrollHeight, clientHeight } = document.documentElement
+  if (scrollTop + clientHeight >= scrollHeight - 5) { // 5px buffer
+    loadMore()
+  }
 }
 
 onMounted(async () => {
   await fetchCategorias()
   await fetchProductos()
+  window.addEventListener('scroll', handleScroll)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', handleScroll)
 })
 </script>
 

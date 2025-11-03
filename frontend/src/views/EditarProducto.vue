@@ -427,6 +427,12 @@ watch(preciosEscalonados, val => {
   }
 }, { deep: true })
 
+const unwrap = (payload) => {
+  if (Array.isArray(payload?.results)) return payload.results
+  if (Array.isArray(payload)) return payload
+  return []
+}
+
 async function fetchOpciones() {
   const [catRes, marcaRes, attrRes, baseRes] = await Promise.all([
     api.get('categorias/'),
@@ -434,20 +440,29 @@ async function fetchOpciones() {
     api.get('atributos/'),
     api.get('atributos-base/')
   ])
-  categorias.value = catRes.data
-  marcas.value = marcaRes.data
-  atributos.value = attrRes.data.map(v => ({ ...v, atributo_id: v.atributo.id }))
-  atributosBase.value = baseRes.data
+  categorias.value = unwrap(catRes.data)
+  marcas.value = unwrap(marcaRes.data)
+  const unwrappedAttr = unwrap(attrRes.data)
+  atributos.value = unwrappedAttr.map(v => ({ ...v, atributo_id: v.atributo.id }))
+  atributosBase.value = unwrap(baseRes.data)
 }
 
 async function fetchProducto() {
-  const data = await productoStore.get(id)
-  Object.assign(form, data)
-  form.imagen_principal_url = data.imagen_principal
-  form.categorias = data.categorias || []
-  form.atributos = data.atributos || []
-  galeria.value = data.galeria || []
-  preciosEscalonados.value = data.precios_escalonados || []
+  try {
+    const data = await productoStore.get(id)
+    if (data) {
+      Object.assign(form, data)
+      form.imagen_principal_url = data.imagen_principal
+      form.categorias = data.categorias || []
+      form.atributos = data.atributos || []
+      galeria.value = data.galeria || []
+      preciosEscalonados.value = data.precios_escalonados || []
+    } else {
+      console.error('Product not found')
+    }
+  } catch (error) {
+    console.error('Error in fetchProducto:', error)
+  }
 }
 
 // --- Imagenes ---

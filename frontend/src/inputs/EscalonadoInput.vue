@@ -14,23 +14,56 @@
 import { ref, watch } from 'vue'
 
 const props = defineProps({
-  modelValue: Array
+  modelValue: {
+    type: Array,
+    default: () => []
+  }
 })
 
 const emit = defineEmits(['update:modelValue'])
 const tiers = ref([])
 
+// Sincroniza el estado interno con el prop `modelValue` del padre
 watch(
   () => props.modelValue,
-  val => {
-    tiers.value = [...val]
+  (newVal) => {
+    // Compara con el estado interno para evitar bucles de actualización
+    if (JSON.stringify(newVal) !== JSON.stringify(tiers.value)) {
+      // Usa una copia profunda para desacoplar los objetos
+      tiers.value = JSON.parse(JSON.stringify(newVal || []))
+    }
   },
   { deep: true, immediate: true }
 )
 
+// Observa cambios en el estado interno (ej. inputs del usuario) para aplicar lógica y notificar al padre
+watch(
+  tiers,
+  (currentTiers) => {
+    // Crea una copia profunda para aplicar la lógica de negocio sin mutar el origen
+    const processedTiers = JSON.parse(JSON.stringify(currentTiers))
+
+    // Ordena los escalones por cantidad mínima
+    processedTiers.sort((a, b) => a.cantidad_minima - b.cantidad_minima)
+
+    // Asegura que los precios sean descendentes
+    for (let i = 1; i < processedTiers.length; i++) {
+      if (processedTiers[i].precio_unitario > processedTiers[i - 1].precio_unitario) {
+        processedTiers[i].precio_unitario = processedTiers[i - 1].precio_unitario
+      }
+    }
+
+    // Emite el evento solo si hay una diferencia real para romper el bucle
+    if (JSON.stringify(processedTiers) !== JSON.stringify(props.modelValue)) {
+      emit('update:modelValue', processedTiers)
+    }
+  },
+  { deep: true }
+)
+
 function agregar() {
   const last = tiers.value[tiers.value.length - 1]
-  const nextCantidad = last ? last.cantidad_minima + 1 : 1
+  const nextCantidad = last ? (Number(last.cantidad_minima) || 0) + 1 : 1
   const nextPrecio = last ? last.precio_unitario : 0
   tiers.value.push({ cantidad_minima: nextCantidad, precio_unitario: nextPrecio })
 }
@@ -39,18 +72,4 @@ function eliminar(i) {
   tiers.value.splice(i, 1)
 }
 
-watch(
-  tiers,
-  val => {
-    // Ordenar por cantidad mínima
-    val.sort((a, b) => a.cantidad_minima - b.cantidad_minima)
-    for (let i = 1; i < val.length; i++) {
-      if (val[i].precio_unitario > val[i - 1].precio_unitario) {
-        val[i].precio_unitario = val[i - 1].precio_unitario
-      }
-    }
-    emit('update:modelValue', val)
-  },
-  { deep: true }
-)
 </script>

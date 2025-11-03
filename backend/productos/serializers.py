@@ -264,16 +264,18 @@ class ProductoSerializer(serializers.ModelSerializer):
             if tiers:
                 data["precios_escalonados"] = [tiers[i] for i in sorted(tiers.keys())]
 
+        # Campos que son de tipo archivo y no deben ser normalizados a None
+        file_fields = {"imagen_principal", "galeria"}
+
         # Normalizar valores "null" o vacíos a None para evitar errores de validación
         for key, value in list(data.items()):
-            if isinstance(value, str):
+            if key not in file_fields and isinstance(value, str):
                 if value.lower() == "null" or value == "":
                     data[key] = None
-            elif isinstance(value, list):
-                data[key] = [
-                    None if isinstance(v, str) and (v.lower() == "null" or v == "") else v
-                    for v in value
-                ]
+            elif key not in file_fields and isinstance(value, list):
+                # No normalizar listas que puedan contener archivos (como 'galeria')
+                # Esta lógica es más para campos de texto/números en listas
+                pass
 
         return super().to_internal_value(data)
 
@@ -390,4 +392,3 @@ class ProductoSerializer(serializers.ModelSerializer):
             # Sin proveedor → no es virtual (estás usando tu propio stock)
             return False
         return not (sp.available_qty and sp.available_qty > 0)
-

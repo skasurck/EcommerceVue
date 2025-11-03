@@ -96,7 +96,7 @@
               <tr v-for="p in productos" :key="p.id" class="border-b last:border-0 hover:bg-slate-50">
               <!-- Imagen -->
               <td class="px-3 py-2">
-                <img v-if="p.miniatura_url" :src="p.miniatura_url" class="w-12 h-12 object-cover rounded border" alt="">
+                <img v-if="p.miniatura" :src="p.miniatura" class="w-12 h-12 object-cover rounded border" alt="">
               </td>
 
               <!-- Nombre -->
@@ -189,11 +189,15 @@
                       Edición rápida
                     </button>
                     <RouterLink
-                      :to="`/productos/editar/${p.id}`"
+                      :to="`/admin/productos/editar/${p.id}`"
                       class="px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-700 text-white"
                     >
                       Editar
                   </RouterLink>
+                  <button @click="eliminarProducto(p.id)"
+                          class="px-3 py-1.5 rounded bg-rose-600 hover:bg-rose-700 text-white">
+                    Eliminar
+                  </button>
                   </template>
                 </div>
               </td>
@@ -340,6 +344,19 @@ async function guardar(p) {
   editingId.value = null
   fetchProductos()
 }
+
+async function eliminarProducto(id) {
+  if (confirm('¿Estás seguro de que quieres eliminar este producto?')) {
+    try {
+      await api.delete(`productos/${id}/`)
+      await fetchProductos()
+    } catch (err) {
+      console.error('Error eliminando producto:', err)
+      alert('No se pudo eliminar el producto.')
+    }
+  }
+}
+
 onMounted(async () => {
   await fetchFiltros()
   await fetchProductos()
