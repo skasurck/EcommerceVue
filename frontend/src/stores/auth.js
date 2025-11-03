@@ -7,6 +7,7 @@ export const useAuthStore = defineStore('auth', {
     accessToken: localStorage.getItem('accessToken') || null,
     refreshToken: localStorage.getItem('refreshToken') || null,
     user: localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')) : null,
+    inactivityTimer: null,
   }),
   getters: {
     isAuthenticated: (state) => !!state.accessToken,
@@ -71,6 +72,7 @@ export const useAuthStore = defineStore('auth', {
         this.user = data.user
         localStorage.setItem('user', JSON.stringify(data.user))
       }
+      this.resetInactivityTimer()
       return data
     },
     /**
@@ -80,6 +82,7 @@ export const useAuthStore = defineStore('auth', {
       this.setTokens(null, null)
       this.user = null
       localStorage.removeItem('user')
+      this.clearInactivityTimer()
     },
     hasRole(role) {
       return this.user?.rol === role
@@ -91,6 +94,23 @@ export const useAuthStore = defineStore('auth', {
       this.accessToken = localStorage.getItem('accessToken') || null
       this.refreshToken = localStorage.getItem('refreshToken') || null
       this.user = localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')) : null
-    }
+      if (this.isAuthenticated) {
+        this.resetInactivityTimer()
+      }
+    },
+    clearInactivityTimer() {
+      if (this.inactivityTimer) {
+        clearTimeout(this.inactivityTimer)
+        this.inactivityTimer = null
+      }
+    },
+    resetInactivityTimer() {
+      this.clearInactivityTimer()
+      this.inactivityTimer = setTimeout(() => {
+        if (this.isAuthenticated) {
+          this.logout()
+        }
+      }, 3 * 60 * 60 * 1000) // 3 hours
+    },
   }
 })

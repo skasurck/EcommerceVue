@@ -10,11 +10,9 @@
   </main>
 </template>
 
-
-
 <script setup>
 import Navbar from './components/Navbar.vue'
-import { onMounted, ref, computed, nextTick, watch } from 'vue'
+import { onMounted, onUnmounted, ref, computed, nextTick, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
@@ -30,10 +28,29 @@ const setNavHeight = () => {
   const el = document.getElementById('nav')
   navHeight.value = el ? `${el.offsetHeight}px` : '0px'
 }
+
+const activityHandler = () => {
+  if (auth.isAuthenticated) {
+    auth.resetInactivityTimer()
+  }
+}
+
 onMounted(async () => {
   auth.checkLogin()
   await nextTick()
   setNavHeight()
+  window.addEventListener('mousemove', activityHandler)
+  window.addEventListener('keydown', activityHandler)
+  window.addEventListener('scroll', activityHandler)
+  window.addEventListener('click', activityHandler)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('mousemove', activityHandler)
+  window.removeEventListener('keydown', activityHandler)
+  window.removeEventListener('scroll', activityHandler)
+  window.removeEventListener('click', activityHandler)
+  auth.clearInactivityTimer()
 })
 
 // Recalcular al cambiar de ruta (p. ej. entras/sales de admin)
