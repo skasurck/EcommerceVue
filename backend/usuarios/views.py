@@ -99,7 +99,7 @@ class ChangePasswordView(APIView):
 @method_decorator(never_cache, name='list')
 @method_decorator(never_cache, name='retrieve')
 class AdminUserViewSet(viewsets.ModelViewSet):
-    queryset = User.objects.all().select_related('perfil')
+    queryset = User.objects.all().select_related('perfil').order_by('id')
     permission_classes = [permissions.IsAdminUser]
 
     def get_serializer_class(self):

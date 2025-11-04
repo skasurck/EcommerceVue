@@ -71,15 +71,46 @@ def _to_int(v):
     except Exception:
         return None
 
-def extract_ids_and_csrf(html: str):
-    """Lee product_id, product_template_id y csrf del HTML."""
+def extract_ids_and_csrf(html: str, url: str = ""):
+    """
+    Lee product_id, product_template_id y csrf del HTML de forma más robusta.
+    Agrega logs para depuración.
+    """
     t = HTMLParser(html)
-    pid = (t.css_first("input.product_id") or t.css_first("input[name='product_id']"))
-    ptid = (t.css_first("input.product_template_id") or t.css_first("input[name='product_template_id']"))
-    csrf = t.css_first("input[name='csrf_token']")
-    product_id = pid.attributes.get("value", "").strip() if pid else ""
-    product_template_id = ptid.attributes.get("value", "").strip() if ptid else ""
-    csrf_token = csrf.attributes.get("value", "").strip() if csrf else ""
+    
+    # Búsqueda mejorada de IDs
+    pid_node = t.css_first("input.product_id, input[name='product_id']")
+    product_id = pid_node.attributes.get("value", "").strip() if pid_node else ""
+    
+    ptid_node = t.css_first("input.product_template_id, input[name='product_template_id']")
+    product_template_id = ptid_node.attributes.get("value", "").strip() if ptid_node else ""
+
+    source = "input" if product_id or product_template_id else "not-found"
+
+    # Fallback: buscar en atributos data-* si no se encontraron en inputs
+    if not product_id:
+        # Odoo a menudo pone el ID en un `data-product-id` en un `div` o `form`
+        node_with_data_id = t.css_first("[data-product-id]")
+        if node_with_data_id:
+            product_id = node_with_data_id.attributes.get("data-product-id", "").strip()
+            if source == "not-found": source = "data-attribute"
+
+    if not product_template_id:
+        node_with_data_template_id = t.css_first("[data-product-template-id]")
+        if node_with_data_template_id:
+            product_template_id = node_with_data_template_id.attributes.get("data-product-template-id", "").strip()
+            if source == "not-found": source = "data-attribute"
+
+    # CSRF Token
+    csrf_node = t.css_first("input[name='csrf_token']")
+    csrf_token = csrf_node.attributes.get("value", "").strip() if csrf_node else ""
+
+    print(f"[DEBUG] ID Extraction ({url}): "
+          f"product_id='{product_id}', "
+          f"product_template_id='{product_template_id}', "
+          f"csrf_token={'present' if csrf_token else 'missing'}, "
+          f"source='{source}'")
+
     return product_id, product_template_id, csrf_token
 
 def extract_qty_from_scripts(html: str):
@@ -129,72 +160,77 @@ def extract_qty_from_scripts(html: str):
                 return v_int
     return None
 
-def fetch_qty_via_ajax(c: httpx.Client, html: str):
-    """Prueba varios endpoints Odoo, con y sin /en, en form y JSON."""
-    product_id, product_template_id, csrf_token = extract_ids_and_csrf(html)
-    if not product_id and not product_template_id:
+def fetch_qty_via_ajax(c: httpx.Client, html: str, url: str):
+    """
+    Intenta obtener el stock via AJAX, imitando la petición exacta del navegador.
+    """
+    product_id, product_template_id, csrf_token = extract_ids_and_csrf(html, url=url)
+
+    if not product_id or not product_id.isdigit():
+        print(f"[DEBUG] AJAX ({url}): No se encontró un product_id válido. Abortando.")
+        return None
+    
+    if not product_template_id or not product_template_id.isdigit():
+        print(f"[DEBUG] AJAX ({url}): No se encontró un product_template_id válido. Abortando.")
         return None
 
-    # intenta pedir una cantidad muy alta para que el backend devuelva el máximo disponible
-    payload_form = {
-        "product_id": product_id or "",
-        "product_template_id": product_template_id or "",
-        "add_qty": 10000,
-        "combination": "[]",
-    }
-    if csrf_token:
-        payload_form["csrf_token"] = csrf_token
-
-    payload_json = {
-        "product_id": int(product_id) if product_id.isdigit() else product_id,
-        "product_template_id": int(product_template_id) if product_template_id.isdigit() else product_template_id,
-        "add_qty": 10000,
-        "combination": [],
+    # Payload exacto observado en el navegador
+    payload = {
+        "jsonrpc": "2.0",
+        "method": "call",
+        "params": {
+            "product_template_id": int(product_template_id),
+            "product_id": int(product_id),
+            "combination": [],
+            "add_qty": 1,
+            "parent_combination": []
+        },
+        "id": int(time.time() * 1000)
     }
 
-    paths = [
-        "/website_sale/get_combination_info",
-        "/shop/get_combination_info",
-        "/website_sale/get_product_data",
-    ]
-    prefixes = ["", "/en"]
+    # Endpoint exacto observado
+    ajax_url = urljoin(BASE, "/website_sale/get_combination_info")
+    
+    # Cabeceras que imitan a un navegador
+    headers = {
+        "X-Requested-With": "XMLHttpRequest",
+        "Referer": url,
+        "Content-Type": "application/json",
+    }
 
-    for pref in prefixes:
-        for path in paths:
-            url = urljoin(BASE, pref + path)
-            # 1) POST form
-            try:
-                r = c.post(url, data=payload_form, headers={"X-Requested-With": "XMLHttpRequest"})
-                if r.status_code == 200:
-                    try:
-                        js = r.json()
-                    except Exception:
-                        m = re.search(r"\{.*\}", r.text, re.S)
-                        js = json.loads(m.group(0)) if m else {}
-                    qty = _extract_qty_from_json(js)
-                    if qty is not None:
-                        return qty
-            except Exception:
-                pass
-            # 2) POST JSON
-            try:
-                r = c.post(url, json=payload_json, headers={"X-Requested-With": "XMLHttpRequest"})
-                if r.status_code == 200:
-                    try:
-                        js = r.json()
-                    except Exception:
-                        m = re.search(r"\{.*\}", r.text, re.S)
-                        js = json.loads(m.group(0)) if m else {}
-                    qty = _extract_qty_from_json(js)
-                    if qty is not None:
-                        return qty
-            except Exception:
-                pass
+    try:
+        print(f"[DEBUG] AJAX ({url}): POST {ajax_url} con payload {payload['params']}")
+        r = c.post(ajax_url, json=payload, headers=headers)
+        
+        if r.status_code == 200:
+            js = r.json()
+            if "error" in js:
+                print(f"[DEBUG] AJAX ({url}): Respuesta OK pero con error Odoo. JSON: {r.text[:300]}")
+                return None
+
+            qty = _extract_qty_from_json(js)
+            if qty is not None:
+                print(f"[DEBUG] AJAX ({url}): Éxito. Qty={qty}")
+                return qty
+            else:
+                print(f"[DEBUG] AJAX ({url}): Respuesta OK pero sin 'free_qty' esperado. JSON: {r.text[:300]}")
+        else:
+            print(f"[DEBUG] AJAX ({url}): Falló. Status={r.status_code}, Body: {r.text[:300]}")
+
+    except Exception as e:
+        print(f"[DEBUG] AJAX ({url}): Excepción en {ajax_url}: {e}")
+
+    print(f"[DEBUG] AJAX ({url}): No se pudo obtener el stock vía AJAX.")
     return None
 
 def _extract_qty_from_json(js: dict):
     if not isinstance(js, dict):
         return None
+
+    # Check if the JSON is wrapped in a 'jsonrpc' structure
+    if "result" in js and isinstance(js["result"], dict):
+        js = js["result"]
+
     for k in ["free_qty", "virtual_available", "stock_qty", "available_qty", "quantity"]:
         if k in js:
             v_int = _to_int(js.get(k))
@@ -335,6 +371,7 @@ def parse_pdp(html: str, url: str = "") -> dict:
     # --- CONSTANTES Y FUNCIONES DE AYUDA ---
     NEGATIVE_KEYWORDS = [
         "agotado", "sin existencias", "sin stock", "no disponible", "out of stock",
+        "no disponible por el momento", "producto no disponible", "Out of Stock",
     ]
     POSITIVE_KEYWORDS = [
         "en existencia", "en stock", "disponible", "available", "in stock",
@@ -749,13 +786,13 @@ def upsert_product(url: str):
                 # último recurso: hash corto del URL para no romper update_or_create
                 sku = hashlib.sha1(url.encode("utf-8")).hexdigest()[:12]
 
-        # si qty no vino en texto y el producto aparenta tener stock, intenta AJAX
-        if qty is None and in_stock:
-            ajax_qty = fetch_qty_via_ajax(c, html)
-            if isinstance(ajax_qty, int) and ajax_qty >= 0:
-                qty = ajax_qty
-                in_stock = ajax_qty > 0
-                print(f"[QTY] AJAX available_qty = {qty}")
+        # Prioritize AJAX call for quantity
+        ajax_qty = fetch_qty_via_ajax(c, html, url)
+        if isinstance(ajax_qty, int) and ajax_qty >= 0:
+            qty = ajax_qty
+            in_stock = ajax_qty > 0
+            avail_source = "ajax"
+            print(f"[QTY] AJAX available_qty = {qty}")
 
         data = {
             "sku": sku,
