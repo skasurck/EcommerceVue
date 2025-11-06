@@ -14,11 +14,16 @@ const fetchBloque = async (params) => {
 }
 
 onMounted(async () => {
-  const all = await fetchBloque()
+  // Fetch offers and all products in parallel
+  const [ofertasResponse, allProductsResponse] = await Promise.all([
+    fetchBloque({ en_oferta: 'true', page_size: 12 }),
+    fetchBloque()
+  ]);
+
+  ofertas.value = ofertasResponse;
   
-  // Ofertas → productos con precio_rebajado
-  ofertas.value = all.filter(p => p.precio_rebajado).slice(0, 12)
-  
+  const all = allProductsResponse;
+
   // Novedades → ordenados por id descendente
   nuevos.value = [...all].sort((a, b) => b.id - a.id).slice(0, 12)
   
@@ -28,16 +33,16 @@ onMounted(async () => {
 </script>
 
 <template>
-  <main class="bg-gray-100">
+  <main class="bg-gray-100 grid grid-cols-12 min-h-screen">
     <!-- Hero sencillo -->
-    <div class="bg-gradient-to-r from-yellow-300 to-yellow-100">
+    <div class="bg-gradient-to-r from-yellow-300 to-yellow-100 col-span-12 mb-6">
       <div class="max-w-7xl mx-auto px-4 py-8">
         <h1 class="text-3xl font-bold">Bienvenido a MiTienda</h1>
         <p class="text-gray-700">Ofertas del día, lo más vendido y más.</p>
       </div>
     </div>
 
-    <div class="max-w-7xl mx-auto px-4 py-6">
+    <div class="max-w-7xl mx-auto px-4 py-6 col-span-12 space-y-8">
       <ProductRow title="Ofertas del día" :productos="ofertas" to="/productos?ofertas=1" />
       <ProductRow title="Novedades" :productos="nuevos" to="/productos?orden=-id" />
 

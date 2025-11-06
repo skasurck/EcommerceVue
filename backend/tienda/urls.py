@@ -36,6 +36,7 @@ urlpatterns = [
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/suppliers/', include('suppliers.urls')),
+    path('api/promotions/', include('promotions.urls')),
     path("api/suppliers/status", supplier_status),
 ]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 

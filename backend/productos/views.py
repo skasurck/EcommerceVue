@@ -41,6 +41,16 @@ from suppliers.models import ProductSupplierMap, SupplierProduct
 from rest_framework.viewsets import ReadOnlyModelViewSet
 
 
+from django.db.models import Min, Max
+
+class PriceRangeAPIView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        result = Producto.objects.aggregate(min_precio=Min('precio_normal'), max_precio=Max('precio_normal'))
+        return Response(result)
+
+
 class ProductClassificationAPIView(APIView):
     permission_classes = [IsAdminOrSuperAdmin]
 
@@ -238,6 +248,11 @@ class ProductoViewSet(viewsets.ModelViewSet):
             qs = qs.filter(estado_inventario=estado)
         if marca:
             qs = qs.filter(marca_id=marca)
+
+        # Filtro para ofertas
+        en_oferta = params.get('en_oferta')
+        if en_oferta and en_oferta.lower() in ['true', '1']:
+            qs = qs.filter(precio_rebajado__isnull=False, precio_rebajado__gt=0)
 
         # --- Precarga de suppliers SIN romper nada de arriba ---
         product_ids = list(qs.values_list('id', flat=True))

@@ -110,6 +110,12 @@ const routes = [
         meta: { title: 'Usuario' } 
       },
       {
+        path: 'promotions',
+        name: 'admin-promotions',
+        component: () => import('@/views/AdminPromotions.vue'),
+        meta: { title: 'Promociones', roles:['admin', 'super_admin'] }
+      },
+      {
         path: 'configuracion',
         name: 'admin-configuracion',
         component: () => import('@/views/AdminConfiguracion.vue'),
@@ -176,6 +182,21 @@ const routes = [
     path: '/direcciones',
     name: 'Direcciones',
     component: () => import('@/views/Direcciones.vue')
+  },
+  {
+    path: '/busqueda',
+    name: 'busqueda',
+    component: () => import('../views/ResultadosBusqueda.vue')
+  },
+  {
+    path: '/categoria/:categoriaId',
+    name: 'categoria',
+    component: () => import('../views/CategoriaView.vue')
+  },
+  {
+    path: '/marca/:marcaId',
+    name: 'marca',
+    component: () => import('../views/MarcaView.vue')
   }
 ]
 

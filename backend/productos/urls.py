@@ -13,6 +13,7 @@ from .views import (
     PendingReviewProductsAPIView,
     AllCategoriesAPIView,
     ApplyCategoryAPIView,
+    PriceRangeAPIView,
 )
 
 router = DefaultRouter()
@@ -27,6 +28,7 @@ urlpatterns = [
     path('all-categories/', AllCategoriesAPIView.as_view(), name='all-categories'),
     path('productos/<int:pk>/apply-category/', ApplyCategoryAPIView.as_view(), name='producto-apply-category'),
     path('ai/classify-products/', ProductClassificationAPIView.as_view(), name='ai-classify-products'),
+    path('price-range/', PriceRangeAPIView.as_view(), name='price-range'),
     path('search/products/', ProductSearchAPIView.as_view(), name='product-search'),
 
     # Rutas del router (list, retrieve, create, update, delete)

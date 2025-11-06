@@ -1,11 +1,13 @@
 from rest_framework import serializers
+from django.utils import timezone
 
 from .models import SupplierProduct
 from .utils import effective_qty
 
-
 class SupplierProductSerializer(serializers.ModelSerializer):
     effective_qty = serializers.SerializerMethodField()
+    precio_normal = serializers.SerializerMethodField()
+    precio_rebajado = serializers.SerializerMethodField()
 
     class Meta:
         model = SupplierProduct
@@ -16,6 +18,8 @@ class SupplierProductSerializer(serializers.ModelSerializer):
             'product_url',
             'name',
             'price_supplier',
+            'precio_normal',
+            'precio_rebajado',
             'in_stock',
             'available_qty',
             'effective_qty',
@@ -26,6 +30,30 @@ class SupplierProductSerializer(serializers.ModelSerializer):
 
     def get_effective_qty(self, obj):
         return effective_qty(obj.available_qty, obj.in_stock)
+
+    def _get_active_offer(self, obj):
+        # Helper to avoid redundant queries
+        if not hasattr(self, '_active_offers'):
+            self._active_offers = {}
+        
+        if obj.id not in self._active_offers:
+            now = timezone.now()
+            self._active_offers[obj.id] = obj.daily_offers.filter(
+                is_active=True, start_date__lte=now, end_date__gte=now
+            ).first()
+        return self._active_offers[obj.id]
+
+    def get_precio_normal(self, obj):
+        active_offer = self._get_active_offer(obj)
+        if active_offer:
+            return active_offer.original_price
+        return obj.price_supplier
+
+    def get_precio_rebajado(self, obj):
+        active_offer = self._get_active_offer(obj)
+        if active_offer:
+            return active_offer.sale_price
+        return None
 
 
 class SupermexRunRequestSerializer(serializers.Serializer):

@@ -81,6 +81,7 @@ INSTALLED_APPS = [
     'pedidos.apps.PedidosConfig',
     'suppliers.apps.SuppliersConfig',
     'productos.apps.ProductosConfig',
+    'promotions.apps.PromotionsConfig',
 ]
 
 MIDDLEWARE = [
