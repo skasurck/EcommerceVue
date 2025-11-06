@@ -78,6 +78,7 @@ import { getCategorias, getMarcas, getProductos, getAtributos, getValorAtributos
 import { buildTree } from '../utils/tree';
 import CategoryTree from '../components/CategoryTree.vue';
 import PriceSlider from '../components/PriceSlider.vue';
+import ProductCard from '../components/ProductCard.vue';
 
 const categorias = ref([]);
 const marcas = ref([]);
