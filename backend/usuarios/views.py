@@ -29,13 +29,23 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
         data = super().validate(attrs)
         token = data.pop("access")
+        try:
+            rol = self.user.perfil.rol
+        except Perfil.DoesNotExist:
+            rol = ""
+        default_address = self.user.direcciones.filter(predeterminada=True).first()
+        default_address_data = DireccionAdminSerializer(default_address).data if default_address else None
         data = {
             "token": token,
             "user": {
                 "id": self.user.id,
+                "username": self.user.username,
                 "nombre": self.user.first_name,
+                "first_name": self.user.first_name,
+                "last_name": self.user.last_name,
                 "email": self.user.email,
-                "rol": getattr(self.user.perfil, "rol", "")
+                "rol": rol,
+                "direccion_predeterminada": default_address_data,
             }
         }
         return data

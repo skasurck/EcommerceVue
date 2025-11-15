@@ -65,7 +65,7 @@
         <h1 class="text-3xl font-bold mb-4">Resultados de Búsqueda</h1>
         <div v-if="loading">Cargando...</div>
         <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <ProductCard v-for="producto in productos" :key="producto.id" :producto="producto" />
+          <ProductCard v-for="producto in safeProductos" :key="producto.id" :producto="producto" />
         </div>
       </main>
     </div>
@@ -83,6 +83,10 @@ import ProductCard from '../components/ProductCard.vue';
 const categorias = ref([]);
 const marcas = ref([]);
 const productos = ref([]);
+// Evita renderizar elementos nulos o sin id que rompen la vista
+const safeProductos = computed(() =>
+  (productos.value || []).filter(p => p && p.id != null)
+);
 const atributos = ref([]);
 const valorAtributos = ref([]);
 const loading = ref(false);
@@ -121,7 +125,10 @@ const fetchProductos = async () => {
       atributos: filters.value.atributos.join(','),
     }
     const response = await getProductos(params);
-    productos.value = response.data.results;
+    const data = response?.data;
+    // Acepta tanto lista paginada (results) como lista plana
+    const list = Array.isArray(data) ? data : (data?.results ?? []);
+    productos.value = list.filter(p => p && typeof p === 'object');
   } catch (error) {
     console.error('Error fetching products:', error);
   } finally {

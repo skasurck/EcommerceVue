@@ -30,7 +30,6 @@ import CheckoutStep3 from '../components/CheckoutStep3.vue'
 import { useAuthStore } from '../stores/auth'
 import { useCarritoStore } from '../stores/carrito'
 import { useCheckoutStore } from '../stores/checkout'
-
 const store = useCheckoutStore()
 const carrito = useCarritoStore()
 const auth = useAuthStore()
@@ -67,7 +66,6 @@ const handleLoggedIn = async () => {
 }
 
 const onComplete = () => {
-  alert('Pedido creado')
   guestCheckout.value = false
 }
 </script>

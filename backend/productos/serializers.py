@@ -181,6 +181,9 @@ class ProductoSerializer(serializers.ModelSerializer):
     atributos = serializers.PrimaryKeyRelatedField(
         queryset=ValorAtributo.objects.all(), many=True, required=False
     )
+    atributos_detalle = ValorAtributoSerializer(
+        source="atributos", many=True, read_only=True
+    )
     galeria = ImagenProductoSerializer(many=True, read_only=True)
     precios_escalonados = PrecioEscalonadoSerializer(many=True, required=False)
     imagen_principal = serializers.ImageField(required=False, allow_null=True)
@@ -207,6 +210,7 @@ class ProductoSerializer(serializers.ModelSerializer):
             "categorias",
             "marca",
             "atributos",
+            "atributos_detalle",
             "stock",
             "category_ai_main",
             "category_ai_sub",
