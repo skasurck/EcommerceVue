@@ -48,6 +48,27 @@
               <span v-if="agotado" class="bg-red-600 text-white text-xs px-2 py-1 rounded">Agotado</span>
             </h1>
 
+            <div
+              v-if="categoryBreadcrumb.length > 0"
+              class="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs sm:text-sm text-gray-700"
+            >
+              <span class="font-semibold text-gray-800">Categorías:</span>
+              <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <template v-for="(cat, idx) in categoryBreadcrumb" :key="idx">
+                  <span
+                    :class="[
+                      'inline-flex items-center rounded-full px-2 py-1',
+                      idx === categoryBreadcrumb.length - 1
+                        ? 'bg-blue-50 border border-blue-200 text-blue-800'
+                        : 'bg-gray-100'
+                    ]"
+                  >{{ cat }}</span>
+                  <span v-if="idx < categoryBreadcrumb.length - 1" class="text-gray-400">&gt;</span>
+                </template>
+              </div>
+            </div>
+            <div v-else class="mb-3 text-xs sm:text-sm text-gray-600">Categoría: Sin categoría</div>
+
              <div class="space-y-2">
                 <div v-if="hasDiscount" class="inline-flex items-center rounded-md bg-rose-600 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
                   Promoción
@@ -178,7 +199,7 @@
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div class="rounded-lg border p-4 bg-white">
               <h3 class="text-sm font-medium text-gray-900 mb-1">Categoría</h3>
-              <p class="text-sm text-gray-700">{{ p.categoria || '—' }}</p>
+              <p class="text-sm text-gray-700">{{ categoryName || 'Sin categoría' }}</p>
             </div>
             <div class="rounded-lg border p-4 bg-white">
               <h3 class="text-sm font-medium text-gray-900 mb-1">Marca</h3>
@@ -259,6 +280,58 @@ const loading = ref(true)
 const errorMsg = ref('')
 const relacionados = ref([])
 const relacionadosLoading = ref(false)
+const normalizeCategoryName = (val) => {
+  if (val == null) return ''
+  if (typeof val === 'object' && !Array.isArray(val)) {
+    return normalizeCategoryName(val.nombre ?? val.name ?? val.titulo ?? val.title)
+  }
+  const raw = String(val).trim()
+  if (!raw || /^\d+$/.test(raw)) return ''
+  return raw
+}
+
+const categoryBreadcrumb = computed(() => {
+  const p = producto.value
+  if (!p) return []
+
+  let path = []
+
+  // Strategy 1: `p.categoria` is a nested object with `padre`.
+  if (p.categoria && typeof p.categoria === 'object' && p.categoria.nombre) {
+    let current = p.categoria
+    const tempPath = []
+    while (current) {
+      const name = normalizeCategoryName(current.nombre)
+      if (name) tempPath.unshift(name)
+      current = current.padre
+    }
+    path = tempPath
+  }
+  // Strategy 2: `p.categorias` is an array of names/objects, representing the path.
+  else if (Array.isArray(p.categorias) && p.categorias.length > 0) {
+    path = p.categorias.map(c => normalizeCategoryName(c.nombre ?? c)).filter(Boolean)
+  }
+  // Strategy 3: Look for loose properties for a single category name.
+  else {
+    const mainName = normalizeCategoryName(
+      p.categoria_nombre || p.categoriaNombre || p.nombre_categoria || p.nombreCategoria || p.categoria || p.Categoria
+    )
+    if (mainName) {
+      path.push(mainName)
+    }
+  }
+
+  // Add children if they exist (from `categorias_hijo`)
+  if (Array.isArray(p.categorias_hijo)) {
+    p.categorias_hijo.forEach(hijo => {
+      const name = normalizeCategoryName(hijo.nombre ?? hijo)
+      if (name) path.push(name)
+    })
+  }
+
+  // Remove duplicates
+  return [...new Set(path)]
+})
 
 const agregar = async () => {
   if (producto.value) {

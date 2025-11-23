@@ -12,6 +12,18 @@ from .serializers import DireccionSerializer, MetodoEnvioSerializer, PedidoSeria
 from usuarios.permissions import IsAdminOrSuperAdmin
 
 
+class PedidoByPreferenceView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, preference_id, *args, **kwargs):
+        try:
+            pedido = Pedido.objects.get(mercadopago_preference_id=preference_id)
+            serializer = PedidoSerializer(pedido, context={'request': request})
+            return Response(serializer.data)
+        except Pedido.DoesNotExist:
+            return Response({"detail": "Pedido no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+
+
 class DireccionViewSet(viewsets.ModelViewSet):
     serializer_class = DireccionSerializer
     permission_classes = [permissions.IsAuthenticated]

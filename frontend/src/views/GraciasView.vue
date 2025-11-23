@@ -2,6 +2,15 @@
   <main class="bg-slate-50 min-h-screen px-4 py-10">
     <div class="mx-auto max-w-4xl space-y-6">
       <header class="rounded-2xl border border-emerald-100 bg-white p-8 text-center shadow-sm space-y-3">
+        <div v-if="mpStatus" class="mb-4">
+          <h2 class="text-2xl font-semibold" :class="{
+            'text-green-600': mpStatus === 'approved',
+            'text-yellow-600': mpStatus === 'pending',
+            'text-red-600': mpStatus === 'failure',
+          }">
+            Pago {{ mpStatusText }}
+          </h2>
+        </div>
         <div class="inline-flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500 text-white text-2xl">
           ✓
         </div>
@@ -89,11 +98,23 @@ window.addEventListener('checkout:purchase', (event) => {
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useHead } from '@vueuse/head'
+import { getOrderByPreferenceId } from '../services/pedidos'
 
 const route = useRoute()
 const router = useRouter()
 const summary = ref(null)
 const trackerSent = ref(false)
+const mpStatus = ref(null)
+const mpStatusText = computed(() => {
+  if (!mpStatus.value) return ''
+  const statuses = {
+    approved: 'Aprobado',
+    pending: 'Pendiente',
+    failure: 'Rechazado',
+  }
+  return statuses[mpStatus.value] || 'Desconocido'
+})
+
 const currencyFormatter = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' })
 
 useHead({ title: 'Gracias por tu compra' })
@@ -130,16 +151,46 @@ const dispatchTrackingEvents = (payload) => {
   )
 }
 
-onMounted(() => {
-  const raw = sessionStorage.getItem('lastOrderSummary')
-  if (raw) {
-    try {
-      summary.value = JSON.parse(raw)
-      dispatchTrackingEvents(summary.value)
-    } catch (err) {
-      console.error('No se pudo leer el resumen del pedido', err)
-    } finally {
-      sessionStorage.removeItem('lastOrderSummary')
+onMounted(async () => {
+  const { status, preference_id } = route.query;
+
+  if (status && preference_id) {
+    mpStatus.value = status;
+    if (status === 'approved') {
+      try {
+        const response = await getOrderByPreferenceId(preference_id);
+        const orderData = response.data;
+        summary.value = {
+          id: orderData.id,
+          total: orderData.total,
+          subtotal: orderData.subtotal,
+          shipping: orderData.costo_envio,
+          tax: 0, // Ajustar si hay impuestos
+          paymentMethod: orderData.metodo_pago_display,
+          items: orderData.detalles.map(item => ({
+            id: item.producto,
+            name: item.producto_nombre,
+            quantity: item.cantidad,
+            price: item.precio_unitario,
+            sku: '' // Ajustar si el SKU está disponible
+          })),
+        };
+        dispatchTrackingEvents(summary.value);
+      } catch (error) {
+        console.error("Error fetching order by preference ID:", error);
+      }
+    }
+  } else {
+    const raw = sessionStorage.getItem('lastOrderSummary')
+    if (raw) {
+      try {
+        summary.value = JSON.parse(raw)
+        dispatchTrackingEvents(summary.value)
+      } catch (err) {
+        console.error('No se pudo leer el resumen del pedido', err)
+      } finally {
+        sessionStorage.removeItem('lastOrderSummary')
+      }
     }
   }
 })

@@ -282,12 +282,34 @@ const initials = computed(() => {
   return (first + second).toUpperCase()
 })
 
-const goSearch = () => {
-  if (!q.value?.trim()) return
-  router.push({ name: 'productos', query: { q: q.value.trim() } })
-  openMobile.value = false
+const goSearch = async () => {
+  const term = q.value?.trim()
+  if (!term) return
+  
   showDropdown.value = false
-  q.value = ''
+  openMobile.value = false
+
+  try {
+    const params = new URLSearchParams({ q: term, exact: 'true' })
+    const res = await fetch(`${API_BASE}/api/search/products/?${params}`)
+    if (!res.ok) throw new Error('Search failed')
+    
+    const results = await res.json()
+    
+    if (results.length === 1 && results[0].id) {
+      // Coincidencia exacta, ir a la página del producto
+      router.push({ name: 'producto', params: { id: String(results[0].id) } })
+    } else {
+      // No hay coincidencia exacta o hay múltiples resultados, ir a la página de búsqueda
+      router.push({ name: 'productos', query: { q: term } })
+    }
+  } catch (e) {
+    console.error("Error en la búsqueda exacta:", e)
+    // Fallback a la búsqueda general en caso de error
+    router.push({ name: 'productos', query: { q: term } })
+  } finally {
+    q.value = ''
+  }
 }
 
 const fetchSuggestions = async (term) => {

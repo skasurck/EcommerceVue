@@ -43,6 +43,7 @@ class MetodoEnvio(models.Model):
 METODO_PAGO_CHOICES = (
     ('transferencia', 'Transferencia directa'),
     ('tarjeta', 'Tarjeta'),
+    ('mercadopago', 'Mercado Pago'),
 )
 
 
@@ -72,6 +73,10 @@ class Pedido(models.Model):
     creado = models.DateTimeField(auto_now_add=True)
     papelera = models.BooleanField(default=False)
     eliminado_en = models.DateTimeField(null=True, blank=True)
+
+    # Mercado Pago
+    mercadopago_preference_id = models.CharField(max_length=100, blank=True, null=True)
+    mercadopago_payment_id = models.CharField(max_length=100, blank=True, null=True)
 
     def __str__(self):
         return f"Pedido #{self.id}"

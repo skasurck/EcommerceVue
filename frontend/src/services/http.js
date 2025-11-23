@@ -17,7 +17,7 @@ const buildBaseURL = () => {
 // ===== Axios instance =====
 export const api = axios.create({
   baseURL: buildBaseURL(),
-  timeout: 10000,
+  timeout: 30000,
   withCredentials: true,        // OK si usas cookies en otros endpoints; para JWT puro no es necesario
   xsrfCookieName: 'csrftoken',  // idem
   xsrfHeaderName: 'X-CSRFToken',

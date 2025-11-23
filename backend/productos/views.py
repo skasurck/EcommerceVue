@@ -13,6 +13,7 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from decimal import Decimal, InvalidOperation
 from .ai import build_text_from_product, classify_text
 from .models import (
     Producto,
@@ -127,11 +128,26 @@ class ProductSearchAPIView(APIView):
         if len(q) < 2:
             return Response([])
         q = q[:64]
+        
+        exact_match = request.query_params.get("exact", "false").lower() == "true"
+
+        if exact_match:
+            # Búsqueda exacta por nombre (insensible a mayúsculas/minúsculas)
+            queryset = Producto.objects.filter(visibilidad=True, estado="publicado", nombre__iexact=q)
+            if queryset.exists():
+                serializer = ProductSearchSerializer(queryset.first(), context={"request": request})
+                return Response([serializer.data])
+            else:
+                # Si no hay coincidencia exacta, no devolver nada para la solicitud 'exact'
+                return Response([])
+
+
         try:
             limit = int(request.query_params.get("limit", 5))
         except ValueError:
             limit = 5
         limit = max(1, min(limit, 5))
+        
         queryset = (
             Producto.objects.filter(visibilidad=True, estado="publicado")
             .filter(
@@ -234,10 +250,10 @@ class ProductoViewSet(viewsets.ModelViewSet):
 
         # Filtros existentes
         params = self.request.query_params
-        search   = params.get('search')
+        search = params.get('search')
         categoria = params.get('categoria')
-        estado   = params.get('estado_inventario')
-        marca    = params.get('marca')
+        estado = params.get('estado_inventario')
+        marca = params.get('marca') or params.get('marcas')
 
         if search:
             qs = qs.filter(Q(nombre__icontains=search) | Q(sku__icontains=search))
@@ -247,7 +263,39 @@ class ProductoViewSet(viewsets.ModelViewSet):
         if estado:
             qs = qs.filter(estado_inventario=estado)
         if marca:
-            qs = qs.filter(marca_id=marca)
+            def parse_id_list(raw):
+                if isinstance(raw, (list, tuple)):
+                    iterable = raw
+                else:
+                    iterable = str(raw).split(',')
+                ids = []
+                for item in iterable:
+                    try:
+                        ids.append(int(str(item).strip()))
+                    except (TypeError, ValueError):
+                        continue
+                return ids
+
+            marca_ids = parse_id_list(marca)
+            if marca_ids:
+                qs = qs.filter(marca_id__in=marca_ids)
+
+        precio_min = params.get('precio_min')
+        precio_max = params.get('precio_max')
+
+        def parse_decimal_value(value):
+            try:
+                return Decimal(str(value))
+            except (InvalidOperation, TypeError, ValueError):
+                return None
+
+        min_value = parse_decimal_value(precio_min)
+        max_value = parse_decimal_value(precio_max)
+
+        if min_value is not None:
+            qs = qs.filter(precio_normal__gte=min_value)
+        if max_value is not None:
+            qs = qs.filter(precio_normal__lte=max_value)
 
         # Filtro para ofertas
         en_oferta = params.get('en_oferta')

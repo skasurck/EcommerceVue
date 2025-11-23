@@ -9,7 +9,7 @@
 </template>
 
 <script setup>
-import { defineProps, defineEmits, computed } from 'vue';
+import { computed } from 'vue';
 import CategoryTree from './CategoryTree.vue';
 
 const props = defineProps({

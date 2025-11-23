@@ -33,6 +33,7 @@ urlpatterns = [
     path('api/', include('usuarios.urls')),
     path('api/', include('carrito.urls')),
     path('api/', include('pedidos.urls')),
+    path('api/pagos/', include('pagos.urls')),
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/suppliers/', include('suppliers.urls')),

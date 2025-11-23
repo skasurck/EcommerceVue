@@ -3,7 +3,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, defineProps, defineEmits } from 'vue';
+import { ref, onMounted } from 'vue';
 import noUiSlider from 'nouislider';
 import 'nouislider/dist/nouislider.css';
 

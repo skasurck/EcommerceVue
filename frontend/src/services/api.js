@@ -2,6 +2,8 @@ import api from '../axios'
 
 export const obtenerProductos = (params = {}) => api.get('productos/', { params })
 export const obtenerProducto = (id) => api.get(`productos/${id}/`)
+export const obtenerMarcas = (params = {}) => api.get('marcas/', { params })
+export const obtenerRangoPrecios = () => api.get('price-range/')
 
 // Carrito
 export const obtenerCarrito = () => api.get('carrito/')

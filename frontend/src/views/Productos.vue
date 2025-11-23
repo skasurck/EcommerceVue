@@ -1,64 +1,378 @@
-<template>
-  <div class="p-4 max-w-7xl mx-auto">
-    <h1 class="text-2xl font-bold mb-6 text-center text-gray-800">🛍️ Productos Disponibles</h1>
+﻿<template>
+  <div class="w-full max-w-7xl mx-auto overflow-x-hidden">
+    <header class="px-4 pt-4 pb-3 sm:px-6">
+      <h1 class="text-2xl font-bold text-center text-gray-800">Productos Disponibles</h1>
+    </header>
 
-    <div class="mb-4 flex gap-2">
-      <input
-        v-model="filtros.search"
-        @input="fetchProductos"
-        placeholder="Buscar..."
-        class="flex-1 border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-      />
-      <select
-        v-model="filtros.categoria"
-        @change="fetchProductos"
-        class="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+    <div class="lg:hidden sticky top-0 z-30 w-full max-w-full bg-white/95 backdrop-blur px-4 py-2 border-y border-gray-200 flex items-center gap-2 overflow-x-auto">
+      <button
+        class="shrink-0 rounded-full border px-3 py-1.5 text-sm font-medium shadow-sm bg-white text-gray-800 hover:border-blue-500 hover:text-blue-700 transition"
+        :class="!filtros.categoria ? 'border-blue-500 text-blue-700 bg-blue-50' : ''"
+        @click="selectCategoria('')"
       >
-        <option value="">Todas</option>
-        <option v-for="c in categorias" :key="c.id" :value="c.id">{{ c.nombre }}</option>
-      </select>
+        Todas las ofertas
+      </button>
+      <button
+        class="shrink-0 rounded-full border px-3 py-1.5 text-sm font-medium shadow-sm bg-white text-gray-800 hover:border-blue-500 hover:text-blue-700 transition"
+        @click="openFilters()"
+      >
+        {{ categoriaLabel }}
+      </button>
+      <button
+        class="shrink-0 rounded-full border px-3 py-1.5 text-sm font-medium shadow-sm bg-white text-gray-800 hover:border-blue-500 hover:text-blue-700 transition relative"
+        @click="openFilters()"
+      >
+        Filtros
+        <span
+          v-if="appliedFiltersCount > 0"
+          class="absolute -right-2 -top-2 rounded-full bg-amber-500 text-white text-[11px] px-2 py-[1px] font-semibold"
+        >
+          {{ appliedFiltersCount }}
+        </span>
+      </button>
     </div>
 
-    <div v-if="loading" class="text-center text-gray-500">Cargando productos...</div>
-    <div v-else-if="error" class="text-center text-red-500">{{ error }}</div>
-    <div v-else-if="productos.length === 0" class="text-center text-gray-500">No se encontraron productos.</div>
+    <div class="p-4 sm:px-6 lg:grid lg:grid-cols-[16rem_1fr] gap-6 w-full max-w-full">
+      <aside class="mb-6 lg:mb-0 hidden lg:block">
+        <div class="bg-white border border-gray-200 rounded-lg p-4 space-y-6 shadow-sm">
+          <div>
+            <h2 class="font-semibold text-gray-800">Departamento</h2>
+            <ul class="mt-3 space-y-2 text-sm text-gray-700">
+              <li>
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    value=""
+                    v-model="filtros.categoria"
+                    @change="handleFilterChange"
+                    class="text-blue-600 focus:ring-blue-500"
+                  />
+                  <span>Todo</span>
+                </label>
+              </li>
+              <li v-for="categoria in visibleCategorias" :key="categoria.id">
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    :value="categoria.id"
+                    v-model="filtros.categoria"
+                    @change="handleFilterChange"
+                    class="text-blue-600 focus:ring-blue-500"
+                  />
+                  <span>{{ categoria.nombre }}</span>
+                </label>
+              </li>
+            </ul>
+            <button
+              v-if="categorias.length > visibleCategorias.length"
+              class="mt-2 text-sm text-blue-600 hover:underline"
+              @click="showAllCategorias = !showAllCategorias"
+            >
+              {{ showAllCategorias ? 'Ver menos' : 'Ver más' }}
+            </button>
+          </div>
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-      <ProductCard
-        v-for="producto in productos"
-        :key="producto.id"
-        :producto="producto"
-      />
+          <div>
+            <h2 class="font-semibold text-gray-800">Marcas</h2>
+            <div class="mt-3 space-y-2 text-sm text-gray-700">
+              <div
+                v-for="marca in visibleMarcas"
+                :key="marca.id"
+                class="flex items-center gap-2"
+              >
+                <input
+                  type="checkbox"
+                  class="text-blue-600 focus:ring-blue-500 rounded"
+                  :value="marca.id"
+                  :checked="filtros.marcas.includes(marca.id)"
+                  @change="toggleMarca(marca.id)"
+                />
+                <span>{{ marca.nombre }}</span>
+              </div>
+            </div>
+            <button
+              v-if="marcas.length > visibleMarcas.length"
+              class="mt-2 text-sm text-blue-600 hover:underline"
+              @click="showAllMarcas = !showAllMarcas"
+            >
+              {{ showAllMarcas ? 'Ver menos' : 'Ver más' }}
+            </button>
+          </div>
+
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <h2 class="font-semibold text-gray-800">Promociones</h2>
+              <label class="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  class="text-blue-600 focus:ring-blue-500 rounded"
+                  v-model="filtros.promociones"
+                  @change="handleFilterChange"
+                />
+                <span>Solo en oferta</span>
+              </label>
+            </div>
+
+            <div>
+              <h2 class="font-semibold text-gray-800">Precio</h2>
+              <div class="mt-3 space-y-3">
+                <div class="flex justify-between text-sm text-gray-600 font-semibold">
+                  <span>{{ formatCurrency(filtros.precio.min ?? priceRange.min) }}</span>
+                  <span>{{ formatCurrency(filtros.precio.max ?? priceRange.max) }}</span>
+                </div>
+                <div class="p-3 rounded-lg bg-gray-50 border border-gray-200">
+                  <PriceSlider
+                    v-model:modelValue="priceModel"
+                    :min="priceRange.min"
+                    :max="priceRange.max"
+                    @update:modelValue="handlePriceChange"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <section>
+        <div class="mb-4 flex flex-col sm:flex-row gap-2">
+          <input
+            v-model="filtros.search"
+            @input="handleFilterChange"
+            placeholder="Buscar..."
+            class="flex-1 border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        <div v-if="loading" class="text-center text-gray-500">Cargando productos...</div>
+        <div v-else-if="error" class="text-center text-red-500">{{ error }}</div>
+        <div v-else-if="productos.length === 0" class="text-center text-gray-500">No se encontraron productos.</div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+          <ProductCard
+            v-for="producto in productos"
+            :key="producto.id"
+            :producto="producto"
+          />
+        </div>
+
+        <div v-if="loading && productos.length > 0" class="text-center text-gray-500 py-4">Cargando más productos...</div>
+        <div v-if="!loading && pagination.page >= pagination.totalPages" class="text-center text-gray-500 py-4">No hay más productos.</div>
+      </section>
     </div>
 
-    <div v-if="loading && productos.length > 0" class="text-center text-gray-500 py-4">Cargando más productos...</div>
-    <div v-if="!loading && pagination.page >= pagination.totalPages" class="text-center text-gray-500 py-4">No hay más productos.</div>
+    <transition name="fade">
+      <div
+        v-if="showFiltersMobile"
+        class="fixed inset-0 z-40 bg-black/40 flex justify-center sm:justify-end items-end overflow-hidden"
+        @click.self="closeFilters"
+      >
+        <div class="h-[80vh] w-[90%] max-w-xl sm:max-w-md bg-white shadow-2xl flex flex-col overflow-hidden rounded-t-2xl sm:rounded-none">
+          <div class="flex items-center justify-between border-b px-4 py-3">
+            <div>
+              <h3 class="text-lg font-semibold text-gray-800">Filtros</h3>
+              <p class="text-xs text-gray-500">Ajusta tu búsqueda y vuelve a la lista</p>
+            </div>
+            <button
+              class="p-2 rounded-full border border-gray-300 bg-white hover:bg-gray-100 shadow-sm"
+              @click="closeFilters"
+              aria-label="Cerrar filtros"
+            >
+              ✕
+            </button>
+          </div>
+
+          <div class="flex-1 overflow-y-auto px-4 py-4 space-y-6">
+            <div>
+              <h2 class="font-semibold text-gray-800">Departamento</h2>
+              <ul class="mt-3 space-y-2 text-sm text-gray-700">
+                <li>
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      value=""
+                      v-model="filtros.categoria"
+                      @change="handleFilterChange"
+                      class="text-blue-600 focus:ring-blue-500"
+                    />
+                    <span>Todo</span>
+                  </label>
+                </li>
+                <li v-for="categoria in categorias" :key="categoria.id">
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      :value="categoria.id"
+                      v-model="filtros.categoria"
+                      @change="handleFilterChange"
+                      class="text-blue-600 focus:ring-blue-500"
+                    />
+                    <span>{{ categoria.nombre }}</span>
+                  </label>
+                </li>
+              </ul>
+            </div>
+
+            <div>
+              <h2 class="font-semibold text-gray-800">Marcas</h2>
+              <div class="mt-3 space-y-2 text-sm text-gray-700">
+                <div
+                  v-for="marca in marcas"
+                  :key="marca.id"
+                  class="flex items-center gap-2"
+                >
+                  <input
+                    type="checkbox"
+                    class="text-blue-600 focus:ring-blue-500 rounded"
+                    :value="marca.id"
+                    :checked="filtros.marcas.includes(marca.id)"
+                    @change="toggleMarca(marca.id)"
+                  />
+                  <span>{{ marca.nombre }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="space-y-3">
+              <div class="flex items-center justify-between">
+                <h2 class="font-semibold text-gray-800">Promociones</h2>
+                <label class="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    class="text-blue-600 focus:ring-blue-500 rounded"
+                    v-model="filtros.promociones"
+                    @change="handleFilterChange"
+                  />
+                  <span>Solo en oferta</span>
+                </label>
+              </div>
+
+              <div>
+                <h2 class="font-semibold text-gray-800 flex items-center justify-between">
+                  Precio
+                  <span class="text-xs text-gray-500">{{ formatCurrency(filtros.precio.min ?? priceRange.min) }} - {{ formatCurrency(filtros.precio.max ?? priceRange.max) }}</span>
+                </h2>
+                <div class="mt-3 space-y-3">
+                  <div class="p-3 rounded-lg bg-gray-50 border border-gray-200">
+                    <PriceSlider
+                      v-model:modelValue="priceModel"
+                      :min="priceRange.min"
+                      :max="priceRange.max"
+                      @update:modelValue="handlePriceChange"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="border-t px-4 py-3 bg-white flex gap-2">
+            <button
+              class="flex-1 rounded-full border border-gray-300 px-3 py-2 font-semibold text-gray-700 hover:bg-gray-100"
+              @click="resetFilters"
+            >
+              Eliminar filtros
+            </button>
+            <button
+              class="flex-1 rounded-full bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold px-3 py-2 shadow"
+              @click="applyAndClose"
+            >
+              Mostrar resultados
+            </button>
+          </div>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
 <script setup>
 import ProductCard from '@/components/ProductCard.vue'
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
-import { obtenerProductos } from '../services/api.js'
+import PriceSlider from '@/components/PriceSlider.vue'
+import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
+import { obtenerProductos, obtenerMarcas, obtenerRangoPrecios } from '../services/api.js'
 import api from '../axios'
 defineOptions({ name: 'ProductosView' })
 
 const productos = ref([])
 const categorias = ref([])
-const filtros = reactive({ search: '', categoria: '' })
+const marcas = ref([])
+const filtros = reactive({
+  search: '',
+  categoria: '',
+  marcas: [],
+  promociones: false,
+  precio: { min: null, max: null },
+})
 const pagination = reactive({ page: 1, totalPages: 1, pageSize: 10 })
 const loading = ref(false)
 const error = ref(null)
+const priceRange = reactive({ min: 0, max: 0 })
+const showAllCategorias = ref(false)
+const showAllMarcas = ref(false)
+const showFiltersMobile = ref(false)
 const unwrapList = (payload) => {
   if (Array.isArray(payload?.results)) return payload.results
   if (Array.isArray(payload)) return payload
   return []
 }
 
+const categoriaLabel = computed(() => {
+  const found = categorias.value.find((c) => String(c.id) === String(filtros.categoria))
+  return found ? found.nombre : 'Categorías'
+})
+
+const priceChanged = computed(() => {
+  const min = typeof filtros.precio.min === 'number' ? filtros.precio.min : null
+  const max = typeof filtros.precio.max === 'number' ? filtros.precio.max : null
+  return (min !== null && min !== priceRange.min) || (max !== null && max !== priceRange.max)
+})
+
+const appliedFiltersCount = computed(() => {
+  let total = 0
+  if (filtros.categoria) total += 1
+  if (filtros.marcas.length > 0) total += 1
+  if (priceChanged.value) total += 1
+  if (filtros.search) total += 1
+  if (filtros.promociones) total += 1
+  return total
+})
+
+const priceModel = computed({
+  get: () => [filtros.precio.min ?? priceRange.min, filtros.precio.max ?? priceRange.max],
+  set: (val = []) => {
+    const [min, max] = val
+    filtros.precio.min = Number(min)
+    filtros.precio.max = Number(max)
+  },
+})
 
 async function fetchCategorias() {
   const res = await api.get('categorias/')
   categorias.value = unwrapList(res.data)
+}
+
+async function fetchMarcas() {
+  const res = await obtenerMarcas({ page_size: 100, ordering: 'nombre' })
+  marcas.value = unwrapList(res.data)
+}
+
+async function fetchPriceRange() {
+  try {
+    const res = await obtenerRangoPrecios()
+    const min = Number(res.data?.min_precio) || 0
+    const max = Number(res.data?.max_precio) || 0
+    priceRange.min = min
+    priceRange.max = max
+    filtros.precio.min = min
+    filtros.precio.max = max
+  } catch (err) {
+    console.error('Error obteniendo rango de precios:', err)
+    priceRange.min = 0
+    priceRange.max = 0
+    filtros.precio.min = null
+    filtros.precio.max = null
+  }
 }
 
 async function fetchProductos(append = false) {
@@ -71,9 +385,20 @@ async function fetchProductos(append = false) {
     const params = { page: pagination.page, page_size: pagination.pageSize }
     if (filtros.search) params.search = filtros.search
     if (filtros.categoria) params.categoria = filtros.categoria
+    if (filtros.marcas.length > 0) params.marca = filtros.marcas.join(',')
+    if (typeof filtros.precio.min === 'number') params.precio_min = filtros.precio.min
+    if (typeof filtros.precio.max === 'number') params.precio_max = filtros.precio.max
 
     const res = await obtenerProductos(params)
-    const raw = unwrapList(res.data)
+    let raw = unwrapList(res.data)
+
+    if (filtros.promociones) {
+      raw = raw.filter((p) => {
+        const normal = Number(p?.precio_normal ?? p?.precio)
+        const sale = Number(p?.precio_rebajado)
+        return Number.isFinite(normal) && Number.isFinite(sale) && sale > 0 && sale < normal
+      })
+    }
 
     if (append) {
       productos.value.push(...raw)
@@ -101,15 +426,85 @@ const loadMore = () => {
   fetchProductos(true)
 }
 
+const handleFilterChange = () => {
+  fetchProductos()
+}
+
+const handlePriceChange = (value) => {
+  const [min, max] = value || []
+  filtros.precio.min = Number(min)
+  filtros.precio.max = Number(max)
+  handleFilterChange()
+}
+
+const toggleMarca = (marcaId) => {
+  const exists = filtros.marcas.includes(marcaId)
+  if (exists) {
+    filtros.marcas = filtros.marcas.filter((id) => id !== marcaId)
+  } else {
+    filtros.marcas = [...filtros.marcas, marcaId]
+  }
+  handleFilterChange()
+}
+
+const selectCategoria = (categoriaId) => {
+  filtros.categoria = categoriaId
+  handleFilterChange()
+}
+
+const currencyFormatter = new Intl.NumberFormat('es-MX', {
+  style: 'currency',
+  currency: 'MXN',
+  maximumFractionDigits: 0,
+})
+
+const formatCurrency = (value) => {
+  const safeValue = typeof value === 'number' ? value : Number(value) || 0
+  return currencyFormatter.format(Math.max(0, safeValue))
+}
+
+const visibleCategorias = computed(() => {
+  if (showAllCategorias.value) return categorias.value
+  return categorias.value.slice(0, 5)
+})
+
+const visibleMarcas = computed(() => {
+  if (showAllMarcas.value) return marcas.value
+  return marcas.value.slice(0, 5)
+})
+
 const handleScroll = () => {
   const { scrollTop, scrollHeight, clientHeight } = document.documentElement
-  if (scrollTop + clientHeight >= scrollHeight - 5) { // 5px buffer
+  if (scrollTop + clientHeight >= scrollHeight - 5) {
     loadMore()
   }
 }
 
+const openFilters = () => {
+  showFiltersMobile.value = true
+}
+
+const closeFilters = () => {
+  showFiltersMobile.value = false
+}
+
+const resetFilters = () => {
+  filtros.search = ''
+  filtros.categoria = ''
+  filtros.marcas = []
+  filtros.promociones = false
+  filtros.precio.min = priceRange.min
+  filtros.precio.max = priceRange.max
+  handleFilterChange()
+}
+
+const applyAndClose = () => {
+  handleFilterChange()
+  closeFilters()
+}
+
 onMounted(async () => {
-  await fetchCategorias()
+  await Promise.all([fetchCategorias(), fetchMarcas(), fetchPriceRange()])
   await fetchProductos()
   window.addEventListener('scroll', handleScroll)
 })
@@ -118,4 +513,3 @@ onUnmounted(() => {
   window.removeEventListener('scroll', handleScroll)
 })
 </script>
-

@@ -89,7 +89,7 @@
 </template>
 
 <script setup>
-import { computed, defineEmits, defineProps } from 'vue'
+import { computed } from 'vue'
 
 const emit = defineEmits(['add-to-cart'])
 
