@@ -228,20 +228,39 @@
           </div>
         </section>
 
-        <section class="mt-10" v-if="relacionadosLoading || relacionados.length">
-          <div class="flex items-center justify-between mb-4">
-            <h2 class="text-xl font-semibold text-gray-900">Productos relacionados</h2>
-            <span v-if="relacionadosLoading" class="text-sm text-gray-500">Cargando...</span>
+        <section class="mt-10 space-y-8" v-if="hasAnyRelacionados">
+          <div v-if="relacionadosLoading || relacionados.length">
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="text-xl font-semibold text-gray-900">Productos relacionados</h2>
+              <span v-if="relacionadosLoading" class="text-sm text-gray-500">Cargando...</span>
+            </div>
+            <div v-if="relacionadosLoading" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+              <div
+                v-for="i in 4"
+                :key="`related-skeleton-${i}`"
+                class="h-64 rounded-lg border border-dashed border-gray-200 bg-white animate-pulse"
+              ></div>
+            </div>
+            <div v-else class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+              <ProductCard v-for="rel in relacionados" :key="rel.id" :producto="rel" />
+            </div>
           </div>
-          <div v-if="relacionadosLoading" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            <div
-              v-for="i in 4"
-              :key="`related-skeleton-${i}`"
-              class="h-64 rounded-lg border border-dashed border-gray-200 bg-white animate-pulse"
-            ></div>
-          </div>
-          <div v-else class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            <ProductCard v-for="rel in relacionados" :key="rel.id" :producto="rel" />
+
+          <div v-if="relacionadosCategoriaLoading || relacionadosCategoria.length">
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="text-xl font-semibold text-gray-900">Más de esta categoría</h2>
+              <span v-if="relacionadosCategoriaLoading" class="text-sm text-gray-500">Cargando...</span>
+            </div>
+            <div v-if="relacionadosCategoriaLoading" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+              <div
+                v-for="i in 4"
+                :key="`related-category-skeleton-${i}`"
+                class="h-64 rounded-lg border border-dashed border-gray-200 bg-white animate-pulse"
+              ></div>
+            </div>
+            <div v-else class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+              <ProductCard v-for="rel in relacionadosCategoria" :key="`cat-${rel.id}`" :producto="rel" />
+            </div>
           </div>
         </section>
       </div>
@@ -266,6 +285,7 @@
 import { ref, onMounted, watch, computed, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import { obtenerProducto, obtenerProductos } from '../services/api'
+import { getCategorias } from '../api/productos'
 import { useHead } from '@vueuse/head'
 import { useCarritoStore } from '../stores/carrito'
 import { useAuthStore } from '../stores/auth'
@@ -280,25 +300,71 @@ const loading = ref(true)
 const errorMsg = ref('')
 const relacionados = ref([])
 const relacionadosLoading = ref(false)
+const relacionadosCategoria = ref([])
+const relacionadosCategoriaLoading = ref(false)
+const categoriasIndex = ref({})
+const RELACIONADOS_LIMIT = 8
+const VISIT_HISTORY_KEY = 'product_visit_history'
+const MAX_HISTORY_ITEMS = 20
+const categoryNameFromId = (maybeId) => {
+  if (maybeId == null) return ''
+  const key = String(
+    typeof maybeId === 'object'
+      ? maybeId.id ?? maybeId.pk ?? maybeId.categoria ?? maybeId.category ?? ''
+      : maybeId
+  ).trim()
+  if (!key) return ''
+  const entry = categoriasIndex.value[key] || categoriasIndex.value[Number(key)]
+  if (!entry) return ''
+  const val = entry.nombre ?? entry.name ?? entry.titulo ?? entry.title ?? entry.slug ?? ''
+  return val ? String(val).trim() : ''
+}
 const normalizeCategoryName = (val) => {
   if (val == null) return ''
   if (typeof val === 'object' && !Array.isArray(val)) {
-    return normalizeCategoryName(val.nombre ?? val.name ?? val.titulo ?? val.title)
+    const fromName = normalizeCategoryName(val.nombre ?? val.name ?? val.titulo ?? val.title)
+    if (fromName) return fromName
+    const fromId = categoryNameFromId(val.id ?? val.pk ?? val.categoria ?? val.category ?? '')
+    if (fromId) return fromId
+    return ''
   }
   const raw = String(val).trim()
-  if (!raw || /^\d+$/.test(raw)) return ''
+  if (!raw) return ''
+  const mapped = categoryNameFromId(raw)
+  if (mapped) return mapped
+  if (/^\d+$/.test(raw)) return ''
   return raw
 }
 
 const categoryBreadcrumb = computed(() => {
-  const p = producto.value
-  if (!p) return []
+  const currentProduct = p.value
+  if (!currentProduct) return []
 
   let path = []
 
-  // Strategy 1: `p.categoria` is a nested object with `padre`.
-  if (p.categoria && typeof p.categoria === 'object' && p.categoria.nombre) {
-    let current = p.categoria
+  // Prioridad 0: Ruta completa entregada por la API (incluye padres/hijos)
+  if (Array.isArray(currentProduct.categoria_ruta) && currentProduct.categoria_ruta.length > 0) {
+    path = currentProduct.categoria_ruta.map((cat) => normalizeCategoryName(cat.nombre ?? cat)).filter(Boolean)
+  }
+  // Prioridad 1: Usar el array de categorías detallado si existe
+  else if (Array.isArray(currentProduct.categorias_detalle) && currentProduct.categorias_detalle.length > 0) {
+    path = currentProduct.categorias_detalle.map(cat => normalizeCategoryName(cat.nombre)).filter(Boolean)
+  }
+  // Prioridad 2: Usar la categoría principal detallada y sus padres
+  else if (currentProduct.categoria_detalle && typeof currentProduct.categoria_detalle === 'object' && currentProduct.categoria_detalle.nombre) {
+    let current = currentProduct.categoria_detalle
+    const tempPath = []
+    while (current) {
+      const name = normalizeCategoryName(current.nombre)
+      if (name) tempPath.unshift(name)
+      // Asumiendo que el padre es un objeto anidado o null
+      current = current.parent 
+    }
+    path = tempPath
+  }
+  // Fallback a la lógica anterior si los nuevos campos no están
+  else if (currentProduct.categoria && typeof currentProduct.categoria === 'object' && currentProduct.categoria.nombre) {
+    let current = currentProduct.categoria
     const tempPath = []
     while (current) {
       const name = normalizeCategoryName(current.nombre)
@@ -307,30 +373,27 @@ const categoryBreadcrumb = computed(() => {
     }
     path = tempPath
   }
-  // Strategy 2: `p.categorias` is an array of names/objects, representing the path.
-  else if (Array.isArray(p.categorias) && p.categorias.length > 0) {
-    path = p.categorias.map(c => normalizeCategoryName(c.nombre ?? c)).filter(Boolean)
+  else if (Array.isArray(currentProduct.categorias) && currentProduct.categorias.length > 0) {
+    path = currentProduct.categorias.map(c => normalizeCategoryName(c.nombre ?? c)).filter(Boolean)
   }
-  // Strategy 3: Look for loose properties for a single category name.
   else {
     const mainName = normalizeCategoryName(
-      p.categoria_nombre || p.categoriaNombre || p.nombre_categoria || p.nombreCategoria || p.categoria || p.Categoria
+      currentProduct.categoria_nombre || currentProduct.categoriaNombre || currentProduct.nombre_categoria || currentProduct.nombreCategoria || currentProduct.categoria || currentProduct.Categoria
     )
     if (mainName) {
       path.push(mainName)
     }
   }
 
-  // Add children if they exist (from `categorias_hijo`)
-  if (Array.isArray(p.categorias_hijo)) {
-    p.categorias_hijo.forEach(hijo => {
-      const name = normalizeCategoryName(hijo.nombre ?? hijo)
-      if (name) path.push(name)
-    })
-  }
-
-  // Remove duplicates
+  // Quitar duplicados
   return [...new Set(path)]
+})
+const categoryName = computed(() => {
+  if (categoryBreadcrumb.value.length) {
+    return categoryBreadcrumb.value[categoryBreadcrumb.value.length - 1]
+  }
+  const primary = getPrimaryCategoryId(producto.value)
+  return categoryNameFromId(primary) || ''
 })
 
 const agregar = async () => {
@@ -349,21 +412,132 @@ const comprarAhora = async () => {
 
 const getPrimaryCategoryId = (detail) => {
   if (!detail) return null
-  if (detail.categoria) return detail.categoria
-  if (Array.isArray(detail.categorias) && detail.categorias.length) return detail.categorias[0]
+  const pickId = (val) => {
+    if (!val) return null
+    if (typeof val === 'object') return val.id ?? val.pk ?? val.categoria ?? val.category ?? null
+    return val
+  }
+  if (Array.isArray(detail.categoria_ruta) && detail.categoria_ruta.length) {
+    const deepest = detail.categoria_ruta[detail.categoria_ruta.length - 1]
+    const id = pickId(deepest?.id ?? deepest)
+    if (id) return id
+  }
+  const mainCandidates = [
+    detail.categoria_id,
+    detail.categoriaId,
+    detail.categoria,
+    detail.category_id,
+    detail.categoryId
+  ]
+  for (const candidate of mainCandidates) {
+    const id = pickId(candidate)
+    if (id) return id
+  }
+  if (Array.isArray(detail.categorias) && detail.categorias.length) {
+    for (const cat of detail.categorias) {
+      const candidate = pickId(cat)
+      if (candidate) return candidate
+    }
+  }
   return null
 }
 
+const canUseLocalStorage = () => typeof window !== 'undefined' && !!window.localStorage
+const loadVisitHistory = () => {
+  if (!canUseLocalStorage()) return []
+  try {
+    const raw = localStorage.getItem(VISIT_HISTORY_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed
+      .map((entry) => ({
+        id: entry?.id,
+        categoriaId: entry?.categoriaId ?? null,
+        ts: Number(entry?.ts) || 0
+      }))
+      .filter((entry) => entry.id != null)
+      .sort((a, b) => b.ts - a.ts)
+  } catch {
+    return []
+  }
+}
+const getHistoryCategory = (currentProductId) => {
+  const history = loadVisitHistory()
+  const found = history.find((entry) => entry.categoriaId && entry.id !== currentProductId)
+  return found?.categoriaId ?? null
+}
+const persistVisitHistory = (entries) => {
+  if (!canUseLocalStorage()) return
+  try {
+    localStorage.setItem(VISIT_HISTORY_KEY, JSON.stringify(entries.slice(0, MAX_HISTORY_ITEMS)))
+  } catch (err) {
+    console.warn('No se pudo guardar historial de visitas', err)
+  }
+}
+const registerProductVisit = (detail) => {
+  const id = detail?.id
+  if (!id) return
+  const categoriaId = getPrimaryCategoryId(detail)
+  const history = loadVisitHistory().filter((entry) => entry.id !== id)
+  history.unshift({ id, categoriaId: categoriaId ?? null, ts: Date.now() })
+  persistVisitHistory(history)
+}
+const buildRecommendationCategories = (primaryCategoryId, currentProductId) => {
+  const history = loadVisitHistory().filter((entry) => entry.id !== currentProductId)
+  const ordered = []
+  const seen = new Set()
+  const pushCat = (catId) => {
+    if (!catId || seen.has(catId)) return
+    seen.add(catId)
+    ordered.push(catId)
+  }
+  pushCat(primaryCategoryId)
+  history.forEach((entry) => pushCat(entry.categoriaId))
+  return ordered
+}
+
+
+
 const fetchRelatedProducts = async (categoriaId, currentProductId) => {
   relacionados.value = []
-  if (!categoriaId) {
+  let categoryOrder = buildRecommendationCategories(categoriaId, currentProductId).filter(Boolean)
+  if (!categoryOrder.length) {
+    const fallbackCat = getHistoryCategory(currentProductId)
+    if (fallbackCat) categoryOrder = [fallbackCat]
+  }
+  // Fallback generico si no hay categorias en historial
+  if (!categoryOrder.length) {
+    relacionadosLoading.value = true
+    try {
+      const { data } = await obtenerProductos({ page_size: RELACIONADOS_LIMIT + 1 })
+      const items = Array.isArray(data) ? data : data?.results || []
+      relacionados.value = items.filter((item) => item.id !== currentProductId).slice(0, RELACIONADOS_LIMIT)
+    } catch (err) {
+      console.error('No se pudieron cargar productos relacionados', err)
+      relacionados.value = []
+    } finally {
+      relacionadosLoading.value = false
+    }
     return
   }
+
   relacionadosLoading.value = true
+  const seen = new Set([currentProductId])
+  const collected = []
   try {
-    const { data } = await obtenerProductos({ categoria: categoriaId, page_size: 8 })
-    const items = Array.isArray(data) ? data : data?.results || []
-    relacionados.value = items.filter((item) => item.id !== currentProductId)
+    for (const cat of categoryOrder) {
+      const { data } = await obtenerProductos({ categoria: cat, page_size: RELACIONADOS_LIMIT })
+      const items = Array.isArray(data) ? data : data?.results || []
+      for (const item of items) {
+        if (seen.has(item.id)) continue
+        seen.add(item.id)
+        collected.push(item)
+        if (collected.length >= RELACIONADOS_LIMIT) break
+      }
+      if (collected.length >= RELACIONADOS_LIMIT) break
+    }
+    relacionados.value = collected
   } catch (err) {
     console.error('No se pudieron cargar productos relacionados', err)
     relacionados.value = []
@@ -372,20 +546,59 @@ const fetchRelatedProducts = async (categoriaId, currentProductId) => {
   }
 }
 
+const fetchCategoryProducts = async (categoriaId, currentProductId) => {
+  relacionadosCategoria.value = []
+  const targetCategory = categoriaId || getHistoryCategory(currentProductId)
+  if (!targetCategory) return
+  relacionadosCategoriaLoading.value = true
+  try {
+    const { data } = await obtenerProductos({ categoria: targetCategory, page_size: RELACIONADOS_LIMIT })
+    const items = Array.isArray(data) ? data : data?.results || []
+    const exclude = new Set([currentProductId, ...relacionados.value.map((item) => item.id)])
+    relacionadosCategoria.value = items.filter((item) => !exclude.has(item.id)).slice(0, RELACIONADOS_LIMIT)
+  } catch (err) {
+    console.error('No se pudieron cargar productos de la misma categoria', err)
+    relacionadosCategoria.value = []
+  } finally {
+    relacionadosCategoriaLoading.value = false
+  }
+}
+
+const fetchCategoriasIndex = async () => {
+  if (Object.keys(categoriasIndex.value).length) return
+  try {
+    const { data } = await getCategorias()
+    const items = Array.isArray(data) ? data : data?.results || []
+    const map = {}
+    items.forEach((cat) => {
+      if (cat?.id == null) return
+      map[String(cat.id)] = cat
+    })
+    categoriasIndex.value = map
+  } catch (err) {
+    console.error('No se pudieron cargar categorias', err)
+  }
+}
+
 // Cargar producto
 onMounted(async () => {
+  const categoriasPromise = fetchCategoriasIndex()
   try {
     const { data } = await obtenerProducto(route.params.id)
     producto.value = data
+    registerProductVisit(data)
 
-    // Meta-tags dinámicos
+    // Meta-tags dinamicos
     useHead({
       title: data.nombre,
       meta: [
         { name: 'description', content: (data.descripcion_larga || '').slice(0, 155) }
       ]
     })
-    await fetchRelatedProducts(getPrimaryCategoryId(data), data.id)
+    const primaryCat = getPrimaryCategoryId(data)
+    await categoriasPromise
+    await fetchRelatedProducts(primaryCat, data.id)
+    await fetchCategoryProducts(primaryCat, data.id)
   } catch (e) {
     console.error(e)
     errorMsg.value = 'No se pudo cargar el producto.'
@@ -463,6 +676,9 @@ const p = computed(() => {
     atributos_detalle: attrDetail,
     stock: pr.stock ?? 0,
     categoria: pr.categoria ?? pr.Categoria ?? '',
+    categoria_ruta: pr.categoria_ruta ?? [],
+    categoria_detalle: pr.categoria_detalle ?? null,
+    categorias_detalle: pr.categorias_detalle ?? [],
     marca: pr.marca ?? pr.Marca ?? '',
     estado_inventario: pr.estado_inventario ?? pr['Estado inventario'] ?? pr.estado ?? '',
     precios_escalonados: pr.precios_escalonados ?? [],
@@ -678,4 +894,11 @@ const shippingAddressPreview = computed(() => {
 })
 
 const showShipToBlock = computed(() => Boolean(shippingFirstName.value && shippingAddressPreview.value))
+const hasAnyRelacionados = computed(
+  () =>
+    relacionadosLoading.value ||
+    relacionados.value.length > 0 ||
+    relacionadosCategoriaLoading.value ||
+    relacionadosCategoria.value.length > 0
+)
 </script>

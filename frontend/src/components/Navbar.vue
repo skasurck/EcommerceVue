@@ -92,6 +92,18 @@
               Tienda
             </RouterLink>
 
+            <div class="relative" v-click-outside="() => openCategories = false">
+              <RouterLink :to="{name:'categorias'}"
+                class="px-2 py-1 rounded hover:text-cyan-300"
+                :class="isActive('/categorias') ? 'text-cyan-300' : 'text-slate-200'"
+                @click.prevent="openCategories = !openCategories">
+                Categorías
+              </RouterLink>
+              <div v-if="openCategories" class="absolute left-0 mt-2 w-64 bg-slate-900 border border-slate-700 rounded-md shadow-lg">
+                <CategoryMenu />
+              </div>
+            </div>
+
             <RouterLink v-if="auth.isAuthenticated" to="/mi-cuenta"
               class="px-2 py-1 rounded hover:text-cyan-300"
               :class="isActive('/mi-cuenta') ? 'text-cyan-300' : 'text-slate-200'">
@@ -212,6 +224,7 @@
         </div>
         <div class="mt-3 grid gap-1 text-sm">
           <RouterLink to="/productos" class="px-3 py-2 rounded hover:bg-slate-800 text-slate-200" @click="openMobile=false">Tienda</RouterLink>
+          <RouterLink to="/categorias" class="px-3 py-2 rounded hover:bg-slate-800 text-slate-200" @click="openMobile=false">Categorías</RouterLink>
           <RouterLink v-if="auth.isAuthenticated" to="/mi-cuenta" class="px-3 py-2 rounded hover:bg-slate-800 text-slate-200" @click="openMobile=false">Mi cuenta</RouterLink>
           <RouterLink v-if="auth.isAuthenticated && auth.hasAnyRole?.(['admin','super_admin'])" to="/admin" class="px-3 py-2 rounded hover:bg-slate-800 text-slate-200" @click="openMobile=false">Admin</RouterLink>
           <div v-if="!auth.isAuthenticated" class="flex gap-2 px-3 pt-1">
@@ -230,6 +243,7 @@ import { RouterLink, useRouter, useRoute } from 'vue-router'
 import { onMounted, watch, ref, computed, onBeforeUnmount } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useCarritoStore } from '@/stores/carrito'
+import CategoryMenu from './CategoryMenu.vue'
 
 // Base de la API: permite usar variable de entorno o cae al backend local en desarrollo
 const API_BASE =
@@ -261,6 +275,7 @@ const route = useRoute()
 // UI state
 const openMobile = ref(false)
 const openUser = ref(false)
+const openCategories = ref(false)
 const q = ref(route.query.q ?? '')
 const suggestions = ref([])
 const loading = ref(false)

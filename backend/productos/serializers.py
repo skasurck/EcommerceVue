@@ -56,10 +56,16 @@ class ProductSearchSerializer(serializers.ModelSerializer):
 
 
 class CategoriaSerializer(serializers.ModelSerializer):
+    parent = serializers.PrimaryKeyRelatedField(
+        queryset=Categoria.objects.all(),
+        allow_null=True,
+        required=False,
+    )
+
     class Meta:
         model = Categoria
-        fields = "__all__"
-        extra_kwargs = {"slug": {"required": False}}
+        fields = ["id", "nombre", "slug", "parent"]
+        extra_kwargs = {"slug": {"required": False, "allow_blank": True}}
 
     def create(self, validated_data):
         if not validated_data.get("slug"):
@@ -178,6 +184,13 @@ class ProductoSerializer(serializers.ModelSerializer):
     categorias = serializers.PrimaryKeyRelatedField(
         queryset=Categoria.objects.all(), many=True, required=False
     )
+    # >>> Detalle de Categorias
+    categoria_detalle = CategoriaSerializer(source="categoria", read_only=True)
+    categorias_detalle = CategoriaSerializer(
+        source="categorias", many=True, read_only=True
+    )
+    categoria_ruta = serializers.SerializerMethodField()
+    # <<< Detalle de Categorias
     atributos = serializers.PrimaryKeyRelatedField(
         queryset=ValorAtributo.objects.all(), many=True, required=False
     )
@@ -208,6 +221,9 @@ class ProductoSerializer(serializers.ModelSerializer):
             "estado",
             "categoria",
             "categorias",
+            "categoria_detalle",
+            "categorias_detalle",
+            "categoria_ruta",
             "marca",
             "atributos",
             "atributos_detalle",
@@ -396,3 +412,21 @@ class ProductoSerializer(serializers.ModelSerializer):
             # Sin proveedor → no es virtual (estás usando tu propio stock)
             return False
         return not (sp.available_qty and sp.available_qty > 0)
+
+    def get_categoria_ruta(self, obj: Producto):
+        """Devuelve la ruta completa de la categoria principal (incluye padres)."""
+
+        def build_path(cat):
+            path = []
+            current = cat
+            while current:
+                path.insert(0, {"id": current.id, "nombre": current.nombre, "slug": current.slug})
+                current = current.parent
+            return path
+
+        if obj.categoria:
+            return build_path(obj.categoria)
+        first_extra = obj.categorias.first()
+        if first_extra:
+            return build_path(first_extra)
+        return []

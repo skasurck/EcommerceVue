@@ -103,18 +103,11 @@
     <!-- Categorías / Marca -->
     <section class="bg-white border rounded-xl p-5 shadow-sm">
       <h2 class="text-lg font-semibold text-slate-800 mb-3">Taxonomías</h2>
-      <div class="grid sm:grid-cols-2 gap-4">
-        <div>
-          <label class="block text-xs font-medium text-slate-600 mb-1">Categoría principal</label>
-          <div class="flex gap-2">
-            <select v-model="form.categoria" class="h-10 w-full rounded-md border border-slate-300 px-3 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1">
-              <option :value="null">Sin categoría</option>
-              <option v-for="c in categorias" :key="c.id" :value="c.id">{{ c.nombre }}</option>
-            </select>
-            <button type="button" @click="showCatModal = true" class="inline-flex items-center gap-2 border border-slate-300 hover:bg-slate-50 text-slate-800 px-3 py-2 rounded-md text-sm">Gestionar</button>
-          </div>
-          <p v-if="errs.categoria" class="mt-1 text-xs text-rose-600">{{ errs.categoria }}</p>
+      <div class="grid sm:grid-cols-2 gap-x-4 gap-y-2">
+        <div class="sm:col-span-2">
+          <CategorySelector v-model="form.categorias" label="Categorías" />
         </div>
+        
         <div>
           <label class="block text-xs font-medium text-slate-600 mb-1">Marca</label>
           <div class="flex gap-2">
@@ -125,12 +118,6 @@
             <button type="button" @click="showMarcaModal = true" class="inline-flex items-center gap-2 border border-slate-300 hover:bg-slate-50 text-slate-800 px-3 py-2 rounded-md text-sm">Gestionar</button>
           </div>
           <p v-if="errs.marca" class="mt-1 text-xs text-rose-600">{{ errs.marca }}</p>
-        </div>
-        <div class="sm:col-span-2">
-          <label class="block text-xs font-medium text-slate-600 mb-1">Categorías adicionales</label>
-          <select v-model="form.categorias" multiple class="h-10 w-full rounded-md border border-slate-300 px-3 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 h-28">
-            <option v-for="c in categorias" :key="c.id" :value="c.id">{{ c.nombre }}</option>
-          </select>
         </div>
       </div>
     </section>
@@ -251,29 +238,7 @@
       </div>
     </div>
 
-    <!-- MODALES (igual que antes, sin cambios de lógica) -->
-    <!-- Categorías -->
-    <div v-if="showCatModal" class="fixed inset-0 bg-black/40 z-50 grid place-items-center p-4" @click.self="showCatModal=false">
-      <div class="w-full max-w-3xl bg-white rounded-xl shadow-xl p-5">
-        <div class="flex items-center justify-between mb-3">
-          <h3 class="text-lg font-semibold text-slate-800">Categorías</h3>
-          <button class="text-slate-500 hover:text-slate-700" @click="showCatModal=false">✕</button>
-        </div>
-        <div class="space-y-2">
-          <div v-for="c in categorias" :key="c.id" class="flex items-center gap-2">
-            <input v-model="c.nombre" class="h-10 w-full rounded-md border border-slate-300 px-3 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1" />
-            <button type="button" @click="guardarCategoria(c)" class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm">Guardar</button>
-            <button type="button" @click="eliminarCategoria(c.id)" class="inline-flex items-center gap-2 bg-rose-600 hover:bg-rose-700 text-white px-3 py-2 rounded-md text-sm">Eliminar</button>
-          </div>
-          <div class="flex items-center gap-2 pt-2 border-t">
-            <input v-model="nuevaCategoria" placeholder="Nueva categoría" class="h-10 w-full rounded-md border border-slate-300 px-3 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1" />
-            <button type="button" @click="agregarCategoria" class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm">Agregar</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Marcas -->
+    <!-- MODALES -->
     <div v-if="showMarcaModal" class="fixed inset-0 bg-black/40 z-50 grid place-items-center p-4" @click.self="showMarcaModal=false">
       <div class="w-full max-w-3xl bg-white rounded-xl shadow-xl p-5">
         <div class="flex items-center justify-between mb-3">
@@ -294,7 +259,6 @@
       </div>
     </div>
 
-    <!-- Atributos -->
     <div v-if="showAttrModal" class="fixed inset-0 bg-black/40 z-50 grid place-items-center p-4" @click.self="showAttrModal=false">
       <div class="w-full max-w-3xl bg-white rounded-xl shadow-xl p-5">
         <div class="flex items-center justify-between mb-3">
@@ -331,7 +295,6 @@
         </div>
       </div>
     </div>
-
   </div>
 </template>
 
@@ -341,6 +304,7 @@ import { useRoute, useRouter, RouterLink } from 'vue-router'
 import api from '@/axios'
 import { useProductoStore } from '@/stores/productos'
 import * as yup from 'yup'
+import CategorySelector from '@/components/CategorySelector.vue'
 
 defineOptions({ name: 'EditarProducto' })
 
@@ -348,7 +312,6 @@ const route = useRoute()
 const router = useRouter()
 const id = route.params.id
 
-// --- Toasts mínimos ---
 const toasts = ref([])
 const toast = (type, msg, timeout = 2500) => {
   const id = Date.now() + Math.random()
@@ -356,7 +319,6 @@ const toast = (type, msg, timeout = 2500) => {
   setTimeout(() => { toasts.value = toasts.value.filter(t => t.id !== id) }, timeout)
 }
 
-// --- Form & errores ---
 const form = reactive({
   nombre: '',
   descripcion_corta: '',
@@ -368,7 +330,6 @@ const form = reactive({
   estado_inventario: 'en_existencia',
   visibilidad: true,
   estado: 'borrador',
-  categoria: null,
   categorias: [],
   marca: null,
   atributos: [],
@@ -379,23 +340,20 @@ const errs = reactive({})
 
 const imagenPrincipal = ref(null)
 const galeria = ref([])
-const categorias = ref([])
 const marcas = ref([])
 const atributos = ref([])
 const atributosBase = ref([])
 const preciosEscalonados = ref([])
 
-const showCatModal = ref(false)
 const showMarcaModal = ref(false)
 const showAttrModal = ref(false)
-const nuevaCategoria = ref('')
 const nuevaMarca = ref('')
 const nuevoValor = reactive({ atributo_id: null, valor: '' })
 const nuevoAtributo = ref('')
 const loading = ref(false)
+const isInitializing = ref(true)
 const productoStore = useProductoStore()
 
-// --- Schema Yup ---
 const schema = yup.object({
   nombre: yup.string().trim().required('El nombre es obligatorio').max(160, 'Máx 160 caracteres'),
   descripcion_corta: yup.string().trim().max(300, 'Máx 300 caracteres').nullable(),
@@ -409,16 +367,15 @@ const schema = yup.object({
   stock: yup.number().typeError('Stock inválido').min(0, 'No puede ser negativo').integer('Debe ser entero').required('Stock es obligatorio'),
   estado_inventario: yup.mixed().oneOf(['en_existencia', 'agotado'], 'Valor inválido').required(),
   estado: yup.mixed().oneOf(['borrador', 'publicado'], 'Valor inválido').required(),
-  categoria: yup.number().nullable().optional(),
   categorias: yup.array(yup.number()).optional(),
   marca: yup.number().nullable().optional(),
   atributos: yup.array(yup.number()).optional(),
 })
 
-// --- Lifecycle ---
 onMounted(async () => {
   await fetchOpciones()
   await fetchProducto()
+  isInitializing.value = false
 })
 
 watch(preciosEscalonados, val => {
@@ -427,6 +384,7 @@ watch(preciosEscalonados, val => {
   }
 }, { deep: true })
 
+
 const unwrap = (payload) => {
   if (Array.isArray(payload?.results)) return payload.results
   if (Array.isArray(payload)) return payload
@@ -434,13 +392,11 @@ const unwrap = (payload) => {
 }
 
 async function fetchOpciones() {
-  const [catRes, marcaRes, attrRes, baseRes] = await Promise.all([
-    api.get('categorias/'),
+  const [marcaRes, attrRes, baseRes] = await Promise.all([
     api.get('marcas/'),
     api.get('atributos/'),
     api.get('atributos-base/')
   ])
-  categorias.value = unwrap(catRes.data)
   marcas.value = unwrap(marcaRes.data)
   const unwrappedAttr = unwrap(attrRes.data)
   atributos.value = unwrappedAttr.map(v => ({ ...v, atributo_id: v.atributo.id }))
@@ -465,7 +421,6 @@ async function fetchProducto() {
   }
 }
 
-// --- Imagenes ---
 function onImagenChange(e) {
   imagenPrincipal.value = e.target.files[0]
 }
@@ -488,7 +443,6 @@ async function eliminarImagen(imgId) {
   galeria.value = galeria.value.filter(i => i.id !== imgId)
 }
 
-// --- Escalonados ---
 function addTier() {
   preciosEscalonados.value.push({ id: null, cantidad_minima: 0, precio_unitario: 0 })
 }
@@ -496,12 +450,9 @@ function removeTier(index) {
   preciosEscalonados.value.splice(index, 1)
 }
 
-// --- Guardar con validación + toasts ---
 async function guardar() {
-  // limpiar errores previos
   Object.keys(errs).forEach(k => delete errs[k])
 
-  // Validar precios escalonados
   if (preciosEscalonados.value.length) {
     const cantidades = preciosEscalonados.value.map(t => Number(t.cantidad_minima))
     const precios = preciosEscalonados.value.map(t => Number(t.precio_unitario))
@@ -515,11 +466,9 @@ async function guardar() {
     }
   }
 
-  // Validar form (Yup)
   try {
     await schema.validate(form, { abortEarly: false })
   } catch (e) {
-    // Mapear errores por campo
     if (e.inner?.length) {
       e.inner.forEach(err => { if (!errs[err.path]) errs[err.path] = err.message })
     } else if (e.message && e.path) {
@@ -529,7 +478,6 @@ async function guardar() {
     return
   }
 
-  // Armar payload
   const fd = new FormData()
   fd.append('nombre', form.nombre)
   fd.append('descripcion_corta', form.descripcion_corta || '')
@@ -543,7 +491,6 @@ async function guardar() {
   fd.append('estado_inventario', form.estado_inventario)
   fd.append('visibilidad', form.visibilidad)
   fd.append('estado', form.estado)
-  if (form.categoria) fd.append('categoria', form.categoria)
   form.categorias.forEach(c => fd.append('categorias', c))
   if (form.marca) fd.append('marca', form.marca)
   form.atributos.forEach(a => fd.append('atributos', a))
@@ -569,7 +516,6 @@ async function guardar() {
   }
 }
 
-// --- Utilidades existentes ---
 function slugify(str) {
   return str.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
 }
@@ -578,24 +524,6 @@ function nombreAtributo(a) {
   return base ? base.nombre : ''
 }
 
-// CRUD taxonomías/atributos (sin cambios)
-async function agregarCategoria() {
-  if (!nuevaCategoria.value) return
-  const slug = slugify(nuevaCategoria.value)
-  const { data } = await api.post('categorias/', { nombre: nuevaCategoria.value, slug })
-  categorias.value.push(data)
-  nuevaCategoria.value = ''
-}
-async function guardarCategoria(cat) {
-  const slug = slugify(cat.nombre)
-  await api.put(`categorias/${cat.id}/`, { nombre: cat.nombre, slug })
-}
-async function eliminarCategoria(id) {
-  await api.delete(`categorias/${id}/`)
-  categorias.value = categorias.value.filter(c => c.id !== id)
-  if (form.categoria === id) form.categoria = null
-  form.categorias = form.categorias.filter(c => c !== id)
-}
 async function agregarMarca() {
   if (!nuevaMarca.value) return
   const { data } = await api.post('marcas/', { nombre: nuevaMarca.value })
@@ -610,6 +538,7 @@ async function eliminarMarca(id) {
   marcas.value = marcas.value.filter(m => m.id !== id)
   if (form.marca === id) form.marca = null
 }
+
 async function agregarAtributo() {
   if (!nuevoAtributo.value) return
   const { data } = await api.post('atributos-base/', { nombre: nuevoAtributo.value })
@@ -639,4 +568,3 @@ async function eliminarValor(id) {
   form.atributos = form.atributos.filter(a => a !== id)
 }
 </script>
-

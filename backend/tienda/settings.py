@@ -25,8 +25,10 @@ load_dotenv(BASE_DIR / '.env')
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-5)n%32ah(7x7c7bqxefk#bl_-x+ff0%h8!2dx*g*+qc+)tunr('
+SECRET_KEY = os.getenv("SECRET_KEY")
+
+if not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY no cargado desde el .env")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -34,6 +36,7 @@ DEBUG = True
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "[::1]"]
 
 # Application definition
+
 REST_FRAMEWORK = {
     # CLASES DE AUTENTICACIÓN VÁLIDAS (elige las que uses)
     "DEFAULT_AUTHENTICATION_CLASSES": (
@@ -198,7 +201,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 SUPPLIER_MIN_VIRTUAL_QTY = 1     # cantidad mínima para considerar "en stock" un producto de proveedor
 # Celery
-# CELERY_BROKER_URL = "redis://127.0.0.1:6379/0"
-# CELERY_RESULT_BACKEND = "redis://127.0.0.1:6379/1"
-# CELERY_TIMEZONE = "America/Mexico_City"
-# CELERY_ENABLE_UTC = False
+CELERY_BROKER_URL = "redis://127.0.0.1:6379/0"
+CELERY_RESULT_BACKEND = "redis://127.0.0.1:6379/1"
+CELERY_TIMEZONE = "America/Mexico_City"
+CELERY_ENABLE_UTC = False

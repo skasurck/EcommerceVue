@@ -52,72 +52,91 @@ class PriceRangeAPIView(APIView):
         return Response(result)
 
 
+from celery.result import AsyncResult
+from .tasks import classify_products_task
+from django.utils import timezone
+from datetime import timedelta
+import logging
+
+logger = logging.getLogger(__name__)
+
 class ProductClassificationAPIView(APIView):
     permission_classes = [IsAdminOrSuperAdmin]
 
     def post(self, request):
         data = request.data or {}
-        product_ids = data.get("product_ids") or []
+        product_ids_param = data.get("product_ids") or []
+        
         try:
             limit = int(data.get("limit", 100))
         except (TypeError, ValueError):
             limit = 100
-        limit = max(1, min(limit, 500))
+        limit = max(1, min(limit, 2000))
         overwrite = bool(data.get("overwrite", False))
+        ignore_time_limit = bool(data.get("ignore_time_limit", False))
 
-        queryset = Producto.objects.all().order_by("-fecha_creacion")
-        if product_ids:
-            queryset = queryset.filter(id__in=product_ids)
+        logger.info(f"Received classification request with overwrite: {overwrite}, ignore_time_limit: {ignore_time_limit}")
+
+        if product_ids_param:
+            product_ids = product_ids_param
         else:
-            queryset = queryset[:limit]
+            queryset = Producto.objects.all().order_by("-fecha_creacion")
+            logger.info(f"Initial product count: {queryset.count()}")
+            
+            if not overwrite:
+                queryset = queryset.filter(category_ai_main__isnull=True)
+                logger.info(f"Product count after 'overwrite' filter: {queryset.count()}")
+            
+            if not ignore_time_limit:
+                ten_days_ago = timezone.now() - timedelta(days=10)
+                time_filter = Q(fecha_clasificacion_ai__isnull=True) | Q(fecha_clasificacion_ai__lt=ten_days_ago)
+                queryset = queryset.filter(time_filter)
+                logger.info(f"Product count after 'time_limit' filter: {queryset.count()}")
+            
+            product_ids = list(queryset.values_list('id', flat=True)[:limit])
 
-        products = list(queryset)
-        results = []
+        logger.info(f"Final number of products to be classified: {len(product_ids)}")
 
-        for product in products:
-            if product.category_ai_main and not overwrite:
-                results.append(
-                    {
-                        "product_id": product.id,
-                        "main": product.category_ai_main,
-                        "sub": product.category_ai_sub,
-                        "conf_main": product.category_ai_conf_main,
-                        "conf_sub": product.category_ai_conf_sub,
-                    }
-                )
-                continue
-
-            text = build_text_from_product(product)
-            if not text:
-                text = product.nombre or f"Producto {product.pk}"
-
-            classification = classify_text(text)
-
-            with transaction.atomic():
-                product.category_ai_main = classification.main
-                product.category_ai_sub = classification.sub
-                product.category_ai_conf_main = classification.main_score
-                product.category_ai_conf_sub = classification.sub_score
-                product.save(
-                    update_fields=[
-                        "category_ai_main",
-                        "category_ai_sub",
-                        "category_ai_conf_main",
-                        "category_ai_conf_sub",
-                    ]
-                )
-
-            results.append(
-                {
-                    "product_id": product.id,
-                    "main": product.category_ai_main,
-                    "sub": product.category_ai_sub,
-                    "conf_main": product.category_ai_conf_main,
-                    "conf_sub": product.category_ai_conf_sub,
-                }
+        if not product_ids:
+            return Response(
+                {"message": "No hay productos para clasificar con los criterios seleccionados."},
+                status=status.HTTP_200_OK
             )
 
-        return Response({"results": results, "count": len(results)})
+        task = classify_products_task.delay(product_ids=product_ids, overwrite=overwrite)
+        
+        return Response({"task_id": task.id}, status=status.HTTP_202_ACCEPTED)
+
+class ProductClassificationStatusView(APIView):
+    permission_classes = [IsAdminOrSuperAdmin]
+
+    def get(self, request, task_id):
+        task_result = AsyncResult(task_id)
+        
+        response_data = {
+            'task_id': task_id,
+            'status': task_result.status,
+            'info': task_result.info,
+        }
+
+        # Si el estado no es PENDING pero la info es nula, intenta usar el result
+        if task_result.status != 'PENDING' and not task_result.info:
+            if isinstance(task_result.result, dict):
+                response_data['info'] = task_result.result
+
+        if task_result.successful():
+            # Si es exitoso, el resultado final está en 'result'
+            final_result = task_result.get()
+            if isinstance(final_result, dict):
+                response_data['result'] = final_result.get('results')
+                # Adicionalmente, asegúrate de que 'info' tenga los datos finales
+                response_data['info'] = {
+                    'current': final_result.get('current', response_data.get('info', {}).get('current')),
+                    'total': final_result.get('total', response_data.get('info', {}).get('total')),
+                    'status': final_result.get('status', 'Completado'),
+                }
+
+        return Response(response_data)
 
 @method_decorator(cache_page(60), name="dispatch")
 class ProductSearchAPIView(APIView):
@@ -169,7 +188,6 @@ class PendingReviewProductsAPIView(APIView):
     def get(self, request):
         queryset = Producto.objects.filter(
             category_ai_main__isnull=False,
-            categoria__isnull=True,
         ).order_by("-fecha_creacion")
         serializer = PendingReviewProductSerializer(
             queryset,
@@ -180,7 +198,7 @@ class PendingReviewProductsAPIView(APIView):
 
 
 class AllCategoriesAPIView(APIView):
-    permission_classes = [IsAdminOrSuperAdmin]
+    permission_classes = [permissions.AllowAny]
 
     def get(self, request):
         categorias = Categoria.objects.filter(parent__isnull=True).order_by("nombre")
@@ -225,6 +243,65 @@ class ApplyCategoryAPIView(APIView):
         )
 
         return Response({"detail": "Categoría aplicada correctamente."})
+
+
+class BulkApplyCategoryAPIView(APIView):
+    permission_classes = [IsAdminOrSuperAdmin]
+
+    def post(self, request):
+        product_data = request.data.get("products", [])
+
+        if not isinstance(product_data, list) or not product_data:
+            return Response(
+                {"detail": "Se requiere una lista de productos en el campo 'products'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        product_ids = [item.get("product_id") for item in product_data]
+        category_ids = [item.get("category_id") for item in product_data]
+
+        # Validate that all products and categories exist
+        valid_products = Producto.objects.filter(id__in=product_ids).in_bulk(product_ids)
+        valid_categories = Categoria.objects.filter(id__in=set(category_ids)).in_bulk(list(set(category_ids)))
+
+
+        if len(valid_products) != len(set(product_ids)):
+            return Response({"detail": "Uno o más IDs de producto no son válidos."}, status=status.HTTP_404_NOT_FOUND)
+        
+        # We check against a set of category_ids because multiple products can point to the same category
+        if len(valid_categories) != len(set(category_ids)):
+            return Response({"detail": "Uno o más IDs de categoría no son válidos."}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            with transaction.atomic():
+                products_to_update = []
+                for item in product_data:
+                    product = valid_products.get(item["product_id"])
+                    category = valid_categories.get(item["category_id"])
+                    
+                    if product and category:
+                        product.categoria = category
+                        product.category_ai_main = None
+                        product.category_ai_sub = None
+                        product.category_ai_conf_main = None
+                        product.category_ai_conf_sub = None
+                        products_to_update.append(product)
+
+                Producto.objects.bulk_update(products_to_update, [
+                    "categoria",
+                    "category_ai_main",
+                    "category_ai_sub",
+                    "category_ai_conf_main",
+                    "category_ai_conf_sub",
+                ])
+
+        except Exception as e:
+            return Response(
+                {"detail": f"Ocurrió un error durante la transacción: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        return Response({"detail": f"{len(product_data)} productos actualizados correctamente."})
 
 class StandardResultsSetPagination(PageNumberPagination):
     page_size = 10
@@ -365,6 +442,7 @@ class CategoriaViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     ordering_fields = ['id', 'nombre', 'created_at']
     ordering = ['id']
+    pagination_class = None
 
     def get_permissions(self):
         if self.action in ["create", "update", "partial_update", "destroy"]:

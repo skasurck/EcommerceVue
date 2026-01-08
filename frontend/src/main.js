@@ -6,10 +6,12 @@ import router from './router'
 import { createPinia } from 'pinia'
 import { useAuthStore } from './stores/auth'
 import { ensureInterceptors } from './axios'
+import vClickOutside from 'v-click-outside'
 
 const app = createApp(App)
 const pinia = createPinia()
 
+app.use(vClickOutside.directive)
 app.use(pinia)
 ensureInterceptors()
 app.use(router)

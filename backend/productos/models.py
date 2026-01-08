@@ -93,6 +93,7 @@ class Producto(models.Model):
     category_ai_sub = models.CharField(max_length=64, null=True, blank=True)
     category_ai_conf_main = models.FloatField(null=True, blank=True)
     category_ai_conf_sub = models.FloatField(null=True, blank=True)
+    fecha_clasificacion_ai = models.DateTimeField(null=True, blank=True, help_text="Fecha de la última clasificación por IA.")
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 
     def save(self, *args, **kwargs):

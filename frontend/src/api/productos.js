@@ -23,3 +23,7 @@ export const getValorAtributos = () => {
 export const getPriceRange = () => {
   return api.get('/price-range/');
 };
+
+export const getCategoriasTree = () => {
+  return api.get('/all-categories/');
+};
