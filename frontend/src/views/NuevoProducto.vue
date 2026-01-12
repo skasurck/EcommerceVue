@@ -244,7 +244,7 @@ const crearProducto = async () => {
   if (producto.marca != null) formData.append('marca', String(producto.marca))
   formData.append('stock', String(producto.stock))
   formData.append('estado_inventario', producto.stock > 0 ? 'en_existencia' : 'agotado')
-  for (const id of producto.categorias) formData.append('categorias', String(id))
+  for (const id of producto.categorias) formData.append('categorias_ids', String(id))
   for (const id of producto.atributos)  formData.append('atributos',  String(id))
   for (const f of (producto.galeria || [])) formData.append('galeria', f)
   formData.append('precios_escalonados', JSON.stringify(producto.precios_escalonados || []))
@@ -254,8 +254,20 @@ const crearProducto = async () => {
     mensaje.value = 'Producto guardado correctamente'
     router.push('/admin/productos')
   } catch (err) {
-    console.error('❌ POST /productos error:', err?.response?.data || err)
-    mensaje.value = 'Error al guardar producto'
+    const errorData = err.response?.data;
+    console.error('❌ POST /productos error:', errorData || err);
+    if (errorData && typeof errorData === 'object') {
+      const firstError = Object.values(errorData)[0];
+      if (typeof firstError === 'string') {
+        mensaje.value = `Error: ${firstError}`;
+      } else if (Array.isArray(firstError) && typeof firstError[0] === 'string') {
+        mensaje.value = `Error: ${firstError[0]}`;
+      } else {
+        mensaje.value = 'Error al guardar el producto. Revisa la consola.';
+      }
+    } else {
+      mensaje.value = 'Error de red o de servidor. Intenta de nuevo.';
+    }
   }
 }
 </script>

@@ -211,30 +211,31 @@ class ApplyCategoryAPIView(APIView):
 
     def post(self, request, pk):
         product = get_object_or_404(Producto, pk=pk)
-        category_id = request.data.get("category_id")
+        category_ids = request.data.get("category_ids", [])
 
-        if not category_id:
+        if not isinstance(category_ids, list) or not category_ids:
             return Response(
-                {"detail": "Se requiere 'category_id'."},
+                {"detail": "Se requiere una lista de 'category_ids' no vacía."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        categories_list = []
         try:
-            category = Categoria.objects.get(pk=category_id)
+            for cat_id in category_ids:
+                categories_list.append(Categoria.objects.get(pk=cat_id))
         except Categoria.DoesNotExist:
             return Response(
-                {"detail": "Categoría no encontrada."},
+                {"detail": "Una o más categorías no fueron encontradas."},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        product.categoria = category
+        product.categorias.set(categories_list) # Use .set() for ManyToMany
         product.category_ai_main = None
         product.category_ai_sub = None
         product.category_ai_conf_main = None
         product.category_ai_conf_sub = None
         product.save(
             update_fields=[
-                "categoria",
                 "category_ai_main",
                 "category_ai_sub",
                 "category_ai_conf_main",
@@ -242,7 +243,7 @@ class ApplyCategoryAPIView(APIView):
             ]
         )
 
-        return Response({"detail": "Categoría aplicada correctamente."})
+        return Response({"detail": "Categoría(s) aplicada(s) correctamente."})
 
 
 class BulkApplyCategoryAPIView(APIView):
@@ -258,42 +259,45 @@ class BulkApplyCategoryAPIView(APIView):
             )
 
         product_ids = [item.get("product_id") for item in product_data]
-        category_ids = [item.get("category_id") for item in product_data]
+        # Correctly flatten the list of lists of category IDs
+        category_ids_flat = [
+            cat_id
+            for item in product_data
+            for cat_id in item.get("category_ids", [])
+        ]
 
         # Validate that all products and categories exist
-        valid_products = Producto.objects.filter(id__in=product_ids).in_bulk(product_ids)
-        valid_categories = Categoria.objects.filter(id__in=set(category_ids)).in_bulk(list(set(category_ids)))
+        valid_products_map = Producto.objects.filter(id__in=product_ids).in_bulk(product_ids)
+        valid_categories_map = Categoria.objects.filter(id__in=set(category_ids_flat)).in_bulk(list(set(category_ids_flat)))
 
 
-        if len(valid_products) != len(set(product_ids)):
+        if len(valid_products_map) != len(set(product_ids)):
             return Response({"detail": "Uno o más IDs de producto no son válidos."}, status=status.HTTP_404_NOT_FOUND)
         
-        # We check against a set of category_ids because multiple products can point to the same category
-        if len(valid_categories) != len(set(category_ids)):
+        if len(valid_categories_map) != len(set(category_ids_flat)):
             return Response({"detail": "Uno o más IDs de categoría no son válidos."}, status=status.HTTP_404_NOT_FOUND)
 
         try:
             with transaction.atomic():
-                products_to_update = []
                 for item in product_data:
-                    product = valid_products.get(item["product_id"])
-                    category = valid_categories.get(item["category_id"])
+                    product = valid_products_map.get(item["product_id"])
+                    category_ids_for_product = item.get("category_ids", [])
+                    categories_to_set = [valid_categories_map[cat_id] for cat_id in category_ids_for_product]
                     
-                    if product and category:
-                        product.categoria = category
+                    if product:
+                        product.categorias.set(categories_to_set)
                         product.category_ai_main = None
                         product.category_ai_sub = None
                         product.category_ai_conf_main = None
                         product.category_ai_conf_sub = None
-                        products_to_update.append(product)
-
-                Producto.objects.bulk_update(products_to_update, [
-                    "categoria",
-                    "category_ai_main",
-                    "category_ai_sub",
-                    "category_ai_conf_main",
-                    "category_ai_conf_sub",
-                ])
+                        product.save(
+                            update_fields=[
+                                "category_ai_main",
+                                "category_ai_sub",
+                                "category_ai_conf_main",
+                                "category_ai_conf_sub",
+                            ]
+                        )
 
         except Exception as e:
             return Response(
@@ -317,28 +321,58 @@ class ProductoViewSet(viewsets.ModelViewSet):
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_queryset(self):
-        # Base optimizada (NO uses .all() si no quieres)
+        # Base optimizada
         qs = (
             Producto.objects
-            .select_related("marca", "categoria")
+            .select_related("marca")
             .prefetch_related("categorias", "atributos__atributo", "galeria", "precios_escalonados")
             .order_by("-fecha_creacion")
         )
 
-        # Filtros existentes
         params = self.request.query_params
+
+        # --- NUEVO FILTRO DE CATEGORÍA POR SLUG Y CON SUB-CATEGORÍAS ---
+        categoria_slug = params.get('categoria_slug')
+        include_children = params.get('include_children', 'false').lower() == 'true'
+
+        if categoria_slug:
+            try:
+                categoria_raiz = Categoria.objects.get(slug=categoria_slug)
+                categorias_a_filtrar = [categoria_raiz]
+
+                if include_children:
+                    # Función recursiva para obtener todos los descendientes
+                    def get_all_descendants(cat):
+                        descendants = list(cat.subcategorias.all())
+                        for child in list(descendants): # Iterar sobre una copia para poder extender
+                            descendants.extend(get_all_descendants(child))
+                        return descendants
+                    
+                    categorias_a_filtrar.extend(get_all_descendants(categoria_raiz))
+                
+                # Filtrar productos que estén en cualquiera de las categorías encontradas
+                qs = qs.filter(categorias__in=categorias_a_filtrar).distinct()
+
+            except Categoria.DoesNotExist:
+                return qs.none() # Si el slug de la categoría no existe, no devolver nada.
+
+        # --- FILTROS EXISTENTES (Mantenidos) ---
         search = params.get('search')
-        categoria = params.get('categoria')
         estado = params.get('estado_inventario')
         marca = params.get('marca') or params.get('marcas')
 
         if search:
             qs = qs.filter(Q(nombre__icontains=search) | Q(sku__icontains=search))
-        if categoria:
-            # al filtrar por M2M puede duplicar filas; usa distinct() SOLO en este caso
-            qs = qs.filter(categorias__id=categoria).distinct()
+        
+        # El filtro de categoría por ID se mantiene por si es usado en otro lugar,
+        # pero el de slug tiene prioridad si ambos se envían.
+        categoria_id = params.get('categoria')
+        if categoria_id and not categoria_slug:
+            qs = qs.filter(categorias__id=categoria_id).distinct()
+
         if estado:
             qs = qs.filter(estado_inventario=estado)
+        
         if marca:
             def parse_id_list(raw):
                 if isinstance(raw, (list, tuple)):
@@ -374,12 +408,11 @@ class ProductoViewSet(viewsets.ModelViewSet):
         if max_value is not None:
             qs = qs.filter(precio_normal__lte=max_value)
 
-        # Filtro para ofertas
         en_oferta = params.get('en_oferta')
         if en_oferta and en_oferta.lower() in ['true', '1']:
             qs = qs.filter(precio_rebajado__isnull=False, precio_rebajado__gt=0)
 
-        # --- Precarga de suppliers SIN romper nada de arriba ---
+        # --- Precarga de suppliers (Mantenida) ---
         product_ids = list(qs.values_list('id', flat=True))
         if product_ids:
             maps = ProductSupplierMap.objects.filter(
@@ -394,7 +427,6 @@ class ProductoViewSet(viewsets.ModelViewSet):
                     sp.supplier_sku: sp
                     for sp in SupplierProduct.objects.filter(supplier_sku__in=skus)
                 }
-                # cache final: product_id -> SupplierProduct
                 self._sp_by_product = {
                     pid: sp_by_sku.get(sku)
                     for pid, sku in map_by_product.items()
