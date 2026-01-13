@@ -260,14 +260,27 @@ const unwrapList = (payload) => {
   if (Array.isArray(payload)) return payload
   return []
 }
+const normalizeCategoryIds = (raw = []) => {
+  if (!Array.isArray(raw)) return []
+  const ids = raw
+    .map((item) => {
+      if (item && typeof item === 'object') {
+        return Number(item.id ?? item.pk ?? item.categoria ?? item.category)
+      }
+      return Number(item)
+    })
+    .filter((id) => Number.isFinite(id))
+  return [...new Set(ids)]
+}
 
 const onSearch = () => {
   pagination.page = 1
   fetchProductos()
 }
 
-function categoriasNombres(ids = []) {
-  return ids.map(id => categorias.value.find(c => c.id === id)?.nombre || id)
+function categoriasNombres(raw = []) {
+  const ids = normalizeCategoryIds(raw)
+  return ids.map(id => categorias.value.find(c => c.id === id)?.nombre || `ID ${id}`)
 }
 
 async function fetchFiltros() {
@@ -295,7 +308,10 @@ async function fetchProductos() {
 
     const res = await api.get('productos/', { params })
     const raw = unwrapList(res.data)
-    productos.value = raw
+    productos.value = raw.map((p) => ({
+      ...p,
+      categorias: normalizeCategoryIds(p.categorias),
+    }))
 
     const total = typeof res.data?.count === 'number' ? res.data.count : raw.length
     const totalPages = Math.max(1, Math.ceil(total / pagination.pageSize))
@@ -338,7 +354,7 @@ async function guardar(p) {
     stock: p.stock,
     precio_normal: p.precio_normal,
     precio_rebajado: p.precio_rebajado,
-    categorias: p.categorias
+    categorias_ids: p.categorias,
   }
   await api.patch(`productos/${p.id}/`, payload)
   editingId.value = null

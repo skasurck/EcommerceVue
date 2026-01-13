@@ -39,18 +39,6 @@
             Seleccionar todo ({{ bulkSelectedProducts.size }} de {{ products.length }})
           </label>
         </div>
-        <button
-          type="button"
-          class="inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-60"
-          :disabled="bulkSaving || bulkSelectedProducts.size === 0"
-          @click="approveBulkSuggestions"
-        >
-          <svg v-if="bulkSaving" class="mr-2 h-4 w-4 animate-spin" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" />
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-          </svg>
-          Aprobar Sugerencias ({{ bulkSelectedProducts.size }})
-        </button>
       </div>
 
       <!-- Bulk Manual Categorization -->
@@ -133,15 +121,20 @@
             <h2 class="text-lg font-semibold text-gray-800">{{ product.nombre }}</h2>
           </div>
 
-          <div class="rounded-md bg-gray-50 p-3 text-sm text-gray-600">
-            <p class="mb-1 text-sm font-medium text-gray-700">Sugerencia de IA</p>
-            <p>Principal: <span class="font-semibold text-gray-800">{{ product.category_ai_main || 'N/A' }}</span></p>
-            <p>Subcategoría: <span class="font-semibold text-gray-800">{{ product.category_ai_sub || 'N/A' }}</span></p>
+          <!-- Nuevas Sugerencias de IA como tags -->
+          <div class="rounded-md bg-gray-50 p-3 text-sm">
+            <p class="mb-2 text-sm font-medium text-gray-700">Categorías Asignadas por IA</p>
+            <div v-if="product._displayCategories && product._displayCategories.length" class="flex flex-wrap gap-2">
+              <span v-for="cat in product._displayCategories" :key="cat.id" class="rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-800">
+                {{ cat.nombre }}
+              </span>
+            </div>
+            <p v-else class="text-gray-500">La IA no asignó categorías.</p>
           </div>
 
           <div class="space-y-3">
             <div>
-              <label :for="`level1-${product.id}`" class="mb-1 block text-sm font-medium text-gray-700">Categoría Principal Nivel 1</label>
+              <label :for="`level1-${product.id}`" class="mb-1 block text-sm font-medium text-gray-700">Editar Categoría Principal (Nivel 1)</label>
               <select
                 :id="`level1-${product.id}`"
                 v-model="selectedLevel1[product.id]"
@@ -153,7 +146,7 @@
               </select>
             </div>
             <div>
-              <label :for="`level2-${product.id}`" class="mb-1 block text-sm font-medium text-gray-700">Categoría Principal Nivel 2</label>
+              <label :for="`level2-${product.id}`" class="mb-1 block text-sm font-medium text-gray-700">Nivel 2</label>
               <select
                 :id="`level2-${product.id}`"
                 v-model="selectedLevel2[product.id]"
@@ -166,7 +159,7 @@
               </select>
             </div>
             <div>
-              <label :for="`level3-${product.id}`" class="mb-1 block text-sm font-medium text-gray-700">Categoría Principal Nivel 3</label>
+              <label :for="`level3-${product.id}`" class="mb-1 block text-sm font-medium text-gray-700">Nivel 3</label>
               <select
                 :id="`level3-${product.id}`"
                 v-model="selectedLevel3[product.id]"
@@ -181,9 +174,14 @@
 
           <!-- Additional Categories -->
           <div class="mt-auto space-y-2 rounded-md border border-gray-200 bg-gray-50 p-3">
-            <p class="text-sm font-medium text-gray-700">Categorías Adicionales</p>
+            <p class="text-sm font-medium text-gray-700">Editar Categorías Adicionales</p>
             <div class="max-h-32 overflow-y-auto space-y-1">
-              <div v-for="category in categories" :key="category.id" class="flex items-center">
+              <div
+                v-for="category in flatCategories"
+                :key="category.id"
+                class="flex items-center"
+                :style="{ paddingLeft: `${category.depth * 12}px` }"
+              >
                 <input
                   type="checkbox"
                   :id="`additional-cat-${product.id}-${category.id}`"
@@ -199,8 +197,7 @@
           </div>
 
           <div class="mt-auto space-y-2 pt-4">
-            <button type="button" class="w-full rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-60" :disabled="saving[product.id] || bulkSaving" @click="approveSuggestion(product)">Aprobar sugerencia</button>
-            <button type="button" class="w-full rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-100 disabled:opacity-60" :disabled="saving[product.id] || bulkSaving" @click="saveManual(product)">Guardar manualmente</button>
+            <button type="button" class="w-full rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-60" :disabled="saving[product.id] || bulkSaving" @click="saveManual(product)">Guardar Cambios</button>
           </div>
         </div>
       </div>
@@ -221,7 +218,7 @@ const globalError = ref('')
 const selectedLevel1 = reactive({})
 const selectedLevel2 = reactive({})
 const selectedLevel3 = reactive({})
-const selectedAdditionalCategories = reactive({}) // New state for additional categories
+const selectedAdditionalCategories = reactive({})
 const saving = reactive({})
 
 // State for bulk actions
@@ -259,6 +256,52 @@ const normalize = (value) => (value ?? '').toString().trim().toLowerCase()
 const toNumberOrNull = (value) => {
   const number = Number(value)
   return value === undefined || value === null || value === '' || Number.isNaN(number) ? null : number
+}
+const normalizeCategoryId = (value) => {
+  if (value === undefined || value === null || value === '') return null
+  if (typeof value === 'object') {
+    return toNumberOrNull(value.id ?? value.pk ?? value.categoria ?? value.category)
+  }
+  return toNumberOrNull(value)
+}
+const extractCategoryIds = (raw) => {
+  if (!Array.isArray(raw)) return []
+  const ids = raw.map((item) => normalizeCategoryId(item)).filter((id) => id !== null)
+  return [...new Set(ids)]
+}
+const flattenCategories = (items, depth = 0, acc = []) => {
+  for (const item of items || []) {
+    const id = normalizeCategoryId(item)
+    if (id !== null) {
+      acc.push({
+        id,
+        nombre: item?.nombre ?? item?.name ?? `ID ${id}`,
+        depth,
+      })
+    }
+    if (item?.subcategorias?.length) {
+      flattenCategories(item.subcategorias, depth + 1, acc)
+    }
+  }
+  return acc
+}
+const flatCategories = computed(() => flattenCategories(categories.value))
+const categoriesById = computed(() => {
+  const map = {}
+  for (const item of flatCategories.value) {
+    map[item.id] = item
+  }
+  return map
+})
+const resolveCategoryName = (raw, id, index) => {
+  const fromIndex = index?.[id]?.nombre
+  if (fromIndex) return fromIndex
+  if (Array.isArray(raw)) {
+    const found = raw.find((item) => normalizeCategoryId(item) === id)
+    const name = found?.nombre ?? found?.name
+    if (name) return name
+  }
+  return `ID ${id}`
 }
 
 // --- Bulk Selection Logic ---
@@ -360,25 +403,27 @@ const fetchData = async () => {
     bulkSelectedProducts.value.clear()
     
     // Initialize selections for each product
+    const categoryIndex = categoriesById.value
     products.value.forEach(product => {
-      // Assuming product.categorias is an array of category IDs already assigned
-      // Use the first category as the "primary" path for display
-      const initialCategories = product.categorias || []
-      
-      if (initialCategories.length > 0) {
-        const primaryCatId = initialCategories[0]
+      const initialCategoryIds = extractCategoryIds(product.categorias)
+      product._displayCategories = initialCategoryIds.map((id) => ({
+        id,
+        nombre: resolveCategoryName(product.categorias, id, categoryIndex),
+      }))
+
+      if (initialCategoryIds.length > 0) {
+        const primaryCatId = initialCategoryIds[0]
         const path = findCategoryPath(primaryCatId, categories.value)
         selectedLevel1[product.id] = path.level1
         selectedLevel2[product.id] = path.level2
         selectedLevel3[product.id] = path.level3
         
-        // Initialize additional categories with all assigned categories
-        selectedAdditionalCategories[product.id] = new Set(initialCategories)
+        selectedAdditionalCategories[product.id] = [...initialCategoryIds]
       } else {
         selectedLevel1[product.id] = null
         selectedLevel2[product.id] = null
         selectedLevel3[product.id] = null
-        selectedAdditionalCategories[product.id] = new Set()
+        selectedAdditionalCategories[product.id] = []
       }
     })
 
@@ -432,20 +477,11 @@ const applyCategoryToProducts = async (payload) => {
 
 // --- Button Click Handlers ---
 
-const approveSuggestion = async (product) => {
-  const finalId = findCategoryIdsBySuggestion(product.category_ai_main, product.category_ai_sub)
-  if (!finalId) {
-    globalError.value = 'No se encontró una categoría que coincida con la sugerencia de la IA.'
-    return
-  }
-  await applyCategoryToProduct(product.id, [finalId]) // Send as an array
-}
-
 const saveManual = async (product) => {
   const primaryCategoryId = toNumberOrNull(selectedLevel3[product.id]) || toNumberOrNull(selectedLevel2[product.id]) || toNumberOrNull(selectedLevel1[product.id])
-  const additionalCategoryIds = Array.from(selectedAdditionalCategories[product.id] || new Set())
+  const additionalCategoryIds = (selectedAdditionalCategories[product.id] || [])
     .map(toNumberOrNull)
-    .filter(Boolean); // Filter out nulls
+    .filter((id) => id !== null)
 
   let allCategoryIds = [];
   if (primaryCategoryId) {
@@ -458,22 +494,6 @@ const saveManual = async (product) => {
     return
   }
   await applyCategoryToProduct(product.id, allCategoryIds)
-}
-
-const approveBulkSuggestions = async () => {
-  const productMap = new Map(products.value.map((p) => [p.id, p]))
-  const payload = []
-  for (const productId of bulkSelectedProducts.value) {
-    const product = productMap.get(productId)
-    if (!product) continue
-    const categoryId = findCategoryIdsBySuggestion(product.category_ai_main, product.category_ai_sub)
-    if (!categoryId) {
-      globalError.value = `No se encontró una categoría válida para la sugerencia de IA del producto: "${product.nombre}". Abortando.`
-      return
-    }
-    payload.push({ product_id: productId, category_ids: [categoryId] }) // Send as array
-  }
-  await applyCategoryToProducts(payload)
 }
 
 const saveBulkManual = async () => {

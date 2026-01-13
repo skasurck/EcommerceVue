@@ -187,8 +187,8 @@ class PendingReviewProductsAPIView(APIView):
 
     def get(self, request):
         queryset = Producto.objects.filter(
-            category_ai_main__isnull=False,
-        ).order_by("-fecha_creacion")
+            fecha_clasificacion_ai__isnull=False,
+        ).order_by("-fecha_clasificacion_ai")
         serializer = PendingReviewProductSerializer(
             queryset,
             many=True,
