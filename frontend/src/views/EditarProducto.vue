@@ -409,7 +409,7 @@ async function fetchProducto() {
     if (data) {
       Object.assign(form, data)
       form.imagen_principal_url = data.imagen_principal
-      form.categorias = data.categorias ? data.categorias.map(cat => cat.id) : []
+      form.categorias = data.categorias || []
       form.atributos = data.atributos || []
       galeria.value = data.galeria || []
       preciosEscalonados.value = data.precios_escalonados || []
@@ -469,7 +469,6 @@ async function guardar() {
   try {
     await schema.validate(form, { abortEarly: false })
   } catch (e) {
-    console.error("Error de validación:", e);
     if (e.inner?.length) {
       e.inner.forEach(err => { if (!errs[err.path]) errs[err.path] = err.message })
     } else if (e.message && e.path) {
@@ -492,7 +491,7 @@ async function guardar() {
   fd.append('estado_inventario', form.estado_inventario)
   fd.append('visibilidad', form.visibilidad)
   fd.append('estado', form.estado)
-  form.categorias.forEach(c => fd.append('categorias_ids', c))
+  form.categorias.forEach(c => fd.append('categorias', c))
   if (form.marca) fd.append('marca', form.marca)
   form.atributos.forEach(a => fd.append('atributos', a))
   fd.append('stock', form.stock)
@@ -510,25 +509,8 @@ async function guardar() {
     toast('success', 'Producto actualizado correctamente.')
     setTimeout(() => router.push('/admin/productos'), 600)
   } catch (err) {
-    console.error('Error al guardar el producto:', err.response?.data || err.message);
-    const errorData = err.response?.data;
-    if (errorData) {
-      // Si el backend devuelve errores por campo, los asignamos a `errs`
-      if (typeof errorData === 'object' && !Array.isArray(errorData)) {
-        Object.assign(errs, errorData);
-      }
-      // Mostramos un toast con un mensaje más específico si es posible
-      const firstError = Object.values(errorData)[0];
-      if (typeof firstError === 'string') {
-        toast('error', firstError);
-      } else if (Array.isArray(firstError) && typeof firstError[0] === 'string') {
-        toast('error', firstError[0]);
-      } else {
-        toast('error', 'Error al guardar. Revisa la consola.');
-      }
-    } else {
-      toast('error', 'Error de red o de servidor. Intenta de nuevo.');
-    }
+    console.error(err)
+    toast('error', 'Error al guardar. Intenta de nuevo.')
   } finally {
     loading.value = false
   }

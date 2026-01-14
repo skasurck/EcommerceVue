@@ -24,7 +24,7 @@ class PrecioEscalonadoAPITests(APITestCase):
         )
 
     def test_actualizar_precios_escalonados(self):
-        url = reverse("productos-detail", args=[self.producto.id])
+        url = reverse("producto-detail", args=[self.producto.id])
         payload = {
             "nombre": "Prod",
             "precio_normal": "100",
@@ -48,7 +48,7 @@ class PrecioEscalonadoAPITests(APITestCase):
         self.assertEqual(tiers, [(5, Decimal("95")), (20, Decimal("80"))])
 
     def test_actualizar_precios_escalonados_json_string(self):
-        url = reverse("productos-detail", args=[self.producto.id])
+        url = reverse("producto-detail", args=[self.producto.id])
         import json
         data = {
             "nombre": "Prod",
@@ -73,7 +73,7 @@ class PrecioEscalonadoAPITests(APITestCase):
         self.assertEqual(tiers, [(5, Decimal("95")), (20, Decimal("80"))])
 
     def test_actualizar_precios_escalonados_multipart(self):
-        url = reverse("productos-detail", args=[self.producto.id])
+        url = reverse("producto-detail", args=[self.producto.id])
         data = {
             "nombre": "Prod",
             "precio_normal": "100",
@@ -99,7 +99,7 @@ class PrecioEscalonadoAPITests(APITestCase):
 
     def test_update_con_valores_null(self):
         """Acepta cadenas 'null' o vacías en campos opcionales."""
-        url = reverse("productos-detail", args=[self.producto.id])
+        url = reverse("producto-detail", args=[self.producto.id])
         data = {
             "nombre": "Prod",
             "precio_normal": "100",
@@ -108,11 +108,11 @@ class PrecioEscalonadoAPITests(APITestCase):
             "estado_inventario": "en_existencia",
             "visibilidad": "true",
             "estado": "borrador",
-            "categorias_ids": [],
+            "categoria": "null",
             "marca": "",
         }
         response = self.client.put(url, data, format="multipart")
         self.assertEqual(response.status_code, 200)
         self.producto.refresh_from_db()
-        self.assertEqual(self.producto.categorias.count(), 0)
+        self.assertIsNone(self.producto.categoria)
         self.assertIsNone(self.producto.marca)

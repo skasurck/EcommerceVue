@@ -8,8 +8,6 @@ from django.utils.text import slugify
 import os
 
 # ──────────── CATEGORÍAS ────────────
-from django.core.exceptions import ValidationError
-
 class Categoria(models.Model):
     nombre = models.CharField(max_length=100)
     slug = models.SlugField(max_length=100, blank=True)
@@ -20,56 +18,19 @@ class Categoria(models.Model):
         blank=True,
         related_name='subcategorias'
     )
-
+    # 2. AÑADE ESTA CLASE META
     class Meta:
-        # Unicidad de slug por nivel (el slug debe ser único para un mismo padre)
-        unique_together = (('slug', 'parent'),)
-        verbose_name = "Categoría"
-        verbose_name_plural = "Categorías"
+        # Esto asegura que el slug sea único para cada nivel de categoría padre.
+        unique_together = ('slug', 'parent')
         ordering = ['nombre']
 
-    def __str__(self):
-        path = [self.nombre]
-        parent = self.parent
-        while parent is not None:
-            path.insert(0, parent.nombre)
-            parent = parent.parent
-        return ' > '.join(path)
-
-    def clean(self):
-        """
-        Validaciones del modelo.
-        """
-        super().clean()
-        # --- VALIDACIÓN ANTI-CICLOS ---
-        if self.parent:
-            parent = self.parent
-            # Recorremos los ancestros para asegurar que esta instancia no es uno de ellos.
-            while parent is not None:
-                if parent == self:
-                    raise ValidationError(
-                        "Error de jerarquía: Una categoría no puede ser su propia subcategoría (ciclo detectado)."
-                    )
-                parent = parent.parent
-
     def save(self, *args, **kwargs):
-        """
-        Sobrescribimos para auto-generar el slug y ejecutar validaciones.
-        """
         if not self.slug:
             self.slug = slugify(self.nombre)
-            # Aseguramos la unicidad del slug DENTRO DEL MISMO NIVEL
-            original_slug = self.slug
-            queryset = Categoria.objects.filter(slug=self.slug, parent=self.parent).exclude(pk=self.pk)
-            count = 1
-            while queryset.exists():
-                self.slug = f"{original_slug}-{count}"
-                queryset = Categoria.objects.filter(slug=self.slug, parent=self.parent).exclude(pk=self.pk)
-                count += 1
-        
-        # Ejecutamos las validaciones del método clean() antes de guardar.
-        self.full_clean()
         super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.nombre
 
 # ──────────── MARCAS ────────────
 class Marca(models.Model):
@@ -123,6 +84,7 @@ class Producto(models.Model):
         ('borrador', 'Borrador'),
         ('publicado', 'Publicado')
     ], default='borrador')
+    categoria = models.ForeignKey(Categoria, on_delete=models.SET_NULL, null=True, blank=True)
     categorias = models.ManyToManyField(Categoria, blank=True, related_name='productos')
     marca = models.ForeignKey(Marca, on_delete=models.SET_NULL, null=True, blank=True)
     atributos = models.ManyToManyField(ValorAtributo, blank=True)

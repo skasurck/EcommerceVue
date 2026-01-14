@@ -134,19 +134,27 @@
 
           <div class="space-y-3">
             <div>
+<<<<<<< HEAD
               <label :for="`level1-${product.id}`" class="mb-1 block text-sm font-medium text-gray-700">Editar Categoría Principal (Nivel 1)</label>
+=======
+              <label :for="`level1-${product.id}`" class="mb-1 block text-sm font-medium text-gray-700">Categoría Nivel 1</label>
+>>>>>>> parent of 7edc89b (multi-categorias funciona)
               <select
                 :id="`level1-${product.id}`"
                 v-model="selectedLevel1[product.id]"
                 @change="onLevel1Change(product.id)"
                 class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               >
-                <option :value="null">Selecciona Nivel 1</option>
+                <option value="">Selecciona Nivel 1</option>
                 <option v-for="category in categories" :key="category.id" :value="category.id">{{ category.nombre }}</option>
               </select>
             </div>
             <div>
+<<<<<<< HEAD
               <label :for="`level2-${product.id}`" class="mb-1 block text-sm font-medium text-gray-700">Nivel 2</label>
+=======
+              <label :for="`level2-${product.id}`" class="mb-1 block text-sm font-medium text-gray-700">Categoría Nivel 2</label>
+>>>>>>> parent of 7edc89b (multi-categorias funciona)
               <select
                 :id="`level2-${product.id}`"
                 v-model="selectedLevel2[product.id]"
@@ -154,24 +162,29 @@
                 :disabled="!getLevel2Categories(toNumberOrNull(selectedLevel1[product.id])).length"
                 class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
               >
-                <option :value="null">Selecciona Nivel 2</option>
+                <option value="">Selecciona Nivel 2</option>
                 <option v-for="category in getLevel2Categories(toNumberOrNull(selectedLevel1[product.id]))" :key="category.id" :value="category.id">{{ category.nombre }}</option>
               </select>
             </div>
             <div>
+<<<<<<< HEAD
               <label :for="`level3-${product.id}`" class="mb-1 block text-sm font-medium text-gray-700">Nivel 3</label>
+=======
+              <label :for="`level3-${product.id}`" class="mb-1 block text-sm font-medium text-gray-700">Categoría Nivel 3</label>
+>>>>>>> parent of 7edc89b (multi-categorias funciona)
               <select
                 :id="`level3-${product.id}`"
                 v-model="selectedLevel3[product.id]"
                 :disabled="!getLevel3Categories(toNumberOrNull(selectedLevel1[product.id]), toNumberOrNull(selectedLevel2[product.id])).length"
                 class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
               >
-                <option :value="null">Selecciona Nivel 3</option>
+                <option value="">Selecciona Nivel 3</option>
                 <option v-for="category in getLevel3Categories(toNumberOrNull(selectedLevel1[product.id]), toNumberOrNull(selectedLevel2[product.id]))" :key="category.id" :value="category.id">{{ category.nombre }}</option>
               </select>
             </div>
           </div>
 
+<<<<<<< HEAD
           <!-- Additional Categories -->
           <div class="mt-auto space-y-2 rounded-md border border-gray-200 bg-gray-50 p-3">
             <p class="text-sm font-medium text-gray-700">Editar Categorías Adicionales</p>
@@ -196,6 +209,8 @@
             </div>
           </div>
 
+=======
+>>>>>>> parent of 7edc89b (multi-categorias funciona)
           <div class="mt-auto space-y-2 pt-4">
             <button type="button" class="w-full rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-60" :disabled="saving[product.id] || bulkSaving" @click="saveManual(product)">Guardar Cambios</button>
           </div>
@@ -218,7 +233,10 @@ const globalError = ref('')
 const selectedLevel1 = reactive({})
 const selectedLevel2 = reactive({})
 const selectedLevel3 = reactive({})
+<<<<<<< HEAD
 const selectedAdditionalCategories = reactive({})
+=======
+>>>>>>> parent of 7edc89b (multi-categorias funciona)
 const saving = reactive({})
 
 // State for bulk actions
@@ -358,21 +376,6 @@ const getLevel3Categories = (level1Id, level2Id) => {
   return catL2?.subcategorias ?? []
 }
 
-// --- Initial Selection Logic (for already classified products) ---
-const findCategoryPath = (categoryId, allCategories) => {
-  for (const level1 of allCategories) {
-    if (level1.id === categoryId) return { level1: level1.id, level2: null, level3: null }
-    for (const level2 of level1.subcategorias || []) {
-      if (level2.id === categoryId) return { level1: level1.id, level2: level2.id, level3: null }
-      for (const level3 of level2.subcategorias || []) {
-        if (level3.id === categoryId) return { level1: level1.id, level2: level2.id, level3: level3.id }
-      }
-    }
-  }
-  return { level1: null, level2: null, level3: null }
-}
-
-
 // --- Change Handlers ---
 
 const onLevel1Change = (productId) => {
@@ -401,6 +404,7 @@ const fetchData = async () => {
     products.value = Array.isArray(pendingRes.data) ? pendingRes.data : []
     categories.value = Array.isArray(categoriesRes.data) ? categoriesRes.data : []
     bulkSelectedProducts.value.clear()
+<<<<<<< HEAD
     
     // Initialize selections for each product
     const categoryIndex = categoriesById.value
@@ -427,6 +431,8 @@ const fetchData = async () => {
       }
     })
 
+=======
+>>>>>>> parent of 7edc89b (multi-categorias funciona)
   } catch (error) {
     globalError.value = error.response?.data?.detail || 'No se pudieron cargar los datos. Intenta nuevamente.'
   } finally {
@@ -434,23 +440,17 @@ const fetchData = async () => {
   }
 }
 
-const applyCategoryToProduct = async (productId, categoryIds) => {
-  if (!categoryIds || categoryIds.length === 0) {
-    globalError.value = 'Selecciona al menos una categoría válida.'
+const applyCategoryToProduct = async (productId, categoryId) => {
+  if (!categoryId) {
+    globalError.value = 'Selecciona una categoría válida.'
     return
   }
   globalError.value = ''
   saving[productId] = true
   try {
-    await api.post(`productos/${productId}/apply-category/`, { category_ids: categoryIds })
+    await api.post(`productos/${productId}/apply-category/`, { category_id: categoryId })
     products.value = products.value.filter((p) => p.id !== productId)
     bulkSelectedProducts.value.delete(productId)
-    // Clear selections after successful save
-    delete selectedLevel1[productId]
-    delete selectedLevel2[productId]
-    delete selectedLevel3[productId]
-    delete selectedAdditionalCategories[productId]
-
   } catch (error) {
     globalError.value = error.response?.data?.detail || 'No se pudo aplicar la categoría.'
   } finally {
@@ -477,6 +477,7 @@ const applyCategoryToProducts = async (payload) => {
 
 // --- Button Click Handlers ---
 
+<<<<<<< HEAD
 const saveManual = async (product) => {
   const primaryCategoryId = toNumberOrNull(selectedLevel3[product.id]) || toNumberOrNull(selectedLevel2[product.id]) || toNumberOrNull(selectedLevel1[product.id])
   const additionalCategoryIds = (selectedAdditionalCategories[product.id] || [])
@@ -491,11 +492,45 @@ const saveManual = async (product) => {
 
   if (allCategoryIds.length === 0) {
     globalError.value = 'Selecciona al menos una categoría para guardar.'
+=======
+const approveSuggestion = async (product) => {
+  const finalId = findCategoryIdsBySuggestion(product.category_ai_main, product.category_ai_sub)
+  if (!finalId) {
+    globalError.value = 'No se encontró una categoría que coincida con la sugerencia de la IA.'
     return
   }
-  await applyCategoryToProduct(product.id, allCategoryIds)
+  await applyCategoryToProduct(product.id, finalId)
 }
 
+const saveManual = async (product) => {
+  const finalId = toNumberOrNull(selectedLevel3[product.id]) || toNumberOrNull(selectedLevel2[product.id]) || toNumberOrNull(selectedLevel1[product.id])
+  if (!finalId) {
+    globalError.value = 'Selecciona al menos una categoría.'
+>>>>>>> parent of 7edc89b (multi-categorias funciona)
+    return
+  }
+  await applyCategoryToProduct(product.id, finalId)
+}
+
+<<<<<<< HEAD
+=======
+const approveBulkSuggestions = async () => {
+  const productMap = new Map(products.value.map((p) => [p.id, p]))
+  const payload = []
+  for (const productId of bulkSelectedProducts.value) {
+    const product = productMap.get(productId)
+    if (!product) continue
+    const categoryId = findCategoryIdsBySuggestion(product.category_ai_main, product.category_ai_sub)
+    if (!categoryId) {
+      globalError.value = `No se encontró una categoría válida para la sugerencia de IA del producto: "${product.nombre}". Abortando.`
+      return
+    }
+    payload.push({ product_id: productId, category_id: categoryId })
+  }
+  await applyCategoryToProducts(payload)
+}
+
+>>>>>>> parent of 7edc89b (multi-categorias funciona)
 const saveBulkManual = async () => {
   const categoryId = finalBulkCategoryId.value
   if (!categoryId) {
@@ -504,7 +539,7 @@ const saveBulkManual = async () => {
   }
   const payload = Array.from(bulkSelectedProducts.value).map((productId) => ({
     product_id: productId,
-    category_ids: [categoryId], // Send as array
+    category_id: categoryId,
   }))
   await applyCategoryToProducts(payload)
 }

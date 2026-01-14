@@ -15,6 +15,7 @@ class ProductoForm(forms.ModelForm):
             'precio_rebajado',
             'sku',
             'imagen_principal',
+            'categoria',
             'categorias',
             'marca',
             'stock',

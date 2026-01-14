@@ -79,18 +79,13 @@ class CategoriaSerializer(serializers.ModelSerializer):
 
 
 class CategoryTreeSerializer(serializers.ModelSerializer):
-    """
-    Serializer recursivo para construir el árbol de categorías.
-    """
     subcategorias = serializers.SerializerMethodField()
 
     class Meta:
         model = Categoria
-        # Se añaden slug y parent para dar más contexto al frontend
-        fields = ["id", "nombre", "slug", "parent", "subcategorias"]
+        fields = ["id", "nombre", "subcategorias"]
 
     def get_subcategorias(self, obj):
-        # La lógica de recursión existente es correcta.
         subcategories = obj.subcategorias.all().order_by("nombre")
         serializer = CategoryTreeSerializer(
             subcategories,
@@ -185,19 +180,16 @@ class PendingReviewProductSerializer(serializers.ModelSerializer):
 
 
 class ProductoSerializer(serializers.ModelSerializer):
-    # LECTURA: Muestra los detalles de las categorías asignadas.
-    categorias = CategoriaSerializer(many=True, read_only=True)
-    # ESCRITURA: Acepta una lista de IDs para asignar/actualizar categorías.
-    categorias_ids = serializers.PrimaryKeyRelatedField(
-        queryset=Categoria.objects.all(),
-        many=True,
-        write_only=True,
-        source='categorias', # Mapea al campo 'categorias' del modelo
-        required=False
+    categorias = serializers.PrimaryKeyRelatedField(
+        queryset=Categoria.objects.all(), many=True, required=False
     )
-    main_category_route = serializers.SerializerMethodField()
-    
-    # --- Lógica existente que se mantiene ---
+    # >>> Detalle de Categorias
+    categoria_detalle = CategoriaSerializer(source="categoria", read_only=True)
+    categorias_detalle = CategoriaSerializer(
+        source="categorias", many=True, read_only=True
+    )
+    categoria_ruta = serializers.SerializerMethodField()
+    # <<< Detalle de Categorias
     atributos = serializers.PrimaryKeyRelatedField(
         queryset=ValorAtributo.objects.all(), many=True, required=False
     )
@@ -226,9 +218,11 @@ class ProductoSerializer(serializers.ModelSerializer):
             "estado_inventario",
             "visibilidad",
             "estado",
-            "categorias", # Campo de lectura
-            "categorias_ids", # Campo de escritura
-            "main_category_route",
+            "categoria",
+            "categorias",
+            "categoria_detalle",
+            "categorias_detalle",
+            "categoria_ruta",
             "marca",
             "atributos",
             "atributos_detalle",
@@ -240,6 +234,7 @@ class ProductoSerializer(serializers.ModelSerializer):
             "fecha_creacion",
             "galeria",
             "precios_escalonados",
+            # NUEVOS:
             "effective_qty",
             "is_virtual_qty",
         ]
@@ -260,8 +255,10 @@ class ProductoSerializer(serializers.ModelSerializer):
                 for k in data.keys()
             }
 
-        # Asegurar que las relaciones ManyToMany se procesen como listas
-        for m2m_field in ("categorias_ids", "atributos"):
+        # Asegurar que las relaciones ManyToMany se procesen como listas incluso
+        # cuando solo se envía un elemento desde el formulario (ej. "categorias" y
+        # "atributos" en formularios de edición existentes).
+        for m2m_field in ("categorias", "atributos"):
             if m2m_field in data and not isinstance(data[m2m_field], list):
                 value = data[m2m_field]
                 if value in (None, "", "null"):
@@ -286,13 +283,19 @@ class ProductoSerializer(serializers.ModelSerializer):
             if tiers:
                 data["precios_escalonados"] = [tiers[i] for i in sorted(tiers.keys())]
 
+        # Campos que son de tipo archivo y no deben ser normalizados a None
         file_fields = {"imagen_principal", "galeria"}
 
+        # Normalizar valores "null" o vacíos a None para evitar errores de validación
         for key, value in list(data.items()):
             if key not in file_fields and isinstance(value, str):
                 if value.lower() == "null" or value == "":
                     data[key] = None
-        
+            elif key not in file_fields and isinstance(value, list):
+                # No normalizar listas que puedan contener archivos (como 'galeria')
+                # Esta lógica es más para campos de texto/números en listas
+                pass
+
         return super().to_internal_value(data)
 
     def validate_precios_escalonados(self, value):
@@ -302,15 +305,15 @@ class ProductoSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data):
-        # AJUSTADO para usar 'categorias_ids'
-        categorias_data = validated_data.pop("categorias", [])
-        atributos = validated_data.pop("atributos", [])
         precios_data = validated_data.pop("precios_escalonados", [])
+        categorias = validated_data.pop("categorias", [])
+        atributos = validated_data.pop("atributos", [])
 
         producto = Producto.objects.create(**validated_data)
-        producto.categorias.set(categorias_data)
+        producto.categorias.set(categorias)
         producto.atributos.set(atributos)
 
+        # --- NUEVO: Galería desde multipart ---
         request = self.context.get("request")
         if request:
             for f in request.FILES.getlist("galeria"):
@@ -324,25 +327,32 @@ class ProductoSerializer(serializers.ModelSerializer):
         return producto
 
     def update(self, instance, validated_data):
-        # AJUSTADO para usar 'categorias_ids'
-        categorias_data = validated_data.pop("categorias", None)
-        atributos = validated_data.pop("atributos", None)
         precios_raw = validated_data.pop("precios_escalonados", "[]")
+        categorias = validated_data.pop("categorias", None)
+        atributos = validated_data.pop("atributos", None)
+
+        # 🔎 DEBUG
+        # print("=== DEBUG UPDATE PRODUCTO ===")
+        # print("Precios escalonados (raw):", precios_raw)
+        # print("Categorías recibidas:", categorias)
+        # print("Atributos recibidos:", atributos)
+        # print("Otros campos:", validated_data)
 
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
 
-        if categorias_data is not None:
-            instance.categorias.set(categorias_data)
+        if categorias is not None:
+            instance.categorias.set(categorias)
         if atributos is not None:
             instance.atributos.set(atributos)
-
+         # --- NUEVO: anexar nuevas imágenes de galería si vienen ---
         request = self.context.get("request")
         if request:
             for f in request.FILES.getlist("galeria"):
                 ImagenProducto.objects.create(producto=instance, imagen=f)
 
+        # Procesar precios escalonados si vienen
         try:
             if isinstance(precios_raw, str):
                 precios_data = json.loads(precios_raw)
@@ -363,7 +373,8 @@ class ProductoSerializer(serializers.ModelSerializer):
                 else:
                     nuevo = PrecioEscalonado.objects.create(producto=instance, **tier)
                     enviados.append(nuevo.id)
-            
+
+            # Eliminar los que ya no están
             instance.precios_escalonados.exclude(id__in=enviados).delete()
 
         except Exception as e:
@@ -372,6 +383,11 @@ class ProductoSerializer(serializers.ModelSerializer):
         return instance
 
     def _get_supplierproduct(self, obj: Producto):
+        """
+        Busca el SupplierProduct asociado por medio del mapeo ProductSupplierMap.
+        Tomamos el primero si hay varios.
+        """
+        # 1) Trae todos los SKUs proveedor vinculados a este producto
         skus = list(
             ProductSupplierMap.objects
             .filter(product=obj)
@@ -379,21 +395,26 @@ class ProductoSerializer(serializers.ModelSerializer):
         )
         if not skus:
             return None
+        # 2) Busca el SupplierProduct correspondiente
         return SupplierProduct.objects.filter(supplier_sku__in=skus).first()
 
     def get_effective_qty(self, obj: Producto) -> int:
         sp = getattr(obj, "_supplier_cache", None) or self._get_supplierproduct(obj)
         if not sp:
+            # Sin proveedor → usa tu stock local
             return obj.stock
         return effective_qty(sp.available_qty, sp.in_stock)
 
     def get_is_virtual_qty(self, obj: Producto) -> bool:
         sp = getattr(obj, "_supplier_cache", None) or self._get_supplierproduct(obj)
         if not sp:
+            # Sin proveedor → no es virtual (estás usando tu propio stock)
             return False
         return not (sp.available_qty and sp.available_qty > 0)
 
-    def get_main_category_route(self, obj: Producto):
+    def get_categoria_ruta(self, obj: Producto):
+        """Devuelve la ruta completa de la categoria principal (incluye padres)."""
+
         def build_path(cat):
             path = []
             current = cat
@@ -402,7 +423,9 @@ class ProductoSerializer(serializers.ModelSerializer):
                 current = current.parent
             return path
 
-        first_category = obj.categorias.first()
-        if first_category:
-            return build_path(first_category)
+        if obj.categoria:
+            return build_path(obj.categoria)
+        first_extra = obj.categorias.first()
+        if first_extra:
+            return build_path(first_extra)
         return []

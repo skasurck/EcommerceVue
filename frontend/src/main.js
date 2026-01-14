@@ -11,7 +11,7 @@ import vClickOutside from 'v-click-outside'
 const app = createApp(App)
 const pinia = createPinia()
 
-app.use(vClickOutside)
+app.use(vClickOutside.directive)
 app.use(pinia)
 ensureInterceptors()
 app.use(router)
