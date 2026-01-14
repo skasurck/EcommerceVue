@@ -135,7 +135,11 @@
           <div class="space-y-3">
             <div>
 <<<<<<< HEAD
+<<<<<<< HEAD
               <label :for="`level1-${product.id}`" class="mb-1 block text-sm font-medium text-gray-700">Editar Categoría Principal (Nivel 1)</label>
+=======
+              <label :for="`level1-${product.id}`" class="mb-1 block text-sm font-medium text-gray-700">Categoría Nivel 1</label>
+>>>>>>> parent of 7edc89b (multi-categorias funciona)
 =======
               <label :for="`level1-${product.id}`" class="mb-1 block text-sm font-medium text-gray-700">Categoría Nivel 1</label>
 >>>>>>> parent of 7edc89b (multi-categorias funciona)
@@ -151,7 +155,11 @@
             </div>
             <div>
 <<<<<<< HEAD
+<<<<<<< HEAD
               <label :for="`level2-${product.id}`" class="mb-1 block text-sm font-medium text-gray-700">Nivel 2</label>
+=======
+              <label :for="`level2-${product.id}`" class="mb-1 block text-sm font-medium text-gray-700">Categoría Nivel 2</label>
+>>>>>>> parent of 7edc89b (multi-categorias funciona)
 =======
               <label :for="`level2-${product.id}`" class="mb-1 block text-sm font-medium text-gray-700">Categoría Nivel 2</label>
 >>>>>>> parent of 7edc89b (multi-categorias funciona)
@@ -168,7 +176,11 @@
             </div>
             <div>
 <<<<<<< HEAD
+<<<<<<< HEAD
               <label :for="`level3-${product.id}`" class="mb-1 block text-sm font-medium text-gray-700">Nivel 3</label>
+=======
+              <label :for="`level3-${product.id}`" class="mb-1 block text-sm font-medium text-gray-700">Categoría Nivel 3</label>
+>>>>>>> parent of 7edc89b (multi-categorias funciona)
 =======
               <label :for="`level3-${product.id}`" class="mb-1 block text-sm font-medium text-gray-700">Categoría Nivel 3</label>
 >>>>>>> parent of 7edc89b (multi-categorias funciona)
@@ -184,6 +196,7 @@
             </div>
           </div>
 
+<<<<<<< HEAD
 <<<<<<< HEAD
           <!-- Additional Categories -->
           <div class="mt-auto space-y-2 rounded-md border border-gray-200 bg-gray-50 p-3">
@@ -211,6 +224,8 @@
 
 =======
 >>>>>>> parent of 7edc89b (multi-categorias funciona)
+=======
+>>>>>>> parent of 7edc89b (multi-categorias funciona)
           <div class="mt-auto space-y-2 pt-4">
             <button type="button" class="w-full rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-60" :disabled="saving[product.id] || bulkSaving" @click="saveManual(product)">Guardar Cambios</button>
           </div>
@@ -234,7 +249,10 @@ const selectedLevel1 = reactive({})
 const selectedLevel2 = reactive({})
 const selectedLevel3 = reactive({})
 <<<<<<< HEAD
+<<<<<<< HEAD
 const selectedAdditionalCategories = reactive({})
+=======
+>>>>>>> parent of 7edc89b (multi-categorias funciona)
 =======
 >>>>>>> parent of 7edc89b (multi-categorias funciona)
 const saving = reactive({})
@@ -405,6 +423,7 @@ const fetchData = async () => {
     categories.value = Array.isArray(categoriesRes.data) ? categoriesRes.data : []
     bulkSelectedProducts.value.clear()
 <<<<<<< HEAD
+<<<<<<< HEAD
     
     // Initialize selections for each product
     const categoryIndex = categoriesById.value
@@ -431,6 +450,8 @@ const fetchData = async () => {
       }
     })
 
+=======
+>>>>>>> parent of 7edc89b (multi-categorias funciona)
 =======
 >>>>>>> parent of 7edc89b (multi-categorias funciona)
   } catch (error) {
@@ -478,6 +499,7 @@ const applyCategoryToProducts = async (payload) => {
 // --- Button Click Handlers ---
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 const saveManual = async (product) => {
   const primaryCategoryId = toNumberOrNull(selectedLevel3[product.id]) || toNumberOrNull(selectedLevel2[product.id]) || toNumberOrNull(selectedLevel1[product.id])
   const additionalCategoryIds = (selectedAdditionalCategories[product.id] || [])
@@ -497,6 +519,21 @@ const approveSuggestion = async (product) => {
   const finalId = findCategoryIdsBySuggestion(product.category_ai_main, product.category_ai_sub)
   if (!finalId) {
     globalError.value = 'No se encontró una categoría que coincida con la sugerencia de la IA.'
+=======
+const approveSuggestion = async (product) => {
+  const finalId = findCategoryIdsBySuggestion(product.category_ai_main, product.category_ai_sub)
+  if (!finalId) {
+    globalError.value = 'No se encontró una categoría que coincida con la sugerencia de la IA.'
+    return
+  }
+  await applyCategoryToProduct(product.id, finalId)
+}
+
+const saveManual = async (product) => {
+  const finalId = toNumberOrNull(selectedLevel3[product.id]) || toNumberOrNull(selectedLevel2[product.id]) || toNumberOrNull(selectedLevel1[product.id])
+  if (!finalId) {
+    globalError.value = 'Selecciona al menos una categoría.'
+>>>>>>> parent of 7edc89b (multi-categorias funciona)
     return
   }
   await applyCategoryToProduct(product.id, finalId)
