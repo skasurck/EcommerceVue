@@ -9,6 +9,9 @@ __pycache__/
 
 # Archivos de base de datos SQLite
 db.sqlite3
+*.sqlite3
+dump.rdb
+
 
 # Archivos de entorno
 .env

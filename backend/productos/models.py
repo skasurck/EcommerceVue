@@ -84,7 +84,7 @@ class Producto(models.Model):
         ('borrador', 'Borrador'),
         ('publicado', 'Publicado')
     ], default='borrador')
-    categoria = models.ForeignKey(Categoria, on_delete=models.SET_NULL, null=True, blank=True)
+    #categoria = models.ForeignKey(Categoria, on_delete=models.SET_NULL, null=True, blank=True)
     categorias = models.ManyToManyField(Categoria, blank=True, related_name='productos')
     marca = models.ForeignKey(Marca, on_delete=models.SET_NULL, null=True, blank=True)
     atributos = models.ManyToManyField(ValorAtributo, blank=True)
