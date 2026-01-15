@@ -156,8 +156,6 @@ class PrecioEscalonadoSerializer(serializers.ModelSerializer):
 
 class PendingReviewProductSerializer(serializers.ModelSerializer):
     imagen_url = serializers.SerializerMethodField()
-    # Las categorías asignadas por la IA ahora se leen de la relación M2M
-    categorias = CategoriaSerializer(many=True, read_only=True)
 
     class Meta:
         model = Producto
@@ -165,7 +163,10 @@ class PendingReviewProductSerializer(serializers.ModelSerializer):
             "id",
             "nombre",
             "imagen_url",
-            "categorias", # Nuevo campo
+            "category_ai_main",
+            "category_ai_sub",
+            "category_ai_conf_main",
+            "category_ai_conf_sub",
         ]
 
     def get_imagen_url(self, obj):
