@@ -211,30 +211,42 @@ class ApplyCategoryAPIView(APIView):
 
     def post(self, request, pk):
         product = get_object_or_404(Producto, pk=pk)
-        category_id = request.data.get("category_id")
+        category_ids = request.data.get("category_ids")
+        if category_ids is None:
+            category_id = request.data.get("category_id")
+            category_ids = [category_id] if category_id is not None else []
 
-        if not category_id:
+        if not isinstance(category_ids, list) or not category_ids:
             return Response(
-                {"detail": "Se requiere 'category_id'."},
+                {"detail": "Se requiere 'category_ids' como una lista no vacia."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        try:
-            category = Categoria.objects.get(pk=category_id)
-        except Categoria.DoesNotExist:
+        normalized_ids = []
+        for category_id in category_ids:
+            try:
+                normalized_ids.append(int(category_id))
+            except (TypeError, ValueError):
+                return Response(
+                    {"detail": "Uno o mas IDs de categoria no son validos."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        normalized_ids = list(dict.fromkeys(normalized_ids))
+        valid_categories = Categoria.objects.filter(id__in=normalized_ids).in_bulk(normalized_ids)
+        if len(valid_categories) != len(set(normalized_ids)):
             return Response(
-                {"detail": "Categoría no encontrada."},
+                {"detail": "Categoria no encontrada."},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        product.categoria = category
+        product.categorias.set([valid_categories[category_id] for category_id in normalized_ids])
         product.category_ai_main = None
         product.category_ai_sub = None
         product.category_ai_conf_main = None
         product.category_ai_conf_sub = None
         product.save(
             update_fields=[
-                "categoria",
                 "category_ai_main",
                 "category_ai_sub",
                 "category_ai_conf_main",
@@ -257,43 +269,82 @@ class BulkApplyCategoryAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        product_ids = [item.get("product_id") for item in product_data]
-        category_ids = [item.get("category_id") for item in product_data]
+        normalized_payload = []
+        product_ids = []
+        all_category_ids = set()
+        for item in product_data:
+            product_id = item.get("product_id")
+            category_ids = item.get("category_ids")
+            if category_ids is None:
+                category_id = item.get("category_id")
+                category_ids = [category_id] if category_id is not None else []
+
+            if not product_id:
+                return Response(
+                    {"detail": "Cada item debe incluir 'product_id'."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if not isinstance(category_ids, list) or not category_ids:
+                return Response(
+                    {"detail": "Cada item debe incluir 'category_ids' como una lista no vacia."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            normalized_ids = []
+            for category_id in category_ids:
+                try:
+                    normalized_ids.append(int(category_id))
+                except (TypeError, ValueError):
+                    return Response(
+                        {"detail": "Uno o mas IDs de categoria no son validos."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+            normalized_ids = list(dict.fromkeys(normalized_ids))
+            normalized_payload.append(
+                {
+                    "product_id": product_id,
+                    "category_ids": normalized_ids,
+                }
+            )
+            product_ids.append(product_id)
+            all_category_ids.update(normalized_ids)
 
         # Validate that all products and categories exist
         valid_products = Producto.objects.filter(id__in=product_ids).in_bulk(product_ids)
-        valid_categories = Categoria.objects.filter(id__in=set(category_ids)).in_bulk(list(set(category_ids)))
-
+        valid_categories = Categoria.objects.filter(id__in=all_category_ids).in_bulk(list(all_category_ids))
 
         if len(valid_products) != len(set(product_ids)):
-            return Response({"detail": "Uno o más IDs de producto no son válidos."}, status=status.HTTP_404_NOT_FOUND)
-        
-        # We check against a set of category_ids because multiple products can point to the same category
-        if len(valid_categories) != len(set(category_ids)):
-            return Response({"detail": "Uno o más IDs de categoría no son válidos."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"detail": "Uno o mas IDs de producto no son validos."}, status=status.HTTP_404_NOT_FOUND)
+
+        if len(valid_categories) != len(all_category_ids):
+            return Response({"detail": "Uno o mas IDs de categoria no son validos."}, status=status.HTTP_404_NOT_FOUND)
 
         try:
             with transaction.atomic():
                 products_to_update = []
-                for item in product_data:
+                for item in normalized_payload:
                     product = valid_products.get(item["product_id"])
-                    category = valid_categories.get(item["category_id"])
-                    
-                    if product and category:
-                        product.categoria = category
-                        product.category_ai_main = None
-                        product.category_ai_sub = None
-                        product.category_ai_conf_main = None
-                        product.category_ai_conf_sub = None
-                        products_to_update.append(product)
+                    if not product:
+                        continue
+                    categories = [valid_categories[category_id] for category_id in item["category_ids"]]
+                    product.categorias.set(categories)
+                    product.category_ai_main = None
+                    product.category_ai_sub = None
+                    product.category_ai_conf_main = None
+                    product.category_ai_conf_sub = None
+                    products_to_update.append(product)
 
-                Producto.objects.bulk_update(products_to_update, [
-                    "categoria",
-                    "category_ai_main",
-                    "category_ai_sub",
-                    "category_ai_conf_main",
-                    "category_ai_conf_sub",
-                ])
+                Producto.objects.bulk_update(
+                    products_to_update,
+                    [
+                        "category_ai_main",
+                        "category_ai_sub",
+                        "category_ai_conf_main",
+                        "category_ai_conf_sub",
+                    ],
+                )
 
         except Exception as e:
             return Response(
@@ -301,7 +352,7 @@ class BulkApplyCategoryAPIView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-        return Response({"detail": f"{len(product_data)} productos actualizados correctamente."})
+        return Response({"detail": f"{len(normalized_payload)} productos actualizados correctamente."})
 
 class StandardResultsSetPagination(PageNumberPagination):
     page_size = 10
@@ -320,7 +371,7 @@ class ProductoViewSet(viewsets.ModelViewSet):
         # Base optimizada (NO uses .all() si no quieres)
         qs = (
             Producto.objects
-            .select_related("marca", "categoria")
+            .select_related("marca")
             .prefetch_related("categorias", "atributos__atributo", "galeria", "precios_escalonados")
             .order_by("-fecha_creacion")
         )

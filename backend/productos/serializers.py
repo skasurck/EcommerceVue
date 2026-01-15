@@ -156,6 +156,7 @@ class PrecioEscalonadoSerializer(serializers.ModelSerializer):
 
 class PendingReviewProductSerializer(serializers.ModelSerializer):
     imagen_url = serializers.SerializerMethodField()
+    categorias = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
 
     class Meta:
         model = Producto
@@ -163,6 +164,7 @@ class PendingReviewProductSerializer(serializers.ModelSerializer):
             "id",
             "nombre",
             "imagen_url",
+            "categorias",
             "category_ai_main",
             "category_ai_sub",
             "category_ai_conf_main",
@@ -185,7 +187,8 @@ class ProductoSerializer(serializers.ModelSerializer):
         queryset=Categoria.objects.all(), many=True, required=False
     )
     # >>> Detalle de Categorias
-    categoria_detalle = CategoriaSerializer(source="categoria", read_only=True)
+    categoria = serializers.SerializerMethodField()
+    categoria_detalle = serializers.SerializerMethodField()
     categorias_detalle = CategoriaSerializer(
         source="categorias", many=True, read_only=True
     )
@@ -246,6 +249,9 @@ class ProductoSerializer(serializers.ModelSerializer):
             "category_ai_sub",
             "category_ai_conf_main",
             "category_ai_conf_sub",
+            "categoria",
+            "categoria_detalle",
+            "categoria_ruta",
         ]
 
     def to_internal_value(self, data):
@@ -413,6 +419,19 @@ class ProductoSerializer(serializers.ModelSerializer):
             return False
         return not (sp.available_qty and sp.available_qty > 0)
 
+    def _get_primary_categoria(self, obj: Producto):
+        return obj.categorias.first()
+
+    def get_categoria(self, obj: Producto):
+        primary = self._get_primary_categoria(obj)
+        return primary.id if primary else None
+
+    def get_categoria_detalle(self, obj: Producto):
+        primary = self._get_primary_categoria(obj)
+        if not primary:
+            return None
+        return CategoriaSerializer(primary, context=self.context).data
+
     def get_categoria_ruta(self, obj: Producto):
         """Devuelve la ruta completa de la categoria principal (incluye padres)."""
 
@@ -424,9 +443,7 @@ class ProductoSerializer(serializers.ModelSerializer):
                 current = current.parent
             return path
 
-        if obj.categoria:
-            return build_path(obj.categoria)
-        first_extra = obj.categorias.first()
-        if first_extra:
-            return build_path(first_extra)
+        primary = self._get_primary_categoria(obj)
+        if primary:
+            return build_path(primary)
         return []
