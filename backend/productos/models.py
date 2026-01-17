@@ -68,7 +68,7 @@ class ValorAtributo(models.Model):
 class Producto(models.Model):
     nombre = models.CharField(max_length=100)
     descripcion_corta = models.TextField(null=True, blank=True)
-    descripcion_larga = models.TextField(null=True, blank=True)  # Se permite HTML desde el frontend
+    descripcion_larga = models.TextField(null=True, blank=True)
     precio_normal = models.DecimalField(max_digits=10, decimal_places=2)
     precio_rebajado = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     sku = models.CharField(max_length=100, unique=True, null=True, blank=True)
@@ -79,12 +79,11 @@ class Producto(models.Model):
         ('en_existencia', 'En existencia'),
         ('agotado', 'Agotado')
     ], default='en_existencia')
-    visibilidad = models.BooleanField(default=True)  # Público o privado
+    visibilidad = models.BooleanField(default=True)
     estado = models.CharField(max_length=20, choices=[
         ('borrador', 'Borrador'),
         ('publicado', 'Publicado')
     ], default='borrador')
-    #categoria = models.ForeignKey(Categoria, on_delete=models.SET_NULL, null=True, blank=True)
     categorias = models.ManyToManyField(Categoria, blank=True, related_name='productos')
     marca = models.ForeignKey(Marca, on_delete=models.SET_NULL, null=True, blank=True)
     atributos = models.ManyToManyField(ValorAtributo, blank=True)
@@ -97,60 +96,88 @@ class Producto(models.Model):
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 
     def save(self, *args, **kwargs):
-        is_new = self.pk is None
-        old_imagen = None
-        old_miniatura = None
+        reprocess_image = kwargs.pop('reprocess_image', False)
 
-        if not is_new:
+        # Guardar una copia del nombre de archivo original antes de que se modifique
+        old_instance = None
+        if self.pk:
             try:
-                old = Producto.objects.only('imagen_principal', 'miniatura').get(pk=self.pk)
-                old_imagen = old.imagen_principal
-                old_miniatura = old.miniatura
+                old_instance = Producto.objects.get(pk=self.pk)
             except Producto.DoesNotExist:
                 pass
 
-        super().save(*args, **kwargs)
-
-        # Validación automática del estado de inventario según el stock
+        # Lógica de negocio (ej. estado de inventario)
         if self.stock == 0 and self.estado_inventario != 'agotado':
             self.estado_inventario = 'agotado'
-            super().save(update_fields=['estado_inventario'])
         elif self.stock > 0 and self.estado_inventario != 'en_existencia':
             self.estado_inventario = 'en_existencia'
-            super().save(update_fields=['estado_inventario'])
 
-        regenerate = False
-        if self.imagen_principal:
-            if is_new or self.imagen_principal != old_imagen or not old_miniatura:
-                regenerate = True
+        # Determinar si la imagen debe ser procesada
+        image_has_changed_on_model = (old_instance and old_instance.imagen_principal != self.imagen_principal)
+        is_new_image = (self.pk is None and self.imagen_principal)
+        force_reprocess = reprocess_image and self.imagen_principal
 
-        if regenerate:
-            try:
-                # Asegurarse de abrir desde la ruta final en disco
-                self.imagen_principal.open()
-                img = Image.open(self.imagen_principal)
+        # La condición principal para procesar la imagen
+        if is_new_image or image_has_changed_on_model or force_reprocess:
+            
+            # Evitar reprocesar si ya es WebP, a menos que sea una imagen nueva o cambiada
+            if force_reprocess and not image_has_changed_on_model and 'webp' in self.imagen_principal.name.lower():
+                pass # Ya es WebP y no ha cambiado, no hacer nada.
+            else:
+                try:
+                    self.imagen_principal.open()
+                    img = Image.open(self.imagen_principal)
+                    
+                    original_filename = self.imagen_principal.name
+                    base_name = os.path.splitext(os.path.basename(original_filename))[0]
 
-                if img.mode in ("RGBA", "P"):
-                    img = img.convert("RGB")
+                    # --- Convertir imagen principal a WebP ---
+                    buffer_main = BytesIO()
+                    img.save(buffer_main, format='WEBP', quality=85)
+                    main_file = ContentFile(buffer_main.getvalue())
+                    filename_main = f"{slugify(base_name)}_{get_random_string(7)}.webp"
+                    
+                    # --- Generar miniatura WebP ---
+                    thumb_img = img.copy()
+                    thumb_img.thumbnail((400, 400), Image.Resampling.LANCZOS)
+                    
+                    # Corregir manejo de transparencia para la miniatura
+                    if thumb_img.mode in ('RGBA', 'LA', 'P'):
+                        background = Image.new('RGB', thumb_img.size, (255, 255, 255))
+                        # Usar el canal alfa como máscara para preservar la transparencia sobre el fondo blanco
+                        if 'A' in thumb_img.mode:
+                            background.paste(thumb_img, mask=thumb_img.split()[-1])
+                        else: # Para modo 'P' con paleta de transparencia
+                            background.paste(thumb_img)
+                        thumb_img = background
 
-                fondo = Image.new('RGB', (200, 200), (255, 255, 255))
-                img.thumbnail((200, 200), Image.Resampling.LANCZOS)
+                    buffer_thumb = BytesIO()
+                    thumb_img.save(buffer_thumb, format='WEBP', quality=80)
+                    thumb_file = ContentFile(buffer_thumb.getvalue())
+                    filename_thumb = f"{slugify(base_name)}_thumbnail.webp"
 
-                x = (200 - img.width) // 2
-                y = (200 - img.height) // 2
-                fondo.paste(img, (x, y))
+                    # Eliminar la imagen principal antigua si ha cambiado
+                    if image_has_changed_on_model and old_instance and old_instance.imagen_principal:
+                        old_instance.imagen_principal.delete(save=False)
+                    
+                    # Eliminar la miniatura antigua si existía
+                    if old_instance and old_instance.miniatura:
+                        old_instance.miniatura.delete(save=False)
+                    
+                    # Guardar los nuevos archivos. `save=False` evita la recursión.
+                    self.imagen_principal.save(filename_main, main_file, save=False)
+                    self.miniatura.save(filename_thumb, thumb_file, save=False)
+                
+                except Exception as e:
+                    print(f"Error procesando la imagen del producto {self.pk}: {e}")
 
-                buffer = BytesIO()
-                fondo.save(buffer, format='JPEG')
-                thumb_file = ContentFile(buffer.getvalue())
+        # Si la imagen se eliminó del producto, eliminar los archivos asociados
+        elif old_instance and old_instance.imagen_principal and not self.imagen_principal:
+            old_instance.imagen_principal.delete(save=False)
+            if old_instance.miniatura:
+                old_instance.miniatura.delete(save=False)
 
-                self.miniatura.save(f'{self.pk}_miniatura.jpg', thumb_file, save=False)
-                super().save(update_fields=['miniatura'])
-
-                print(f"✅ MINIATURA GENERADA para producto {self.pk}")
-
-            except Exception as e:
-                print(f"[Error] No se pudo generar miniatura: {e}")
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.nombre
@@ -169,6 +196,46 @@ class ImagenProducto(models.Model):
         return "Sin imagen"
 
     vista_previa.short_description = "Vista previa"
+
+    def save(self, *args, **kwargs):
+        reprocess_image = kwargs.pop('reprocess_image', False)
+
+        old_instance = None
+        if self.pk:
+            try:
+                old_instance = ImagenProducto.objects.get(pk=self.pk)
+            except ImagenProducto.DoesNotExist:
+                pass
+
+        image_has_changed = (old_instance and old_instance.imagen != self.imagen)
+        is_new = self.pk is None
+        should_process_image = (is_new and self.imagen) or image_has_changed or (reprocess_image and self.imagen)
+
+        if should_process_image:
+            if reprocess_image and not image_has_changed and self.imagen and 'webp' in self.imagen.name.lower():
+                pass  # Ya es WebP y no ha cambiado, no hacer nada.
+            else:
+                try:
+                    self.imagen.open()
+                    img = Image.open(self.imagen)
+                    
+                    base_name = os.path.splitext(os.path.basename(self.imagen.name))[0]
+
+                    buffer = BytesIO()
+                    img.save(buffer, format='WEBP', quality=85)
+                    file_content = ContentFile(buffer.getvalue())
+                    filename = f"{slugify(base_name)}_{get_random_string(7)}.webp"
+                    
+                    # Eliminar archivo antiguo solo si la imagen ha cambiado
+                    if image_has_changed and old_instance and old_instance.imagen:
+                        old_instance.imagen.delete(save=False)
+                    
+                    self.imagen.save(filename, file_content, save=False)
+                
+                except Exception as e:
+                    print(f"Error procesando la imagen de la galería {self.pk}: {e}")
+
+        super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
         if self.imagen:

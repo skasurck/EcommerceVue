@@ -15,6 +15,7 @@
         <img
           :src="imgSrc"
           :alt="p.nombre || 'Producto'"
+          loading="lazy"
           class="aspect-square w-full rounded-t-lg bg-gray-100 object-cover group-hover:opacity-90"
         />
       </div>
