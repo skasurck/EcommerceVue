@@ -3,14 +3,17 @@
     <!-- Header -->
     <div class="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
       <div>
-        <h1 class="text-2xl font-semibold text-gray-800">Revision de clasificaciones</h1>
+        <h1 class="text-2xl font-semibold text-gray-800">
+          Revision de clasificaciones
+          <span v-if="pagination.count > 0" class="ml-2 text-lg font-normal text-gray-500">({{ pagination.count }} en total)</span>
+        </h1>
         <p class="text-sm text-gray-500">Revisa las sugerencias generadas por la IA y asigna la categoria correcta a cada producto.</p>
       </div>
       <button
         type="button"
         class="inline-flex items-center rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-100 disabled:opacity-60"
         :disabled="loading"
-        @click="fetchData"
+        @click="fetchInitialData"
       >
         Actualizar
       </button>
@@ -224,6 +227,21 @@
         </div>
       </div>
     </div>
+
+    <!-- Load More Button -->
+    <div v-if="pagination.next" class="pt-6 text-center">
+      <button
+        @click="loadMore"
+        :disabled="loadingMore"
+        class="inline-flex items-center rounded-md border border-gray-300 bg-white px-6 py-3 text-base font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:opacity-60"
+      >
+        <svg v-if="loadingMore" class="mr-3 h-5 w-5 animate-spin text-gray-700" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" />
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+        </svg>
+        Cargar más
+      </button>
+    </div>
   </div>
 </template>
 
@@ -232,9 +250,15 @@ import { onMounted, reactive, ref, computed } from 'vue'
 import api, { ensureInterceptors } from '@/axios'
 
 const loading = ref(false)
+const loadingMore = ref(false)
 const products = ref([])
 const categories = ref([])
 const globalError = ref('')
+const pagination = ref({
+  count: 0,
+  next: null,
+  previous: null,
+})
 
 // State for individual product selections
 const selectedLevel1 = reactive({})
@@ -390,35 +414,64 @@ const onBulkLevel2Change = () => {
 }
 
 // --- API Calls & Data Handling ---
-const fetchData = async () => {
+const fetchInitialData = async () => {
   loading.value = true
   globalError.value = ''
   try {
     ensureInterceptors()
-    const [pendingRes, categoriesRes] = await Promise.all([api.get('ai/pending-review/'), api.get('all-categories/')])
-    products.value = Array.isArray(pendingRes.data) ? pendingRes.data : []
-    categories.value = Array.isArray(categoriesRes.data) ? categoriesRes.data : []
-    bulkSelectedProducts.value.clear()
+    // Solo carga las categorías una vez
+    if (categories.value.length === 0) {
+      const categoriesRes = await api.get('all-categories/')
+      categories.value = Array.isArray(categoriesRes.data) ? categoriesRes.data : []
+    }
 
-    products.value.forEach((product) => {
-      const initialCategories = Array.isArray(product.categorias) ? product.categorias : []
-      if (initialCategories.length > 0) {
-        const path = findCategoryPath(initialCategories[0], categories.value)
-        selectedLevel1[product.id] = path.level1
-        selectedLevel2[product.id] = path.level2
-        selectedLevel3[product.id] = path.level3
-      } else {
-        selectedLevel1[product.id] = null
-        selectedLevel2[product.id] = null
-        selectedLevel3[product.id] = null
-      }
-      selectedAdditionalCategories[product.id] = [...initialCategories]
-    })
+    const pendingRes = await api.get('ai/pending-review/')
+    
+    products.value = Array.isArray(pendingRes.data.results) ? pendingRes.data.results : []
+    pagination.value.count = pendingRes.data.count
+    pagination.value.next = pendingRes.data.next
+    
+    bulkSelectedProducts.value.clear()
+    initializeProductState(products.value)
   } catch (error) {
     globalError.value = error.response?.data?.detail || 'No se pudieron cargar los datos. Intenta nuevamente.'
   } finally {
     loading.value = false
   }
+}
+
+const loadMore = async () => {
+  if (!pagination.value.next || loadingMore.value) return
+  loadingMore.value = true
+  globalError.value = ''
+  try {
+    const res = await api.get(pagination.value.next)
+    const newProducts = Array.isArray(res.data.results) ? res.data.results : []
+    products.value.push(...newProducts)
+    pagination.value.next = res.data.next
+    initializeProductState(newProducts)
+  } catch (error) {
+    globalError.value = 'No se pudieron cargar más productos. Intenta nuevamente.'
+  } finally {
+    loadingMore.value = false
+  }
+}
+
+const initializeProductState = (productsToInitialize) => {
+  productsToInitialize.forEach((product) => {
+    const initialCategories = Array.isArray(product.categorias) ? product.categorias : []
+    if (initialCategories.length > 0) {
+      const path = findCategoryPath(initialCategories[0], categories.value)
+      selectedLevel1[product.id] = path.level1
+      selectedLevel2[product.id] = path.level2
+      selectedLevel3[product.id] = path.level3
+    } else {
+      selectedLevel1[product.id] = null
+      selectedLevel2[product.id] = null
+      selectedLevel3[product.id] = null
+    }
+    selectedAdditionalCategories[product.id] = [...initialCategories]
+  })
 }
 
 const applyCategoryToProduct = async (productId, categoryIds) => {
@@ -432,6 +485,7 @@ const applyCategoryToProduct = async (productId, categoryIds) => {
   try {
     await api.post(`productos/${productId}/apply-category/`, { category_ids: normalizedIds })
     products.value = products.value.filter((product) => product.id !== productId)
+    pagination.value.count--
     bulkSelectedProducts.value.delete(productId)
   } catch (error) {
     globalError.value = error.response?.data?.detail || 'No se pudo aplicar la categoria.'
@@ -448,6 +502,7 @@ const applyCategoryToProducts = async (payload) => {
     await api.post('productos/bulk-apply-category/', { products: payload })
     const processedIds = new Set(payload.map((item) => item.product_id))
     products.value = products.value.filter((product) => !processedIds.has(product.id))
+    pagination.value.count -= processedIds.size
     bulkSelectedProducts.value.clear()
   } catch (error) {
     globalError.value = error.response?.data?.detail || 'Ocurrio un error al procesar la solicitud masiva.'
@@ -508,5 +563,5 @@ const saveBulkManual = async () => {
   await applyCategoryToProducts(payload)
 }
 
-onMounted(fetchData)
+onMounted(fetchInitialData)
 </script>

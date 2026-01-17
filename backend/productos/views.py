@@ -1,4 +1,4 @@
-from rest_framework import viewsets, permissions, status
+from rest_framework import viewsets, permissions, status, generics
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.filters import OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
@@ -42,7 +42,16 @@ from suppliers.models import ProductSupplierMap, SupplierProduct
 from rest_framework.viewsets import ReadOnlyModelViewSet
 
 
+class StandardResultsSetPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+
 from django.db.models import Min, Max
+
+
+
 
 class PriceRangeAPIView(APIView):
     permission_classes = [permissions.AllowAny]
@@ -182,19 +191,15 @@ class ProductSearchAPIView(APIView):
         return Response(serializer.data)
 
 
-class PendingReviewProductsAPIView(APIView):
+class PendingReviewProductsAPIView(generics.ListAPIView):
     permission_classes = [IsAdminOrSuperAdmin]
+    serializer_class = PendingReviewProductSerializer
+    pagination_class = StandardResultsSetPagination
 
-    def get(self, request):
-        queryset = Producto.objects.filter(
+    def get_queryset(self):
+        return Producto.objects.filter(
             category_ai_main__isnull=False,
         ).order_by("-fecha_creacion")
-        serializer = PendingReviewProductSerializer(
-            queryset,
-            many=True,
-            context={"request": request},
-        )
-        return Response(serializer.data)
 
 
 class AllCategoriesAPIView(APIView):
@@ -353,11 +358,6 @@ class BulkApplyCategoryAPIView(APIView):
             )
 
         return Response({"detail": f"{len(normalized_payload)} productos actualizados correctamente."})
-
-class StandardResultsSetPagination(PageNumberPagination):
-    page_size = 10
-    page_size_query_param = 'page_size'
-    max_page_size = 100
 
 
 from django.db.models import Q
