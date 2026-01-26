@@ -12,7 +12,39 @@ python backend/manage.py reset_categories
 
 ## For Windows:
 
+
 ```powershell
 .venv\Scripts\activate
 python backend\manage.py reset_categories
 ```
+
+cd frontend && npm run dev
+
+cd backend && source venv/bin/activate && python manage.py runserver
+
+cd backend && source venv/bin/activate && redis-server
+
+cd backend && source venv/bin/activate && celery -A tienda worker -l info
+
+cd backend && source venv/bin/activate && cd .. && gemini
+
+cd backend && source venv/bin/activate && cd ..
+
+cd backend && source venv/bin/activate && python manage.py process_images
+-------codigos--------
+
+npm run dev
+
+python manage.py runserver
+
+source venv/bin/activate
+
+redis-server
+
+celery -A tienda worker -l info
+
+gemini
+
+https://youtu.be/tKSIuxfwhJU
+
+Contestame en español y de ahora en adelante todo lo que te pregunte responde en español. ¿Entendido?
