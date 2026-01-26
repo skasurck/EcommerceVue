@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import CartItem, CartReservation
-from productos.serializers import ProductoSerializer
+from productos.serializers import ProductoListSerializer
 
 class CartItemSerializer(serializers.ModelSerializer):
     reserva_expira = serializers.SerializerMethodField()
@@ -18,7 +18,10 @@ class CartItemSerializer(serializers.ModelSerializer):
         return reserva.expires_at
 
     def to_representation(self, instance):
+        """
+        Usa un serializador de producto ligero para la representación.
+        """
         data = super().to_representation(instance)
-        data['producto'] = ProductoSerializer(instance.producto, context=self.context).data
+        data['producto'] = ProductoListSerializer(instance.producto, context=self.context).data
         return data
 

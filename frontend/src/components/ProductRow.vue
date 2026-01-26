@@ -5,6 +5,7 @@ defineProps({
   productos: { type: Array, default: () => [] },
   to: { type: String, default: '/productos' }
 })
+defineEmits(['add-to-cart'])
 </script>
 
 <template>
@@ -16,7 +17,7 @@ defineProps({
     <div class="overflow-x-auto scrollbar-thin">
       <div class="flex gap-4 pr-4 pl-2 snap-x snap-mandatory">
         <div v-for="p in productos" :key="p.id" class="w-56 shrink-0 snap-start">
-          <ProductCard :producto="p" />
+          <ProductCard :producto="p" @add-to-cart="$emit('add-to-cart', $event)" />
         </div>
       </div>
     </div>

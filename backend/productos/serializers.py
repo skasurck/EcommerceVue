@@ -182,6 +182,52 @@ class PendingReviewProductSerializer(serializers.ModelSerializer):
         return url
 
 
+class ProductoListSerializer(serializers.ModelSerializer):
+    """
+    Serializer ligero para las listas de productos.
+    Optimizado para un rendimiento rápido en vistas de lista.
+    """
+    imagen_principal = serializers.SerializerMethodField()
+    tiene_precios_escalonados = serializers.SerializerMethodField()
+    colores = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Producto
+        fields = [
+            "id",
+            "nombre",
+            "precio_normal",
+            "precio_rebajado",
+            "imagen_principal",
+            "descripcion_corta",
+            "stock",
+            "tiene_precios_escalonados",
+            "colores",
+        ]
+    
+    def get_imagen_principal(self, obj):
+        request = self.context.get("request")
+        # Prioriza la miniatura, si no existe, usa la imagen principal.
+        image_field = obj.miniatura or obj.imagen_principal
+        if image_field:
+            return request.build_absolute_uri(image_field.url)
+        return None
+
+    def get_tiene_precios_escalonados(self, obj):
+        # La relación 'precios_escalonados' es prefetched en el ViewSet.
+        # Esta comprobación es eficiente y no causa queries adicionales.
+        return obj.precios_escalonados.all().exists()
+
+    def get_colores(self, obj):
+        # La relación 'atributos' y 'atributos__atributo' es prefetched.
+        # Este bucle es eficiente.
+        colores = []
+        for valor in obj.atributos.all():
+            if valor.atributo.nombre.lower() == 'color':
+                colores.append(valor.valor)
+        return colores
+
+
 class ProductoSerializer(serializers.ModelSerializer):
     categorias = serializers.PrimaryKeyRelatedField(
         queryset=Categoria.objects.all(), many=True, required=False

@@ -15,8 +15,10 @@ import Navbar from './components/Navbar.vue'
 import { onMounted, onUnmounted, ref, computed, nextTick, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useCartStore } from '@/stores/cart'
 
 const auth = useAuthStore()
+const cart = useCartStore()
 const route = useRoute()
 
 // ¿estamos en el layout admin?
@@ -37,6 +39,7 @@ const activityHandler = () => {
 
 onMounted(async () => {
   auth.checkLogin()
+  cart.fetchCart() // <- CARGAR EL CARRITO AL INICIAR
   await nextTick()
   setNavHeight()
   window.addEventListener('mousemove', activityHandler)

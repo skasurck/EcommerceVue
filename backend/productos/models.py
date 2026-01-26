@@ -66,7 +66,7 @@ class ValorAtributo(models.Model):
 
 # ──────────── PRODUCTOS ────────────
 class Producto(models.Model):
-    nombre = models.CharField(max_length=100)
+    nombre = models.CharField(max_length=100, db_index=True)
     descripcion_corta = models.TextField(null=True, blank=True)
     descripcion_larga = models.TextField(null=True, blank=True)
     precio_normal = models.DecimalField(max_digits=10, decimal_places=2)
@@ -78,12 +78,12 @@ class Producto(models.Model):
     estado_inventario = models.CharField(max_length=20, choices=[
         ('en_existencia', 'En existencia'),
         ('agotado', 'Agotado')
-    ], default='en_existencia')
-    visibilidad = models.BooleanField(default=True)
+    ], default='en_existencia', db_index=True)
+    visibilidad = models.BooleanField(default=True, db_index=True)
     estado = models.CharField(max_length=20, choices=[
         ('borrador', 'Borrador'),
         ('publicado', 'Publicado')
-    ], default='borrador')
+    ], default='borrador', db_index=True)
     categorias = models.ManyToManyField(Categoria, blank=True, related_name='productos')
     marca = models.ForeignKey(Marca, on_delete=models.SET_NULL, null=True, blank=True)
     atributos = models.ManyToManyField(ValorAtributo, blank=True)
@@ -93,7 +93,7 @@ class Producto(models.Model):
     category_ai_conf_main = models.FloatField(null=True, blank=True)
     category_ai_conf_sub = models.FloatField(null=True, blank=True)
     fecha_clasificacion_ai = models.DateTimeField(null=True, blank=True, help_text="Fecha de la última clasificación por IA.")
-    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_creacion = models.DateTimeField(auto_now_add=True, db_index=True)
 
     def save(self, *args, **kwargs):
         reprocess_image = kwargs.pop('reprocess_image', False)

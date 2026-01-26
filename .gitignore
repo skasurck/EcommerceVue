@@ -44,3 +44,5 @@ backend/db.sqlite3
 backend/db.sqlite3
 backend/media/productos/*
 backend/media/productos/miniaturas/*
+backend/db.sqlite3
+backend/dump.rdb

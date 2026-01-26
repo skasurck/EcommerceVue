@@ -26,6 +26,7 @@ from .models import (
 )
 from .serializers import (
     ProductoSerializer,
+    ProductoListSerializer,
     CategoriaSerializer,
     CategoryTreeSerializer,
     MarcaSerializer,
@@ -367,16 +368,36 @@ class ProductoViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
-    def get_queryset(self):
-        # Base optimizada (NO uses .all() si no quieres)
-        qs = (
-            Producto.objects
-            .select_related("marca")
-            .prefetch_related("categorias", "atributos__atributo", "galeria", "precios_escalonados")
-            .order_by("-fecha_creacion")
-        )
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return ProductoListSerializer
+        return ProductoSerializer
 
-        # Filtros existentes
+    def get_queryset(self):
+        # Optimización: Aplicar .only() y prefetch selectivos según la acción.
+        if self.action == 'list':
+            # Solo traer los campos necesarios para ProductoListSerializer y precargar
+            # las relaciones mínimas que usa el serializador ligero.
+            qs = (
+                Producto.objects.only(
+                    'id', 'nombre', 'precio_normal', 'precio_rebajado',
+                    'miniatura', 'imagen_principal', 'descripcion_corta', 'stock'
+                ).prefetch_related(
+                    "precios_escalonados",
+                    "atributos__atributo"
+                )
+            )
+        else:
+            # Para la vista de detalle, cargar todo como antes.
+            qs = (
+                Producto.objects
+                .select_related("marca")
+                .prefetch_related("categorias", "atributos__atributo", "galeria", "precios_escalonados")
+            )
+        
+        qs = qs.order_by("-fecha_creacion")
+
+        # --- Filtros existentes (se aplican a ambos casos) ---
         params = self.request.query_params
         search = params.get('search')
         categoria = params.get('categoria')
@@ -386,24 +407,18 @@ class ProductoViewSet(viewsets.ModelViewSet):
         if search:
             qs = qs.filter(Q(nombre__icontains=search) | Q(sku__icontains=search))
         if categoria:
-            # al filtrar por M2M puede duplicar filas; usa distinct() SOLO en este caso
             qs = qs.filter(categorias__id=categoria).distinct()
         if estado:
             qs = qs.filter(estado_inventario=estado)
         if marca:
             def parse_id_list(raw):
-                if isinstance(raw, (list, tuple)):
-                    iterable = raw
-                else:
-                    iterable = str(raw).split(',')
+                if isinstance(raw, (list, tuple)): iterable = raw
+                else: iterable = str(raw).split(',')
                 ids = []
                 for item in iterable:
-                    try:
-                        ids.append(int(str(item).strip()))
-                    except (TypeError, ValueError):
-                        continue
+                    try: ids.append(int(str(item).strip()))
+                    except (TypeError, ValueError): continue
                 return ids
-
             marca_ids = parse_id_list(marca)
             if marca_ids:
                 qs = qs.filter(marca_id__in=marca_ids)
@@ -412,10 +427,8 @@ class ProductoViewSet(viewsets.ModelViewSet):
         precio_max = params.get('precio_max')
 
         def parse_decimal_value(value):
-            try:
-                return Decimal(str(value))
-            except (InvalidOperation, TypeError, ValueError):
-                return None
+            try: return Decimal(str(value))
+            except (InvalidOperation, TypeError, ValueError): return None
 
         min_value = parse_decimal_value(precio_min)
         max_value = parse_decimal_value(precio_max)
@@ -425,35 +438,31 @@ class ProductoViewSet(viewsets.ModelViewSet):
         if max_value is not None:
             qs = qs.filter(precio_normal__lte=max_value)
 
-        # Filtro para ofertas
         en_oferta = params.get('en_oferta')
         if en_oferta and en_oferta.lower() in ['true', '1']:
             qs = qs.filter(precio_rebajado__isnull=False, precio_rebajado__gt=0)
 
-        # --- Precarga de suppliers SIN romper nada de arriba ---
-        product_ids = list(qs.values_list('id', flat=True))
-        if product_ids:
-            maps = ProductSupplierMap.objects.filter(
-                product_id__in=product_ids
-            ).values('product_id', 'supplier_sku')
+        # --- Optimización: Omitir precarga de proveedores para la vista de lista ---
+        if self.action != 'list':
+            product_ids = list(qs.values_list('id', flat=True))
+            if product_ids:
+                maps = ProductSupplierMap.objects.filter(product_id__in=product_ids).values('product_id', 'supplier_sku')
+                map_by_product = {m['product_id']: m['supplier_sku'] for m in maps}
+                skus = list(set(map_by_product.values()))
 
-            map_by_product = {m['product_id']: m['supplier_sku'] for m in maps}
-            skus = list(set(map_by_product.values()))
-
-            if skus:
-                sp_by_sku = {
-                    sp.supplier_sku: sp
-                    for sp in SupplierProduct.objects.filter(supplier_sku__in=skus)
-                }
-                # cache final: product_id -> SupplierProduct
-                self._sp_by_product = {
-                    pid: sp_by_sku.get(sku)
-                    for pid, sku in map_by_product.items()
-                    if sp_by_sku.get(sku)
-                }
+                if skus:
+                    sp_by_sku = {sp.supplier_sku: sp for sp in SupplierProduct.objects.filter(supplier_sku__in=skus)}
+                    self._sp_by_product = {
+                        pid: sp_by_sku.get(sku)
+                        for pid, sku in map_by_product.items()
+                        if sp_by_sku.get(sku)
+                    }
+                else:
+                    self._sp_by_product = {}
             else:
                 self._sp_by_product = {}
         else:
+            # Asegurarse de que el atributo exista para el contexto del serializador, pero vacío.
             self._sp_by_product = {}
 
         return qs
