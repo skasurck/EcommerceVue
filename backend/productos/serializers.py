@@ -214,15 +214,19 @@ class ProductoListSerializer(serializers.ModelSerializer):
         return None
 
     def get_tiene_precios_escalonados(self, obj):
-        # La relación 'precios_escalonados' es prefetched en el ViewSet.
-        # Esta comprobación es eficiente y no causa queries adicionales.
+        has_tier = getattr(obj, "has_tier", None)
+        if has_tier is not None:
+            return bool(has_tier)
+        # Fallback si no hay anotación.
         return obj.precios_escalonados.all().exists()
 
     def get_colores(self, obj):
-        # La relación 'atributos' y 'atributos__atributo' es prefetched.
-        # Este bucle es eficiente.
+        # Usa la precarga filtrada de colores si existe.
+        color_atributos = getattr(obj, "color_atributos", None)
+        if color_atributos is None:
+            color_atributos = obj.atributos.all()
         colores = []
-        for valor in obj.atributos.all():
+        for valor in color_atributos:
             if valor.atributo.nombre.lower() == 'color':
                 colores.append(valor.valor)
         return colores

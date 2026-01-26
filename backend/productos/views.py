@@ -5,7 +5,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
 from rest_framework.views import APIView
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Q, Exists, OuterRef, Prefetch
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
@@ -368,6 +368,10 @@ class ProductoViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
+    @method_decorator(cache_page(10))
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
     def get_serializer_class(self):
         if self.action == 'list':
             return ProductoListSerializer
@@ -383,8 +387,13 @@ class ProductoViewSet(viewsets.ModelViewSet):
                     'id', 'nombre', 'precio_normal', 'precio_rebajado',
                     'miniatura', 'imagen_principal', 'descripcion_corta', 'stock'
                 ).prefetch_related(
-                    "precios_escalonados",
-                    "atributos__atributo"
+                    Prefetch(
+                        "atributos",
+                        queryset=ValorAtributo.objects.select_related("atributo").filter(
+                            atributo__nombre__iexact="color"
+                        ),
+                        to_attr="color_atributos",
+                    )
                 )
             )
         else:
@@ -441,6 +450,13 @@ class ProductoViewSet(viewsets.ModelViewSet):
         en_oferta = params.get('en_oferta')
         if en_oferta and en_oferta.lower() in ['true', '1']:
             qs = qs.filter(precio_rebajado__isnull=False, precio_rebajado__gt=0)
+
+        if self.action == 'list':
+            qs = qs.annotate(
+                has_tier=Exists(
+                    PrecioEscalonado.objects.filter(producto_id=OuterRef("pk"))
+                )
+            )
 
         # --- Optimización: Omitir precarga de proveedores para la vista de lista ---
         if self.action != 'list':
