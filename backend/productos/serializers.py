@@ -61,10 +61,11 @@ class CategoriaSerializer(serializers.ModelSerializer):
         allow_null=True,
         required=False,
     )
+    productos_count = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = Categoria
-        fields = ["id", "nombre", "slug", "parent"]
+        fields = ["id", "nombre", "slug", "parent", "productos_count"]
         extra_kwargs = {"slug": {"required": False, "allow_blank": True}}
 
     def create(self, validated_data):

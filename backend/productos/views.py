@@ -5,7 +5,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
 from rest_framework.views import APIView
 from django.db import transaction
-from django.db.models import Q, Exists, OuterRef, Prefetch
+from django.db.models import Q, Exists, OuterRef, Prefetch, Count
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
@@ -416,7 +416,28 @@ class ProductoViewSet(viewsets.ModelViewSet):
         if search:
             qs = qs.filter(Q(nombre__icontains=search) | Q(sku__icontains=search))
         if categoria:
-            qs = qs.filter(categorias__id=categoria).distinct()
+            try:
+                categoria_id = int(categoria)
+            except (TypeError, ValueError):
+                categoria_id = None
+
+            if categoria_id is not None:
+                # Incluye la categoría seleccionada y todos sus descendientes.
+                category_rows = Categoria.objects.values_list("id", "parent_id")
+                children_by_parent = {}
+                for node_id, parent_id in category_rows:
+                    children_by_parent.setdefault(parent_id, []).append(node_id)
+
+                category_ids = set()
+                pending = [categoria_id]
+                while pending:
+                    current_id = pending.pop()
+                    if current_id in category_ids:
+                        continue
+                    category_ids.add(current_id)
+                    pending.extend(children_by_parent.get(current_id, []))
+
+                qs = qs.filter(categorias__id__in=category_ids).distinct()
         if estado:
             qs = qs.filter(estado_inventario=estado)
         if marca:
@@ -513,7 +534,7 @@ class ProductoViewSet(viewsets.ModelViewSet):
         return [permissions.AllowAny()]
 
 class CategoriaViewSet(viewsets.ModelViewSet):
-    queryset = Categoria.objects.all().order_by('id') 
+    queryset = Categoria.objects.annotate(productos_count=Count('productos', distinct=True)).order_by('id')
     serializer_class = CategoriaSerializer
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     ordering_fields = ['id', 'nombre', 'created_at']

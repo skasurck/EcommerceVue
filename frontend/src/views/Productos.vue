@@ -37,39 +37,26 @@
         <div class="bg-white border border-gray-200 rounded-lg p-4 space-y-6 shadow-sm">
           <div>
             <h2 class="font-semibold text-gray-800">Departamento</h2>
-            <ul class="mt-3 space-y-2 text-sm text-gray-700">
-              <li>
-                <label class="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    value=""
-                    v-model="filtros.categoria"
-                    @change="handleFilterChange"
-                    class="text-blue-600 focus:ring-blue-500"
-                  />
-                  <span>Todo</span>
-                </label>
-              </li>
-              <li v-for="categoria in visibleCategorias" :key="categoria.id">
-                <label class="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    :value="categoria.id"
-                    v-model="filtros.categoria"
-                    @change="handleFilterChange"
-                    class="text-blue-600 focus:ring-blue-500"
-                  />
-                  <span>{{ categoria.nombre }}</span>
-                </label>
-              </li>
-            </ul>
-            <button
-              v-if="categorias.length > visibleCategorias.length"
-              class="mt-2 text-sm text-blue-600 hover:underline"
-              @click="showAllCategorias = !showAllCategorias"
-            >
-              {{ showAllCategorias ? 'Ver menos' : 'Ver más' }}
-            </button>
+            <div class="mt-3 space-y-2">
+              <label class="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+                <input
+                  type="radio"
+                  value=""
+                  v-model="filtros.categoria"
+                  @change="handleFilterChange"
+                  class="text-blue-600 focus:ring-blue-500"
+                />
+                <span>Todo</span>
+              </label>
+
+              <CategoryTreeRadio
+                :categorias="filteredCategoriasTree"
+                v-model:selected-categoria="filtros.categoria"
+                v-model:expanded-ids="expandedCategoryIds"
+                group-name="categoria-desktop"
+                @select="handleFilterChange"
+              />
+            </div>
           </div>
 
           <div>
@@ -128,6 +115,34 @@
                     @update:modelValue="handlePriceChange"
                   />
                 </div>
+                <div class="grid grid-cols-2 gap-2">
+                  <label class="text-xs text-gray-600">
+                    Min
+                    <input
+                      v-model="priceInput.min"
+                      type="number"
+                      inputmode="numeric"
+                      :min="priceRange.min"
+                      :max="priceRange.max"
+                      class="mt-1 w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      @blur="handlePriceInputCommit"
+                      @keydown.enter.prevent="handlePriceInputCommit"
+                    />
+                  </label>
+                  <label class="text-xs text-gray-600">
+                    Max
+                    <input
+                      v-model="priceInput.max"
+                      type="number"
+                      inputmode="numeric"
+                      :min="priceRange.min"
+                      :max="priceRange.max"
+                      class="mt-1 w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      @blur="handlePriceInputCommit"
+                      @keydown.enter.prevent="handlePriceInputCommit"
+                    />
+                  </label>
+                </div>
               </div>
             </div>
           </div>
@@ -185,32 +200,26 @@
           <div class="flex-1 overflow-y-auto px-4 py-4 space-y-6">
             <div>
               <h2 class="font-semibold text-gray-800">Departamento</h2>
-              <ul class="mt-3 space-y-2 text-sm text-gray-700">
-                <li>
-                  <label class="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      value=""
-                      v-model="filtros.categoria"
-                      @change="handleFilterChange"
-                      class="text-blue-600 focus:ring-blue-500"
-                    />
-                    <span>Todo</span>
-                  </label>
-                </li>
-                <li v-for="categoria in categorias" :key="categoria.id">
-                  <label class="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      :value="categoria.id"
-                      v-model="filtros.categoria"
-                      @change="handleFilterChange"
-                      class="text-blue-600 focus:ring-blue-500"
-                    />
-                    <span>{{ categoria.nombre }}</span>
-                  </label>
-                </li>
-              </ul>
+              <div class="mt-3 space-y-2">
+                <label class="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+                  <input
+                    type="radio"
+                    value=""
+                    v-model="filtros.categoria"
+                    @change="handleFilterChange"
+                    class="text-blue-600 focus:ring-blue-500"
+                  />
+                  <span>Todo</span>
+                </label>
+
+                <CategoryTreeRadio
+                  :categorias="filteredCategoriasTree"
+                  v-model:selected-categoria="filtros.categoria"
+                  v-model:expanded-ids="expandedCategoryIds"
+                  group-name="categoria-mobile"
+                  @select="handleFilterChange"
+                />
+              </div>
             </div>
 
             <div>
@@ -261,6 +270,34 @@
                       @update:modelValue="handlePriceChange"
                     />
                   </div>
+                  <div class="grid grid-cols-2 gap-2">
+                    <label class="text-xs text-gray-600">
+                      Min
+                      <input
+                        v-model="priceInput.min"
+                        type="number"
+                        inputmode="numeric"
+                        :min="priceRange.min"
+                        :max="priceRange.max"
+                        class="mt-1 w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        @blur="handlePriceInputCommit"
+                        @keydown.enter.prevent="handlePriceInputCommit"
+                      />
+                    </label>
+                    <label class="text-xs text-gray-600">
+                      Max
+                      <input
+                        v-model="priceInput.max"
+                        type="number"
+                        inputmode="numeric"
+                        :min="priceRange.min"
+                        :max="priceRange.max"
+                        class="mt-1 w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        @blur="handlePriceInputCommit"
+                        @keydown.enter.prevent="handlePriceInputCommit"
+                      />
+                    </label>
+                  </div>
                 </div>
               </div>
             </div>
@@ -289,7 +326,8 @@
 <script setup>
 import ProductCard from '@/components/ProductCard.vue'
 import PriceSlider from '@/components/PriceSlider.vue'
-import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
+import CategoryTreeRadio from '@/components/CategoryTreeRadio.vue'
+import { ref, reactive, onMounted, onUnmounted, computed, watch } from 'vue'
 import { obtenerProductos, obtenerMarcas, obtenerRangoPrecios } from '../services/api.js'
 import api from '../axios'
 defineOptions({ name: 'ProductosView' })
@@ -308,9 +346,10 @@ const pagination = reactive({ page: 1, totalPages: 1, pageSize: 10 })
 const loading = ref(false)
 const error = ref(null)
 const priceRange = reactive({ min: 0, max: 0 })
-const showAllCategorias = ref(false)
+const priceInput = reactive({ min: '', max: '' })
 const showAllMarcas = ref(false)
 const showFiltersMobile = ref(false)
+const expandedCategoryIds = ref([])
 const unwrapList = (payload) => {
   if (Array.isArray(payload?.results)) return payload.results
   if (Array.isArray(payload)) return payload
@@ -320,6 +359,53 @@ const unwrapList = (payload) => {
 const categoriaLabel = computed(() => {
   const found = categorias.value.find((c) => String(c.id) === String(filtros.categoria))
   return found ? found.nombre : 'Categorías'
+})
+
+const categoriasTree = computed(() => {
+  const nodesById = new Map()
+  const roots = []
+
+  categorias.value.forEach((categoria) => {
+    nodesById.set(categoria.id, { ...categoria, children: [] })
+  })
+
+  nodesById.forEach((node) => {
+    if (node.parent && nodesById.has(node.parent)) {
+      nodesById.get(node.parent).children.push(node)
+      return
+    }
+    roots.push(node)
+  })
+
+  const sortNodes = (nodes) => {
+    nodes.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+    nodes.forEach((child) => sortNodes(child.children))
+    return nodes
+  }
+
+  return sortNodes(roots)
+})
+
+const filteredCategoriasTree = computed(() => {
+  const pruneAndCount = (nodes) => {
+    return nodes
+      .map((node) => {
+        const children = pruneAndCount(node.children || [])
+        const directCount = Number(node.productos_count ?? 0)
+        const safeDirectCount = Number.isFinite(directCount) ? directCount : 0
+        const descendantsCount = children.reduce(
+          (sum, child) => sum + Number(child.total_productos ?? 0),
+          0,
+        )
+        const totalCount = safeDirectCount + descendantsCount
+
+        if (totalCount <= 0) return null
+        return { ...node, children, total_productos: totalCount }
+      })
+      .filter(Boolean)
+  }
+
+  return pruneAndCount(categoriasTree.value)
 })
 
 const priceChanged = computed(() => {
@@ -347,6 +433,11 @@ const priceModel = computed({
   },
 })
 
+const syncPriceInputWithFilters = () => {
+  priceInput.min = String(filtros.precio.min ?? '')
+  priceInput.max = String(filtros.precio.max ?? '')
+}
+
 async function fetchCategorias() {
   const res = await api.get('categorias/')
   categorias.value = unwrapList(res.data)
@@ -366,12 +457,14 @@ async function fetchPriceRange() {
     priceRange.max = max
     filtros.precio.min = min
     filtros.precio.max = max
+    syncPriceInputWithFilters()
   } catch (err) {
     console.error('Error obteniendo rango de precios:', err)
     priceRange.min = 0
     priceRange.max = 0
     filtros.precio.min = null
     filtros.precio.max = null
+    syncPriceInputWithFilters()
   }
 }
 
@@ -388,17 +481,10 @@ async function fetchProductos(append = false) {
     if (filtros.marcas.length > 0) params.marca = filtros.marcas.join(',')
     if (typeof filtros.precio.min === 'number') params.precio_min = filtros.precio.min
     if (typeof filtros.precio.max === 'number') params.precio_max = filtros.precio.max
+    if (filtros.promociones) params.en_oferta = 'true'
 
     const res = await obtenerProductos(params)
     let raw = unwrapList(res.data)
-
-    if (filtros.promociones) {
-      raw = raw.filter((p) => {
-        const normal = Number(p?.precio_normal ?? p?.precio)
-        const sale = Number(p?.precio_rebajado)
-        return Number.isFinite(normal) && Number.isFinite(sale) && sale > 0 && sale < normal
-      })
-    }
 
     if (append) {
       productos.value.push(...raw)
@@ -430,10 +516,38 @@ const handleFilterChange = () => {
   fetchProductos()
 }
 
+const normalizePriceRange = (nextMin = filtros.precio.min, nextMax = filtros.precio.max) => {
+  let min = Number(nextMin)
+  let max = Number(nextMax)
+
+  if (!Number.isFinite(min)) min = priceRange.min
+  if (!Number.isFinite(max)) max = priceRange.max
+
+  min = Math.min(Math.max(min, priceRange.min), priceRange.max)
+  max = Math.min(Math.max(max, priceRange.min), priceRange.max)
+
+  if (min > max) {
+    ;[min, max] = [max, min]
+  }
+
+  return { min: Math.round(min), max: Math.round(max) }
+}
+
+const applyPriceRange = (nextMin, nextMax) => {
+  const { min, max } = normalizePriceRange(nextMin, nextMax)
+  filtros.precio.min = min
+  filtros.precio.max = max
+  syncPriceInputWithFilters()
+}
+
 const handlePriceChange = (value) => {
   const [min, max] = value || []
-  filtros.precio.min = Number(min)
-  filtros.precio.max = Number(max)
+  applyPriceRange(min, max)
+  handleFilterChange()
+}
+
+const handlePriceInputCommit = () => {
+  applyPriceRange(priceInput.min, priceInput.max)
   handleFilterChange()
 }
 
@@ -463,15 +577,22 @@ const formatCurrency = (value) => {
   return currencyFormatter.format(Math.max(0, safeValue))
 }
 
-const visibleCategorias = computed(() => {
-  if (showAllCategorias.value) return categorias.value
-  return categorias.value.slice(0, 5)
-})
-
 const visibleMarcas = computed(() => {
   if (showAllMarcas.value) return marcas.value
   return marcas.value.slice(0, 5)
 })
+
+const expandCategoryPath = (categoriaId) => {
+  if (!categoriaId) return
+  const byId = new Map(categorias.value.map((categoria) => [String(categoria.id), categoria]))
+  const nextExpanded = new Set(expandedCategoryIds.value.map((id) => String(id)))
+  let current = byId.get(String(categoriaId))
+  while (current?.parent) {
+    nextExpanded.add(String(current.parent))
+    current = byId.get(String(current.parent))
+  }
+  expandedCategoryIds.value = Array.from(nextExpanded)
+}
 
 const handleScroll = () => {
   const { scrollTop, scrollHeight, clientHeight } = document.documentElement
@@ -495,6 +616,7 @@ const resetFilters = () => {
   filtros.promociones = false
   filtros.precio.min = priceRange.min
   filtros.precio.max = priceRange.max
+  syncPriceInputWithFilters()
   handleFilterChange()
 }
 
@@ -502,6 +624,13 @@ const applyAndClose = () => {
   handleFilterChange()
   closeFilters()
 }
+
+watch(
+  () => filtros.categoria,
+  (categoriaId) => {
+    expandCategoryPath(categoriaId)
+  },
+)
 
 onMounted(async () => {
   await Promise.all([fetchCategorias(), fetchMarcas(), fetchPriceRange()])
