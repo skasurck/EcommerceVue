@@ -12,3 +12,16 @@ class IsAdminOrSuperAdmin(BasePermission):
             and hasattr(user, "perfil")
             and user.perfil.rol in ("admin", "super_admin")
         )
+
+
+class IsSuperAdmin(BasePermission):
+    """Permite acceso solo a usuarios con rol super_admin."""
+
+    def has_permission(self, request, view):
+        user = request.user
+        return bool(
+            user
+            and user.is_authenticated
+            and hasattr(user, "perfil")
+            and user.perfil.rol == "super_admin"
+        )

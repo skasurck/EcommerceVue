@@ -275,7 +275,56 @@ const bulkSelectedLevel2 = ref(null)
 const bulkSelectedLevel3 = ref(null)
 
 // --- Helper Functions ---
-const normalize = (value) => (value ?? '').toString().trim().toLowerCase()
+const normalize = (value) => {
+  const text = (value ?? '').toString().trim().toLowerCase()
+  return text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/['`"]/g, '')
+    .replace(/[^\w\s>/-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+const INVALID_SUGGESTION_VALUES = new Set(['', 'n/a', 'na', 'none', 'null', 'sin subcategoria'])
+const MAIN_CATEGORY_ALIASES = {
+  almacenamiento: 'computo hardware',
+  storage: 'computo hardware',
+  hardware: 'computo hardware',
+}
+
+const getCategoryEntries = () => {
+  const entries = []
+  const walk = (nodes = [], root = null, path = []) => {
+    nodes.forEach((node) => {
+      const nextRoot = root || node
+      const nextPath = [...path, node.nombre]
+      entries.push({
+        id: node.id,
+        rootId: nextRoot.id,
+        rootName: nextRoot.nombre,
+        leafName: node.nombre,
+        label: nextPath.join(' > '),
+      })
+      if (node.subcategorias?.length) walk(node.subcategorias, nextRoot, nextPath)
+    })
+  }
+  walk(categories.value)
+  return entries
+}
+
+const findMainByName = (mainName) => {
+  const mainNormalized = normalize(mainName)
+  if (!mainNormalized) return null
+
+  const direct = categories.value.find((cat) => normalize(cat.nombre) === mainNormalized)
+  if (direct) return direct
+
+  const aliasTarget = MAIN_CATEGORY_ALIASES[mainNormalized]
+  if (!aliasTarget) return null
+  return categories.value.find((cat) => normalize(cat.nombre) === aliasTarget) || null
+}
+
 const toNumberOrNull = (value) => {
   const number = Number(value)
   return value === undefined || value === null || value === '' || Number.isNaN(number) ? null : number
@@ -373,13 +422,44 @@ const findSubcategoryByName = (category, name) => {
 }
 
 const findCategoryIdsBySuggestion = (mainName, subName) => {
-  const main = categories.value.find((cat) => normalize(cat.nombre) === normalize(mainName))
-  if (!main) return null
-  if (subName) {
-    const sub = findSubcategoryByName(main, subName)
-    if (sub) return sub.id
+  const main = findMainByName(mainName)
+  const entries = getCategoryEntries()
+
+  const normalizedSub = normalize(subName)
+  if (!INVALID_SUGGESTION_VALUES.has(normalizedSub)) {
+    const byFullPath = entries.find((entry) => normalize(entry.label) === normalizedSub)
+    if (byFullPath) return byFullPath.id
+
+    const bySuffix = entries.filter((entry) => normalize(entry.label).endsWith(normalizedSub))
+    if (bySuffix.length === 1) return bySuffix[0].id
+    if (main) {
+      const bySuffixWithMain = bySuffix.find((entry) => entry.rootId === main.id)
+      if (bySuffixWithMain) return bySuffixWithMain.id
+    }
+
+    const segments = subName
+      .toString()
+      .split('>')
+      .map((segment) => segment.trim())
+      .filter(Boolean)
+    const leaf = segments.length ? segments[segments.length - 1] : subName
+    const leafNormalized = normalize(leaf)
+    if (leafNormalized && !INVALID_SUGGESTION_VALUES.has(leafNormalized)) {
+      const byLeaf = entries.filter((entry) => normalize(entry.leafName) === leafNormalized)
+      if (main) {
+        const inMain = byLeaf.filter((entry) => entry.rootId === main.id)
+        if (inMain.length) return inMain[0].id
+      }
+      if (byLeaf.length === 1) return byLeaf[0].id
+    }
+
+    if (main) {
+      const subInMain = findSubcategoryByName(main, subName)
+      if (subInMain) return subInMain.id
+    }
   }
-  return main.id
+
+  return main?.id || null
 }
 
 const getLevel2Categories = (level1Id) => {
@@ -450,7 +530,7 @@ const loadMore = async () => {
     products.value.push(...newProducts)
     pagination.value.next = res.data.next
     initializeProductState(newProducts)
-  } catch (error) {
+  } catch {
     globalError.value = 'No se pudieron cargar más productos. Intenta nuevamente.'
   } finally {
     loadingMore.value = false
@@ -565,3 +645,4 @@ const saveBulkManual = async () => {
 
 onMounted(fetchInitialData)
 </script>
+

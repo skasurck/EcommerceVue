@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import models
 from django.utils import timezone
@@ -52,10 +53,12 @@ class CartReservation(models.Model):
         return f"Reserva de {owner} hasta {self.expires_at}"
 
     def refresh_expiration(self):
-        """Reinicia el temporizador 40 min sin exceder 3 horas desde el inicio."""
+        """Reinicia el temporizador sin exceder el máximo desde el inicio."""
+        max_hours = getattr(settings, "CART_RESERVATION_MAX_HOURS", 3)
+        refresh_minutes = getattr(settings, "CART_RESERVATION_REFRESH_MINUTES", 40)
         now = timezone.now()
         if self.expires_at < now:
             self.started_at = now
-        max_end = self.started_at + timedelta(hours=3)
-        self.expires_at = min(max_end, now + timedelta(minutes=40))
+        max_end = self.started_at + timedelta(hours=max_hours)
+        self.expires_at = min(max_end, now + timedelta(minutes=refresh_minutes))
         self.save()

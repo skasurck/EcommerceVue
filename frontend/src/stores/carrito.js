@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import api from '../axios'
+import api from '@/axios'
 
 /** Normaliza la forma del carrito devuelto por la API */
 function normalizeItems(data) {
@@ -61,28 +61,46 @@ export const useCarritoStore = defineStore('carrito', {
     },
 
     async cargar() {
-      const res = await api.get('carrito/')
-      const items = normalizeItems(res?.data)
-      this.items = items
-      // toma la expiración más próxima si existe
-      this.reservaExpira = items.length ? (items[0]?.reserva_expira ?? null) : null
-      this._loaded = true
+      try {
+        const res = await api.get('carrito/')
+        const items = normalizeItems(res?.data)
+        this.items = items
+        // toma la expiración más próxima si existe
+        this.reservaExpira = items.length ? (items[0]?.reserva_expira ?? null) : null
+        this._loaded = true
+      } catch (err) {
+        console.error('[carrito] Error al cargar:', err)
+      }
     },
 
     async agregar(producto, cantidad = 1) {
-      if (!producto || Number(producto.stock ?? 0) <= 0) return
+      if (!producto) return
       await this.ensureSession()
       const items = Array.isArray(this.items) ? this.items : []
       const existente = items.find(i => i?.producto?.id === producto.id)
-      const max = Number(producto.stock ?? 0) + Number(existente?.cantidad ?? 0)
+      // Si no hay nada en carrito y stock es 0, no agregar
+      if (!existente && Number(producto.stock ?? 0) <= 0) return
       const nuevaCantidad = Number(existente?.cantidad ?? 0) + Number(cantidad ?? 0)
-      if (nuevaCantidad > max) return
 
-      if (existente) {
-        await this.actualizar(existente.id, nuevaCantidad)
-      } else {
-        await api.post('carrito/', { producto: producto.id, cantidad: Number(cantidad || 1) })
+      try {
+        if (existente) {
+          await this._patchCarrito(existente.id, nuevaCantidad)
+        } else {
+          await api.post('carrito/', { producto: producto.id, cantidad: Number(cantidad || 1) })
+          await this.cargar()
+        }
+      } catch (err) {
+        console.error('[carrito] Error al agregar:', err)
+      }
+    },
+
+    // Actualiza cantidad directamente, sin re-validar stock en cliente (el servidor valida)
+    async _patchCarrito(id, cantidad) {
+      try {
+        await api.patch(`carrito/${id}/`, { cantidad: Number(cantidad) })
         await this.cargar()
+      } catch (err) {
+        console.error('[carrito] Error al actualizar:', err)
       }
     },
 
@@ -91,18 +109,17 @@ export const useCarritoStore = defineStore('carrito', {
       const items = Array.isArray(this.items) ? this.items : []
       const item = items.find(i => i.id === id)
       if (!item) return
-      const stock = Number(item?.producto?.stock ?? 0)
-      const max = stock + Number(item.cantidad ?? 0)
-      const qty = Number(cantidad ?? 0)
-      if (qty > max) return
-      await api.patch(`carrito/${id}/`, { cantidad: qty })
-      await this.cargar()
+      await this._patchCarrito(id, cantidad)
     },
 
     async eliminar(id) {
       await this.ensureSession()
-      await api.delete(`carrito/${id}/`)
-      await this.cargar()
+      try {
+        await api.delete(`carrito/${id}/`)
+        await this.cargar()
+      } catch (err) {
+        console.error('[carrito] Error al eliminar:', err)
+      }
     },
   },
 })

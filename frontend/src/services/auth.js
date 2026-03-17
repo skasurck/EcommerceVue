@@ -1,6 +1,6 @@
 import { api } from './http'
-import { useAuthStore } from '../stores/auth'
-import router from '../router'
+import { useAuthStore } from '@/stores/auth'
+import router from '@/router'
 
 // Almacenamiento de tokens y utilidades de autenticación
 export const setTokens = (access, refresh) => {

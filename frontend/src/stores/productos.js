@@ -1,6 +1,6 @@
 // stores/productos.js
 import { defineStore } from 'pinia'
-import { obtenerProducto } from '../services/api.js'
+import { obtenerProducto } from '@/services/api.js'
 
 export const useProductoStore = defineStore('producto', {
   state: () => ({ cache: {} }),
@@ -9,7 +9,7 @@ export const useProductoStore = defineStore('producto', {
       if (!this.cache[id]) {
         try {
           const { data } = await obtenerProducto(id)
-          console.log('Fetched product data:', data)
+          if (import.meta.env.DEV) console.log('Fetched product data:', data)
           this.cache[id] = data
         } catch (error) {
           console.error('Error fetching product:', error)

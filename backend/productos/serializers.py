@@ -10,6 +10,8 @@ from .models import (
     Producto,
     ImagenProducto,
     PrecioEscalonado,
+    HomeSliderImage,
+    PromoBanner,
     Categoria,
     Marca,
     Atributo,
@@ -125,6 +127,79 @@ class ImagenProductoSerializer(serializers.ModelSerializer):
         fields = ["id", "imagen"]
 
 
+class HomeSliderImageSerializer(serializers.ModelSerializer):
+    imagen_url = serializers.SerializerMethodField(read_only=True)
+    imagen_mobile_url = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = HomeSliderImage
+        fields = [
+            "id",
+            "titulo",
+            "descripcion",
+            "imagen",
+            "imagen_url",
+            "titulo_color",
+            "titulo_mobile",
+            "descripcion_mobile",
+            "imagen_mobile",
+            "imagen_mobile_url",
+            "orden",
+            "activo",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["created_at", "updated_at"]
+
+    def get_imagen_url(self, obj):
+        request = self.context.get("request")
+        if not obj.imagen:
+            return None
+        url = obj.imagen.url
+        if request:
+            return request.build_absolute_uri(url)
+        return url
+
+    def get_imagen_mobile_url(self, obj):
+        request = self.context.get("request")
+        if not obj.imagen_mobile:
+            return None
+        url = obj.imagen_mobile.url
+        if request:
+            return request.build_absolute_uri(url)
+        return url
+
+
+class PromoBannerSerializer(serializers.ModelSerializer):
+    imagen_url = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = PromoBanner
+        fields = [
+            "id",
+            "titulo",
+            "descripcion",
+            "imagen",
+            "imagen_url",
+            "titulo_color",
+            "enlace",
+            "orden",
+            "activo",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["created_at", "updated_at"]
+
+    def get_imagen_url(self, obj):
+        request = self.context.get("request")
+        if not obj.imagen:
+            return None
+        url = obj.imagen.url
+        if request:
+            return request.build_absolute_uri(url)
+        return url
+
+
 class PrecioEscalonadoListSerializer(serializers.ListSerializer):
     """Permite recibir una lista JSON cuando se envía vía FormData."""
 
@@ -202,6 +277,7 @@ class ProductoListSerializer(serializers.ModelSerializer):
             "imagen_principal",
             "descripcion_corta",
             "stock",
+            "estado_inventario",
             "tiene_precios_escalonados",
             "colores",
         ]
@@ -355,6 +431,46 @@ class ProductoSerializer(serializers.ModelSerializer):
                 pass
 
         return super().to_internal_value(data)
+
+    def validate_precio_normal(self, value):
+        if value is not None and value < 0:
+            raise serializers.ValidationError("El precio normal no puede ser negativo.")
+        return value
+
+    def validate_precio_rebajado(self, value):
+        if value is not None and value < 0:
+            raise serializers.ValidationError("El precio rebajado no puede ser negativo.")
+        return value
+
+    def validate_stock(self, value):
+        if value is not None and value < 0:
+            raise serializers.ValidationError("El stock no puede ser negativo.")
+        return value
+
+    def validate_imagen_principal(self, value):
+        max_mb = 10
+        if value and hasattr(value, 'size') and value.size > max_mb * 1024 * 1024:
+            raise serializers.ValidationError(f"La imagen no puede superar {max_mb} MB.")
+        return value
+
+    def validate_sku(self, value):
+        if value:
+            qs = Producto.objects.filter(sku=value)
+            if self.instance:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise serializers.ValidationError("Ya existe un producto con este SKU.")
+        return value
+
+    def validate(self, data):
+        precio_normal = data.get("precio_normal")
+        precio_rebajado = data.get("precio_rebajado")
+        if precio_normal is not None and precio_rebajado is not None:
+            if precio_rebajado >= precio_normal:
+                raise serializers.ValidationError(
+                    {"precio_rebajado": "El precio rebajado debe ser menor al precio normal."}
+                )
+        return data
 
     def validate_precios_escalonados(self, value):
         cantidades = [tier["cantidad_minima"] for tier in value]

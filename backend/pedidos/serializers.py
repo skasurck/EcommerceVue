@@ -130,6 +130,15 @@ class PedidoSerializer(serializers.ModelSerializer):
     def get_cart_id(self, obj):
         return obj.cart_id
 
+    def validate_datos_pago(self, value):
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("datos_pago debe ser un objeto JSON.")
+        allowed_keys = {'token', 'preference_id', 'payment_id', 'status', 'referencia', 'notas'}
+        unknown = set(value.keys()) - allowed_keys
+        if unknown:
+            raise serializers.ValidationError(f"Claves no permitidas en datos_pago: {unknown}")
+        return value
+
     def create(self, validated_data):
         request = self.context.get('request')
         direccion_data = validated_data.pop('direccion')

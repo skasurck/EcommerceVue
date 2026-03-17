@@ -93,7 +93,7 @@
 
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
-import api from '../axios'
+import api from '@/axios'
 import { useRouter } from 'vue-router'
 import InputText from '../inputs/InputText.vue'
 import InputTextarea from '../inputs/InputTextarea.vue'

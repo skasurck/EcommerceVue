@@ -68,11 +68,11 @@
 <script setup>
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuthStore } from '../stores/auth'
-import { useCheckoutStore } from '../stores/checkout'
-import { useCarritoStore } from '../stores/carrito'
-import { crearPedido } from '../services/checkout'
-import { createMercadoPagoPreference } from '../services/pagos'
+import { useAuthStore } from '@/stores/auth'
+import { useCheckoutStore } from '@/stores/checkout'
+import { useCarritoStore } from '@/stores/carrito'
+import { crearPedido } from '@/services/checkout'
+import { createMercadoPagoPreference } from '@/services/pagos'
 
 const emit = defineEmits(['back', 'complete'])
 const router = useRouter()

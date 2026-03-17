@@ -3,6 +3,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     ProductClassificationAPIView,
     ProductClassificationStatusView,
+    LearningStatsAPIView,
     ProductoViewSet,
     CategoriaViewSet,
     MarcaViewSet,
@@ -16,6 +17,8 @@ from .views import (
     ApplyCategoryAPIView,
     BulkApplyCategoryAPIView,
     PriceRangeAPIView,
+    HomeSliderImageViewSet,
+    PromoBannerViewSet,
 )
 
 router = DefaultRouter()
@@ -24,6 +27,8 @@ router.register(r'categorias', CategoriaViewSet, basename='categorias')
 router.register(r'marcas', MarcaViewSet, basename='marcas')
 router.register(r'atributos-base', AtributoViewSet, basename='atributos-base')
 router.register(r'atributos', ValorAtributoViewSet, basename='atributos')
+router.register(r'home-slider', HomeSliderImageViewSet, basename='home-slider')
+router.register(r'promo-banners', PromoBannerViewSet, basename='promo-banners')
 
 urlpatterns = [
     path('ai/pending-review/', PendingReviewProductsAPIView.as_view(), name='ai-pending-review'),
@@ -32,6 +37,7 @@ urlpatterns = [
     path('productos/bulk-apply-category/', BulkApplyCategoryAPIView.as_view(), name='producto-bulk-apply-category'),
     path('ai/classify-products/', ProductClassificationAPIView.as_view(), name='ai-classify-products'),
     path('ai/classify-products/status/<str:task_id>/', ProductClassificationStatusView.as_view(), name='ai-classify-status'),
+    path('ai/learning-stats/', LearningStatsAPIView.as_view(), name='ai-learning-stats'),
     path('price-range/', PriceRangeAPIView.as_view(), name='price-range'),
     path('search/products/', ProductSearchAPIView.as_view(), name='product-search'),
 

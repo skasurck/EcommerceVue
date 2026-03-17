@@ -1,64 +1,64 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { useAuthStore } from '../stores/auth'
-import { useAdminUsersStore } from '../stores/adminUsers'
+import { useAuthStore } from '@/stores/auth'
+import { useAdminUsersStore } from '@/stores/adminUsers'
 import AdminLayout from '@/layouts/AdminLayout.vue'
 
 const routes = [
   {
     path: '/',
     name: 'home',
-    component: () => import('../views/HomeView.vue'),
+    component: () => import('@/views/HomeView.vue'),
   },
   {
     path: '/productos',
     name: 'productos',
-    component: () => import('../views/Productos.vue')
+    component: () => import('@/views/Productos.vue')
   },
   {
     path: '/categorias',
     name: 'categorias',
-    component: () => import('../views/CategoriesView.vue'),
+    component: () => import('@/views/CategoriesView.vue'),
   },
   {
     path: '/nuevo-producto',
     name: 'nuevo-producto',
-    component: () => import('../views/NuevoProducto.vue'),
+    component: () => import('@/views/NuevoProducto.vue'),
     meta: { requiresAuth: true, roles: ['admin', 'super_admin'] }
   },
   {
     path: '/registro',
     name: 'registro',
-    component: () => import('../views/Registro.vue')
+    component: () => import('@/views/Registro.vue')
   },
   {
     path: '/login',
     name: 'login',
-    component: () => import('../views/Login.vue')
+    component: () => import('@/views/Login.vue')
   },
   {
     path: '/producto/:id',
     name: 'producto',
-    component: () => import('../views/ProductView.vue')
+    component: () => import('@/views/ProductView.vue')
   },
   {
     path: '/carrito',
     name: 'carrito',
-    component: () => import('../views/CarritoView.vue'),
+    component: () => import('@/views/CarritoView.vue'),
   },
   {
     path: '/checkout',
     name: 'checkout',
-    component: () => import('../views/CheckoutView.vue'),
+    component: () => import('@/views/CheckoutView.vue'),
   },
   {
     path: '/gracias',
     name: 'gracias',
-    component: () => import('../views/GraciasView.vue'),
+    component: () => import('@/views/GraciasView.vue'),
   },
   {
     path: '/mi-cuenta',
     name: 'mi-cuenta',
-    component: () => import('../views/MiCuenta.vue'),
+    component: () => import('@/views/MiCuenta.vue'),
     meta: { requiresAuth: true }
   },
   {
@@ -105,7 +105,7 @@ const routes = [
           requiresAuth: true, 
           roles: ['admin', 'super_admin'] 
         },
-        async beforeEnter(to, from) {
+        async beforeEnter(to) {
           const store = useAdminUsersStore()
           const search = to.query.search ?? ''
           const rol    = to.query.rol ?? ''
@@ -126,6 +126,18 @@ const routes = [
         meta: { title: 'Promociones', roles:['admin', 'super_admin'] }
       },
       {
+        path: 'home-editor',
+        name: 'admin-home-editor',
+        component: () => import('@/views/AdminHomeEditor.vue'),
+        meta: { title: 'Editar Home', requiresAuth: true, roles: ['admin', 'super_admin'] }
+      },
+      {
+        path: 'promo-banners',
+        name: 'admin-promo-banners',
+        component: () => import('@/views/AdminPromoBannersEditor.vue'),
+        meta: { title: 'Banners promocionales', requiresAuth: true, roles: ['admin', 'super_admin'] }
+      },
+      {
         path: 'configuracion',
         name: 'admin-configuracion',
         component: () => import('@/views/AdminConfiguracion.vue'),
@@ -134,14 +146,20 @@ const routes = [
       {
         path: 'ai/clasificar-productos',
         name: 'admin-ai-clasificar-productos',
-        component: () => import('../views/ClasificarProductos.vue'),
+        component: () => import('@/views/ClasificarProductos.vue'),
         meta: { title: 'Clasificación con IA', requiresAuth: true, roles: ['admin', 'super_admin'] }
       },
       {
         path: 'ai/revisar-clasificaciones',
         name: 'admin-ai-revisar-clasificaciones',
-        component: () => import('../views/RevisarClasificaciones.vue'),
+        component: () => import('@/views/RevisarClasificaciones.vue'),
         meta: { title: 'Revisión de clasificaciones', requiresAuth: true, roles: ['admin', 'super_admin'] }
+      },
+      {
+        path: 'ai/learning-stats',
+        name: 'admin-ai-learning-stats',
+        component: () => import('@/views/AiLearningStats.vue'),
+        meta: { title: 'Estadisticas de aprendizaje IA', requiresAuth: true, roles: ['super_admin'] }
       },
       {
         path: 'suppliers/supermex',
@@ -168,7 +186,7 @@ const routes = [
       {
         path: 'productos/editar/:id',
         name: 'editar-producto',
-        component: () => import('../views/EditarProducto.vue'),
+        component: () => import('@/views/EditarProducto.vue'),
         meta: { requiresAuth: true, roles: ['admin', 'super_admin'] }
       },
     ]
@@ -176,7 +194,7 @@ const routes = [
   {
     path: '/acceso-denegado',
     name: 'acceso-denegado',
-    component: () => import('../views/AccesoDenegado.vue')
+    component: () => import('@/views/AccesoDenegado.vue')
   },
   {
     path: '/mis-pedidos',
@@ -196,17 +214,17 @@ const routes = [
   {
     path: '/busqueda',
     name: 'busqueda',
-    component: () => import('../views/ResultadosBusqueda.vue')
+    component: () => import('@/views/ResultadosBusqueda.vue')
   },
   {
     path: '/categoria/:categoriaId',
     name: 'categoria',
-    component: () => import('../views/CategoriaView.vue')
+    component: () => import('@/views/CategoriaView.vue')
   },
   {
     path: '/marca/:marcaId',
     name: 'marca',
-    component: () => import('../views/MarcaView.vue')
+    component: () => import('@/views/MarcaView.vue')
   }
 ]
 

@@ -24,12 +24,12 @@
 import { computed, onMounted, ref, watch } from 'vue'
 
 import CheckoutGuestOptions from '../components/CheckoutGuestOptions.vue'
-import CheckoutStep1 from '../components/CheckoutStep1.vue'
-import CheckoutStep2 from '../components/CheckoutStep2.vue'
-import CheckoutStep3 from '../components/CheckoutStep3.vue'
-import { useAuthStore } from '../stores/auth'
-import { useCarritoStore } from '../stores/carrito'
-import { useCheckoutStore } from '../stores/checkout'
+import CheckoutStep1 from '@/components/CheckoutStep1.vue'
+import CheckoutStep2 from '@/components/CheckoutStep2.vue'
+import CheckoutStep3 from '@/components/CheckoutStep3.vue'
+import { useAuthStore } from '@/stores/auth'
+import { useCarritoStore } from '@/stores/carrito'
+import { useCheckoutStore } from '@/stores/checkout'
 const store = useCheckoutStore()
 const carrito = useCarritoStore()
 const auth = useAuthStore()

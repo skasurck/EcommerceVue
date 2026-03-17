@@ -98,7 +98,7 @@ window.addEventListener('checkout:purchase', (event) => {
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useHead } from '@vueuse/head'
-import { getOrderByPreferenceId } from '../services/pedidos'
+import { getOrderByPreferenceId } from '@/services/pedidos'
 
 const route = useRoute()
 const router = useRouter()

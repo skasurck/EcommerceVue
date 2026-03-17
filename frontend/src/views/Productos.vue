@@ -112,7 +112,7 @@
                     v-model:modelValue="priceModel"
                     :min="priceRange.min"
                     :max="priceRange.max"
-                    @update:modelValue="handlePriceChange"
+                    @change="handlePriceChange"
                   />
                 </div>
                 <div class="grid grid-cols-2 gap-2">
@@ -150,6 +150,42 @@
       </aside>
 
       <section>
+        <!-- Banner promocional -->
+        <component
+          v-if="shopBanner"
+          :is="shopBanner.enlace ? 'a' : 'div'"
+          :href="shopBanner.enlace || undefined"
+          class="relative mb-5 block h-44 sm:h-52 w-full rounded-xl overflow-hidden shadow group"
+        >
+          <img
+            :src="shopBanner.imagen_url"
+            :alt="shopBanner.titulo || 'Promoción'"
+            class="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+          />
+          <!-- gradiente izquierda → derecha -->
+          <div class="absolute inset-0 bg-gradient-to-r from-black/70 via-black/30 to-transparent" />
+          <div class="relative z-10 h-full flex flex-col justify-center px-6 sm:px-10 max-w-sm">
+            <span class="inline-block mb-1 rounded bg-amber-400 px-2 py-0.5 text-[11px] font-bold uppercase tracking-widest text-gray-900">
+              Oferta especial
+            </span>
+            <h2
+              class="text-2xl sm:text-3xl font-extrabold leading-tight"
+              :style="{ color: /^#[0-9A-Fa-f]{6}$/.test(shopBanner.titulo_color) ? shopBanner.titulo_color : '#ffffff' }"
+            >
+              {{ shopBanner.titulo || 'Descubre nuestras ofertas' }}
+            </h2>
+            <p v-if="shopBanner.descripcion" class="mt-1 text-sm text-white/80">
+              {{ shopBanner.descripcion }}
+            </p>
+            <span
+              v-if="shopBanner.enlace"
+              class="mt-3 inline-block w-fit rounded bg-amber-400 hover:bg-amber-500 px-4 py-1.5 text-sm font-bold text-gray-900 transition-colors"
+            >
+              Descubrir →
+            </span>
+          </div>
+        </component>
+
         <div class="mb-4 flex flex-col sm:flex-row gap-2">
           <input
             v-model="filtros.search"
@@ -168,6 +204,7 @@
             v-for="producto in productos"
             :key="producto.id"
             :producto="producto"
+            @add-to-cart="handleAddToCart"
           />
         </div>
 
@@ -267,7 +304,7 @@
                       v-model:modelValue="priceModel"
                       :min="priceRange.min"
                       :max="priceRange.max"
-                      @update:modelValue="handlePriceChange"
+                      @change="handlePriceChange"
                     />
                   </div>
                   <div class="grid grid-cols-2 gap-2">
@@ -328,10 +365,27 @@ import ProductCard from '@/components/ProductCard.vue'
 import PriceSlider from '@/components/PriceSlider.vue'
 import CategoryTreeRadio from '@/components/CategoryTreeRadio.vue'
 import { ref, reactive, onMounted, onUnmounted, computed, watch } from 'vue'
-import { obtenerProductos, obtenerMarcas, obtenerRangoPrecios } from '../services/api.js'
-import api from '../axios'
+import { obtenerProductos, obtenerMarcas, obtenerRangoPrecios, obtenerPromoBanners } from '@/services/api.js'
+import api from '@/axios'
+import { useCarritoStore } from '@/stores/carrito'
 defineOptions({ name: 'ProductosView' })
 
+const cartStore = useCarritoStore()
+const handleAddToCart = (producto) => {
+  const snapshot = { ...producto }
+  const idx = productos.value.findIndex(p => p.id === producto.id)
+  if (idx !== -1) {
+    const newStock = Math.max(0, Number(productos.value[idx].stock) - 1)
+    productos.value[idx] = {
+      ...productos.value[idx],
+      stock: newStock,
+      estado_inventario: newStock === 0 ? 'agotado' : productos.value[idx].estado_inventario,
+    }
+  }
+  cartStore.agregar(snapshot)
+}
+
+const shopBanner = ref(null)
 const productos = ref([])
 const categorias = ref([])
 const marcas = ref([])
@@ -633,6 +687,10 @@ watch(
 )
 
 onMounted(async () => {
+  obtenerPromoBanners({ ordering: 'orden' }).then(r => {
+    const raw = Array.isArray(r.data?.results) ? r.data.results : Array.isArray(r.data) ? r.data : []
+    shopBanner.value = raw.find(b => b.imagen_url) ?? null
+  }).catch(() => {})
   await Promise.all([fetchCategorias(), fetchMarcas(), fetchPriceRange()])
   await fetchProductos()
   window.addEventListener('scroll', handleScroll)

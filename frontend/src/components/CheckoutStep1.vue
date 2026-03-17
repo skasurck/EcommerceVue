@@ -57,10 +57,10 @@
 import { ref, onMounted, computed } from 'vue';
 import { useForm } from 'vee-validate';
 import * as yup from 'yup';
-import { useAuthStore } from '../stores/auth';
-import { useCheckoutStore } from '../stores/checkout';
-import { useCarritoStore } from '../stores/carrito';
-import { obtenerDirecciones } from '../services/checkout';
+import { useAuthStore } from '@/stores/auth';
+import { useCheckoutStore } from '@/stores/checkout';
+import { useCarritoStore } from '@/stores/carrito';
+import { obtenerDirecciones } from '@/services/checkout';
 
 const emit = defineEmits(['next']);
 const store = useCheckoutStore();

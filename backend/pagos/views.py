@@ -1,4 +1,7 @@
+import logging
 import mercadopago
+import hashlib
+import hmac
 from django.conf import settings
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -7,8 +10,48 @@ from pedidos.models import Pedido
 import json
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
-from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import csrf_exempt
+
+logger = logging.getLogger(__name__)
+
+
+def _verify_mp_signature(request) -> bool:
+    """
+    Verifica la firma del webhook de Mercado Pago usando HMAC-SHA256.
+    Retorna True si la firma es válida o si no hay secreto configurado (dev).
+    Docs: https://www.mercadopago.com.mx/developers/es/docs/your-integrations/notifications/webhooks
+    """
+    secret = getattr(settings, "MP_WEBHOOK_SECRET", "")
+    if not secret:
+        # Sin secreto configurado: solo permitir en desarrollo
+        return bool(settings.DEBUG)
+
+    x_signature = request.META.get("HTTP_X_SIGNATURE", "")
+    x_request_id = request.META.get("HTTP_X_REQUEST_ID", "")
+    data_id = request.query_params.get("data.id", "")
+
+    # Parsear ts y v1 del header x-signature
+    ts = ""
+    v1 = ""
+    for part in x_signature.split(","):
+        key, _, value = part.partition("=")
+        if key.strip() == "ts":
+            ts = value.strip()
+        elif key.strip() == "v1":
+            v1 = value.strip()
+
+    if not ts or not v1:
+        return False
+
+    # Construir el mensaje a firmar
+    manifest = f"id:{data_id};request-id:{x_request_id};ts:{ts};"
+    expected = hmac.new(
+        secret.encode("utf-8"),
+        manifest.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+    return hmac.compare_digest(expected, v1)
+
 
 class MercadoPagoWebhookView(APIView):
     permission_classes = [permissions.AllowAny]
@@ -18,19 +61,19 @@ class MercadoPagoWebhookView(APIView):
         return super().dispatch(*args, **kwargs)
 
     def post(self, request, *args, **kwargs):
+        if not _verify_mp_signature(request):
+            return Response({"detail": "Firma inválida"}, status=status.HTTP_400_BAD_REQUEST)
+
         notification = request.data
         topic = notification.get('topic')
         resource_id = notification.get('resource')
-
-        # Para producción, es vital verificar la autenticidad del webhook
-        # usando el x-signature header.
 
         if topic == 'merchant_order':
             # Lógica para 'merchant_order' si se usa
             pass
         elif topic == 'payment' and resource_id:
             try:
-                sdk = mercadopago.SDK(settings.MP_ACCESS_TOKEN_TEST)
+                sdk = mercadopago.SDK(settings.MP_ACCESS_TOKEN_TEST if settings.DEBUG else settings.MP_ACCESS_TOKEN)
                 payment_info = sdk.payment().get(resource_id)
                 payment = payment_info.get("response")
 
@@ -44,16 +87,16 @@ class MercadoPagoWebhookView(APIView):
                                 pedido.mercadopago_payment_id = payment.get('id')
                                 pedido.save()
                         except Pedido.DoesNotExist:
-                            print(f"Webhook: Pedido con ID {external_reference} no encontrado.")
+                            logger.warning("Webhook: Pedido con ID %s no encontrado.", external_reference)
             except Exception as e:
-                print(f"Error procesando webhook de Mercado Pago: {e}")
+                logger.exception("Error procesando webhook de Mercado Pago: %s", e)
         
         return Response(status=status.HTTP_200_OK)
 
 
 class MercadoPagoPreferenceView(APIView):
     def post(self, request, *args, **kwargs):
-        sdk = mercadopago.SDK(settings.MP_ACCESS_TOKEN_TEST)
+        sdk = mercadopago.SDK(settings.MP_ACCESS_TOKEN_TEST if settings.DEBUG else settings.MP_ACCESS_TOKEN)
 
         cart_items = request.data.get('items', [])
         external_reference = request.data.get('external_reference')  # ID del pedido
@@ -121,7 +164,7 @@ class MercadoPagoPreferenceView(APIView):
 
         try:
             preference_response = sdk.preference().create(preference_data)
-            print("Mercado Pago API Response:", preference_response)
+            logger.debug("Mercado Pago API Response: %s", preference_response)
 
             response_status = preference_response.get("status")
             preference = preference_response.get("response", {}) or {}
@@ -144,7 +187,7 @@ class MercadoPagoPreferenceView(APIView):
                 pedido.mercadopago_preference_id = preference_id
                 pedido.save()
             except Pedido.DoesNotExist:
-                print(f"ADVERTENCIA: No se encontró el pedido con ID {external_reference} para guardar el preference_id.")
+                logger.warning("ADVERTENCIA: No se encontró el pedido con ID %s para guardar el preference_id.", external_reference)
 
             return Response({
                 "preference_id": preference_id,
@@ -152,5 +195,5 @@ class MercadoPagoPreferenceView(APIView):
             }, status=status.HTTP_201_CREATED)
 
         except Exception as e:
-            print(f"Error al crear preferencia de Mercado Pago: {e}")
+            logger.exception("Error al crear preferencia de Mercado Pago: %s", e)
             return Response({"error": "Hubo un problema al comunicarse con Mercado Pago."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

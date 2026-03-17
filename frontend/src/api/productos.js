@@ -1,4 +1,4 @@
-import api from '../axios';
+import api from '@/axios';
 
 export const getProductos = (params) => {
   return api.get('/productos/', { params });

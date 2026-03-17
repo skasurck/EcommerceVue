@@ -3,7 +3,10 @@
   <Navbar v-if="!isAdmin" />
 
   <!-- Si hay navbar, damos padding-top. Si no, 0 -->
-  <main :style="{ paddingTop: isAdmin ? '0px' : navHeight }">
+  <main
+    class="min-h-screen bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-slate-100 transition-colors"
+    :style="{ paddingTop: isAdmin ? '0px' : navHeight }"
+  >
     <RouterView v-slot="{ Component, route }">
       <component :is="Component" :key="route.fullPath" />
     </RouterView>
@@ -15,11 +18,13 @@ import Navbar from './components/Navbar.vue'
 import { onMounted, onUnmounted, ref, computed, nextTick, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { useCartStore } from '@/stores/cart'
+import { useCarritoStore } from '@/stores/carrito'
+import { useTheme } from '@/composables/useTheme'
 
 const auth = useAuthStore()
-const cart = useCartStore()
+const cart = useCarritoStore()
 const route = useRoute()
+const { initTheme } = useTheme()
 
 // ¿estamos en el layout admin?
 const isAdmin = computed(() => route.path.startsWith('/admin'))
@@ -38,8 +43,9 @@ const activityHandler = () => {
 }
 
 onMounted(async () => {
+  initTheme()
   auth.checkLogin()
-  cart.fetchCart() // <- CARGAR EL CARRITO AL INICIAR
+  cart.cargar() // <- CARGAR EL CARRITO AL INICIAR
   await nextTick()
   setNavHeight()
   window.addEventListener('mousemove', activityHandler)
@@ -62,11 +68,3 @@ watch(() => route.fullPath, async () => {
   setNavHeight()
 })
 </script>
-
-<style scoped>
-body {
-  margin: 0;
-  font-family: sans-serif;
-  background-color: #000000 !important;
-}
-</style>

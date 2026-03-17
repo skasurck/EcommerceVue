@@ -1,4 +1,4 @@
-import api from '../axios'
+import api from '@/axios'
 
 export const obtenerPerfil = () => api.get('profile/')
 export const actualizarPerfil = (data) => api.put('profile/', data)

@@ -7,6 +7,7 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework.decorators import action
 from django.contrib.auth.models import User
+from django.db import transaction
 from django.db.models import Q
 from django.contrib.auth.password_validation import validate_password
 from django.utils.decorators import method_decorator
@@ -80,12 +81,14 @@ class UserProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        Perfil.objects.get_or_create(user=request.user)
+        with transaction.atomic():
+            Perfil.objects.get_or_create(user=request.user)
         serializer = UserProfileSerializer(request.user)
         return Response(serializer.data)
 
     def put(self, request):
-        Perfil.objects.get_or_create(user=request.user)
+        with transaction.atomic():
+            Perfil.objects.get_or_create(user=request.user)
         serializer = UserProfileSerializer(request.user, data=request.data)
         if serializer.is_valid():
             serializer.save()

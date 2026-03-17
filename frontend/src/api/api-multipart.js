@@ -1,5 +1,5 @@
 // frontend/src/api/api-multipart.js
-import api from '../axios'   // default import
+import api from '@/axios'
 
 export function postMultipart(url, formData) {
   return api.post(url, formData, {

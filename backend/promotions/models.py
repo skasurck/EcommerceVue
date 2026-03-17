@@ -1,5 +1,6 @@
 # promotions/models.py
-from django.db import models
+from django.core.exceptions import ValidationError
+from django.db import models, transaction
 from suppliers.models import SupplierProduct
 
 class DailyOffer(models.Model):
@@ -32,6 +33,10 @@ class DailyOffer(models.Model):
         help_text="Indicates if the offer is currently active."
     )
 
+    def clean(self):
+        if self.end_date and self.start_date and self.end_date <= self.start_date:
+            raise ValidationError({'end_date': 'end_date debe ser posterior a start_date.'})
+
     def __str__(self):
         return f"Offer for {self.product.name} at ${self.sale_price}"
 
@@ -59,5 +64,6 @@ class PromotionSettings(models.Model):
     @classmethod
     def load(cls):
         """Load the singleton instance, creating it if it doesn't exist."""
-        obj, created = cls.objects.get_or_create(pk=1)
+        with transaction.atomic():
+            obj, created = cls.objects.select_for_update().get_or_create(pk=1)
         return obj

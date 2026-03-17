@@ -1,4 +1,4 @@
-import api from '../axios';
+import api from '@/axios';
 
 export const obtenerDirecciones = () => api.get('direcciones/');
 export const obtenerMetodosEnvio = () => api.get('metodos-envio/');

@@ -74,6 +74,34 @@
               </RouterLink>
             </li>
 
+            <!-- Editar página principal con submenú -->
+            <li>
+              <button @click="open.home = !open.home"
+                class="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-slate-800"
+                :class="sectionActive('/admin/home-editor') || sectionActive('/admin/promo-banners') ? 'bg-slate-800 text-white' : 'text-slate-300'">
+                <span class="flex items-center gap-3"><span>🖼️</span> <span>Editar página principal</span></span>
+                <span class="text-xs" :class="open.home ? 'rotate-90' : ''">›</span>
+              </button>
+              <transition name="fade">
+                <ul v-if="open.home" class="mt-1 ml-9 space-y-1">
+                  <li>
+                    <RouterLink to="/admin/home-editor"
+                      class="block px-2 py-1.5 rounded hover:bg-slate-800"
+                      :class="isActive('/admin/home-editor') ? 'bg-slate-800 text-white' : 'text-slate-300'">
+                      Slider principal
+                    </RouterLink>
+                  </li>
+                  <li>
+                    <RouterLink to="/admin/promo-banners"
+                      class="block px-2 py-1.5 rounded hover:bg-slate-800"
+                      :class="isActive('/admin/promo-banners') ? 'bg-slate-800 text-white' : 'text-slate-300'">
+                      Banners promocionales
+                    </RouterLink>
+                  </li>
+                </ul>
+              </transition>
+            </li>
+
             <li>
               <RouterLink to="/admin/ai/clasificar-productos"
                 class="group flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800"
@@ -87,6 +115,13 @@
                 class="group flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800"
                 :class="sectionActive('/admin/ai/revisar-clasificaciones') ? 'bg-slate-800 text-white' : 'text-slate-300'">
                 <span>✅</span><span>Revisar clasificaciones</span>
+              </RouterLink>
+            </li>
+            <li v-if="auth.hasRole('super_admin')">
+              <RouterLink to="/admin/ai/learning-stats"
+                class="group flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800"
+                :class="sectionActive('/admin/ai/learning-stats') ? 'bg-slate-800 text-white' : 'text-slate-300'">
+                <span>📈</span><span>Estadisticas IA</span>
               </RouterLink>
             </li>
 
@@ -159,12 +194,20 @@ const auth = useAuthStore()
 const title = computed(() => route.meta?.title || 'Panel')
 
 // submenús
-const open = ref({ products: true }) // abre productos por defecto
+const homeSection = ['/admin/home-editor', '/admin/promo-banners']
+const openState = {
+  products: true,
+  home: homeSection.some(p => route.path.startsWith(p)),
+}
+const open = ref({ products: true, home: openState.home })
 Object.defineProperty(open.value, 'products', {
   get() { return openState.products },
   set(v) { openState.products = v }
 })
-const openState = { products: true }
+Object.defineProperty(open.value, 'home', {
+  get() { return openState.home },
+  set(v) { openState.home = v }
+})
 
 // helpers de activo
 const isActive = (path) => route.path === path

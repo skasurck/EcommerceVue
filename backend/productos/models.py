@@ -1,3 +1,4 @@
+import logging
 from django.db import models
 from PIL import Image, ImageOps
 from io import BytesIO
@@ -6,6 +7,8 @@ from django.utils.crypto import get_random_string
 from django.utils.html import format_html
 from django.utils.text import slugify
 import os
+
+logger = logging.getLogger(__name__)
 
 # ──────────── CATEGORÍAS ────────────
 class Categoria(models.Model):
@@ -126,8 +129,9 @@ class Producto(models.Model):
             else:
                 try:
                     self.imagen_principal.open()
-                    img = Image.open(self.imagen_principal)
-                    
+                    with Image.open(self.imagen_principal) as img:
+                        img.load()  # cargar datos antes de cerrar el archivo
+
                     original_filename = self.imagen_principal.name
                     base_name = os.path.splitext(os.path.basename(original_filename))[0]
 
@@ -136,7 +140,7 @@ class Producto(models.Model):
                     img.save(buffer_main, format='WEBP', quality=85)
                     main_file = ContentFile(buffer_main.getvalue())
                     filename_main = f"{slugify(base_name)}_{get_random_string(7)}.webp"
-                    
+
                     # --- Generar miniatura WebP ---
                     thumb_img = img.copy()
                     thumb_img.thumbnail((400, 400), Image.Resampling.LANCZOS)
@@ -168,8 +172,8 @@ class Producto(models.Model):
                     self.imagen_principal.save(filename_main, main_file, save=False)
                     self.miniatura.save(filename_thumb, thumb_file, save=False)
                 
-                except Exception as e:
-                    print(f"Error procesando la imagen del producto {self.pk}: {e}")
+                except (OSError, Image.UnidentifiedImageError) as e:
+                    logger.exception("Error procesando la imagen del producto %s: %s", self.pk, e)
 
         # Si la imagen se eliminó del producto, eliminar los archivos asociados
         elif old_instance and old_instance.imagen_principal and not self.imagen_principal:
@@ -181,6 +185,34 @@ class Producto(models.Model):
 
     def __str__(self):
         return self.nombre
+
+
+class ProductClassificationFeedback(models.Model):
+    SOURCE_MANUAL_SINGLE = "manual_single"
+    SOURCE_MANUAL_BULK = "manual_bulk"
+    SOURCE_CHOICES = (
+        (SOURCE_MANUAL_SINGLE, "Manual single"),
+        (SOURCE_MANUAL_BULK, "Manual bulk"),
+    )
+
+    producto = models.ForeignKey(
+        Producto,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="classification_feedback",
+    )
+    input_text = models.TextField()
+    target_main = models.CharField(max_length=128, db_index=True)
+    target_sub = models.CharField(max_length=255, db_index=True)
+    source = models.CharField(max_length=32, choices=SOURCE_CHOICES, default=SOURCE_MANUAL_SINGLE)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+    def __str__(self):
+        return f"{self.target_main} | {self.target_sub}"
 
 # ──────────── GALERÍA DE IMÁGENES ────────────
 class ImagenProducto(models.Model):
@@ -253,3 +285,53 @@ class PrecioEscalonado(models.Model):
 
     def __str__(self):
         return f"{self.producto.nombre} - desde {self.cantidad_minima} u. a ${self.precio_unitario} c/u"
+
+
+class HomeSliderImage(models.Model):
+    titulo = models.CharField(max_length=120, blank=True, default="")
+    descripcion = models.CharField(max_length=255, blank=True, default="")
+    imagen = models.ImageField(upload_to="home_slider/")
+    titulo_color = models.CharField(max_length=7, blank=True, default="#ea580c")
+    titulo_mobile = models.CharField(max_length=120, blank=True, default="")
+    descripcion_mobile = models.CharField(max_length=255, blank=True, default="")
+    imagen_mobile = models.ImageField(upload_to="home_slider/mobile/", null=True, blank=True)
+    orden = models.PositiveIntegerField(default=0, db_index=True)
+    activo = models.BooleanField(default=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["orden", "id"]
+
+    def __str__(self):
+        return self.titulo or f"Slide #{self.pk}"
+
+    def delete(self, *args, **kwargs):
+        if self.imagen:
+            self.imagen.delete(save=False)
+        if self.imagen_mobile:
+            self.imagen_mobile.delete(save=False)
+        super().delete(*args, **kwargs)
+
+
+class PromoBanner(models.Model):
+    titulo = models.CharField(max_length=120, blank=True, default="")
+    descripcion = models.CharField(max_length=255, blank=True, default="")
+    imagen = models.ImageField(upload_to="promo_banners/")
+    titulo_color = models.CharField(max_length=7, blank=True, default="#ffffff")
+    enlace = models.CharField(max_length=500, blank=True, default="")
+    orden = models.PositiveIntegerField(default=0, db_index=True)
+    activo = models.BooleanField(default=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["orden", "id"]
+
+    def __str__(self):
+        return self.titulo or f"Banner #{self.pk}"
+
+    def delete(self, *args, **kwargs):
+        if self.imagen:
+            self.imagen.delete(save=False)
+        super().delete(*args, **kwargs)

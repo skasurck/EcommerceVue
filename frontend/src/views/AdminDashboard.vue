@@ -33,6 +33,24 @@
         </router-link>
       </li>
       <li>
+        <router-link to="/admin/home-editor" class="flex items-center gap-2 text-blue-600 hover:underline">
+          <span aria-hidden="true">🖼️</span>
+          <span>Editar página principal</span>
+        </router-link>
+      </li>
+      <li>
+        <router-link to="/admin/promo-banners" class="flex items-center gap-2 text-blue-600 hover:underline">
+          <span aria-hidden="true">📢</span>
+          <span>Banners promocionales</span>
+        </router-link>
+      </li>
+      <li v-if="auth.hasRole('super_admin')">
+        <router-link to="/admin/ai/learning-stats" class="flex items-center gap-2 text-blue-600 hover:underline">
+          <span aria-hidden="true">📈</span>
+          <span>Estadisticas de aprendizaje IA</span>
+        </router-link>
+      </li>
+      <li>
         <router-link to="/admin/suppliers/supermex" class="flex items-center gap-2 text-blue-600 hover:underline">
           <span aria-hidden="true">🚚</span>
           <span>Importar catálogo de Supermex</span>
@@ -46,7 +64,7 @@
 </template>
 
 <script setup>
-import { useAuthStore } from '../stores/auth'
+import { useAuthStore } from '@/stores/auth'
 const auth = useAuthStore()
 defineOptions({ name: 'AdminDashboard' })
 </script>

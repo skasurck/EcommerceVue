@@ -1,42 +1,67 @@
 from celery import shared_task
 from celery.utils.log import get_task_logger
-from .models import Producto
-from .ai import build_text_from_product, classify_text
 from django.db import transaction
 from django.utils import timezone
 
+from .ai import ClassificationResult, build_text_from_product, classify_text
+from .learning import get_feedback_model, predict_with_feedback
+from .models import Producto
+
 logger = get_task_logger(__name__)
+
 
 @shared_task(bind=True)
 def classify_products_task(self, product_ids, overwrite=False):
-    """
-    Tarea asíncrona de Celery para clasificar productos.
-    """
+    """Tarea asincrona de Celery para clasificar productos."""
     total_products = len(product_ids)
     processed_count = 0
     results = []
+    feedback_model = get_feedback_model()
 
-    logger.info(f"Iniciando clasificación para {total_products} productos. Sobrescribir: {overwrite}")
+    logger.info("Iniciando clasificacion para %s productos. Sobrescribir: %s", total_products, overwrite)
+    if feedback_model is not None:
+        logger.info(
+            "Modelo de aprendizaje por feedback activo (%s muestras).",
+            feedback_model.total_samples,
+        )
+    else:
+        logger.info("No hay suficiente feedback manual para entrenamiento; se usara clasificacion base.")
 
     for product_id in product_ids:
+        product_name_for_status = f"Producto {product_id}"
         try:
             product = Producto.objects.get(pk=product_id)
+            product_name_for_status = product.nombre or product_name_for_status
 
             if product.category_ai_main and not overwrite:
                 processed_count += 1
-                logger.info(f"Saltando producto {product_id} (ya clasificado).")
+                logger.info("Saltando producto %s (ya clasificado).", product_id)
                 self.update_state(
-                    state='PROGRESS',
-                    meta={'current': processed_count, 'total': total_products, 'status': f'Procesando {product.nombre}'}
+                    state="PROGRESS",
+                    meta={
+                        "current": processed_count,
+                        "total": total_products,
+                        "status": f"Procesando {product_name_for_status}",
+                    },
                 )
                 continue
-            
-            logger.info(f"Clasificando producto {product_id}: {product.nombre}")
+
+            logger.info("Clasificando producto %s: %s", product_id, product_name_for_status)
             text = build_text_from_product(product)
             if not text:
                 text = product.nombre or f"Producto {product.pk}"
 
-            classification = classify_text(text)
+            feedback_prediction = predict_with_feedback(text, model=feedback_model)
+            if feedback_prediction is not None:
+                classification = ClassificationResult(
+                    main=feedback_prediction.main,
+                    sub=feedback_prediction.sub,
+                    main_score=feedback_prediction.confidence,
+                    sub_score=feedback_prediction.confidence,
+                )
+            else:
+                # Ruta rapida: solo texto para mantener la clasificacion agil.
+                classification = classify_text(text)
 
             with transaction.atomic():
                 product.category_ai_main = classification.main
@@ -53,26 +78,36 @@ def classify_products_task(self, product_ids, overwrite=False):
                         "fecha_clasificacion_ai",
                     ]
                 )
-            
-            result_item = {
-                "product_id": product.id,
-                "main": product.category_ai_main,
-                "sub": product.category_ai_sub,
-                "conf_main": product.category_ai_conf_main,
-                "conf_sub": product.category_ai_conf_sub,
-            }
-            results.append(result_item)
+
+            results.append(
+                {
+                    "product_id": product.id,
+                    "main": product.category_ai_main,
+                    "sub": product.category_ai_sub,
+                    "conf_main": product.category_ai_conf_main,
+                    "conf_sub": product.category_ai_conf_sub,
+                }
+            )
 
         except Producto.DoesNotExist:
-            logger.warning(f"Producto con ID {product_id} no encontrado.")
-        except Exception as e:
-            logger.error(f"Error clasificando producto {product_id}: {e}", exc_info=True)
-        
+            logger.warning("Producto con ID %s no encontrado.", product_id)
+        except Exception as exc:
+            logger.error("Error clasificando producto %s: %s", product_id, exc, exc_info=True)
+
         processed_count += 1
         self.update_state(
-            state='PROGRESS',
-            meta={'current': processed_count, 'total': total_products, 'status': f'Procesado {product.nombre}'}
+            state="PROGRESS",
+            meta={
+                "current": processed_count,
+                "total": total_products,
+                "status": f"Procesado {product_name_for_status}",
+            },
         )
 
-    logger.info(f"Clasificación completada. {len(results)} productos clasificados.")
-    return {'current': total_products, 'total': total_products, 'status': 'Completado!', 'results': results}
+    logger.info("Clasificacion completada. %s productos clasificados.", len(results))
+    return {
+        "current": total_products,
+        "total": total_products,
+        "status": "Completado!",
+        "results": results,
+    }

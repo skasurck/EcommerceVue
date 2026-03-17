@@ -46,7 +46,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onActivated, onBeforeUnmount, watch } from 'vue'
-import { useAdminUsersStore } from '../stores/adminUsers'
+import { useAdminUsersStore } from '@/stores/adminUsers'
 
 defineOptions({ name: 'AdminUsuarios' })
 

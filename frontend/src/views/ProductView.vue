@@ -284,12 +284,12 @@
 <script setup>
 import { ref, onMounted, watch, computed, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
-import { obtenerProducto, obtenerProductos } from '../services/api'
-import { getCategorias } from '../api/productos'
+import { obtenerProducto, obtenerProductos } from '@/services/api'
+import { getCategorias } from '@/api/productos'
 import { useHead } from '@vueuse/head'
-import { useCarritoStore } from '../stores/carrito'
-import { useAuthStore } from '../stores/auth'
-import ProductCard from '../components/ProductCard.vue'
+import { useCarritoStore } from '@/stores/carrito'
+import { useAuthStore } from '@/stores/auth'
+import ProductCard from '@/components/ProductCard.vue'
 
 const route = useRoute()
 const producto = ref(null)

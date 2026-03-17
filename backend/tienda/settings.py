@@ -31,9 +31,17 @@ if not SECRET_KEY:
     raise RuntimeError("SECRET_KEY no cargado desde el .env")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "[::1]"]
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1,[::1]").split(",")
+
+# Seguridad adicional en producción (cuando DEBUG=False)
+if not DEBUG:
+    CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_SECURE = True
+    SECURE_SSL_REDIRECT = True
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 
 # Application definition
 
@@ -50,10 +58,20 @@ REST_FRAMEWORK = {
         'rest_framework.filters.OrderingFilter',
     ),
 
-    # PERMISOS POR DEFECTO (si quieres todo público por ahora)
+    # PERMISOS POR DEFECTO: lectura pública, escritura requiere autenticación
     "DEFAULT_PERMISSION_CLASSES": (
-        "rest_framework.permissions.AllowAny",
+        "rest_framework.permissions.IsAuthenticatedOrReadOnly",
     ),
+
+    # Rate limiting: protección contra fuerza bruta y DoS
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "200/hour",
+        "user": "2000/hour",
+    },
 
     # (Opcional) Paginación por defecto
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
@@ -79,6 +97,7 @@ INSTALLED_APPS = [
 
     'corsheaders',
     'rest_framework',
+    'rest_framework_simplejwt.token_blacklist',
     #'productos.apps.ProductosConfig',
 
     'tienda',  # el proyecto
@@ -150,8 +169,10 @@ DATABASES = {
 }
 
 # 🔹 Credenciales de Mercado Pago
-MP_ACCESS_TOKEN = os.getenv("MP_ACCESS_TOKEN_TEST", "")
-MP_ACCESS_TOKEN_TEST = os.getenv("MP_ACCESS_TOKEN_TEST", MP_ACCESS_TOKEN)
+MP_ACCESS_TOKEN = os.getenv("MP_ACCESS_TOKEN", "")
+MP_ACCESS_TOKEN_TEST = os.getenv("MP_ACCESS_TOKEN_TEST", "")
+# Secreto para verificar la firma de webhooks entrantes de Mercado Pago
+MP_WEBHOOK_SECRET = os.getenv("MP_WEBHOOK_SECRET", "")
 
 
 # Password validation
@@ -178,7 +199,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'America/Mexico_City'
 
 USE_I18N = True
 
@@ -205,3 +226,7 @@ CELERY_BROKER_URL = "redis://127.0.0.1:6379/0"
 CELERY_RESULT_BACKEND = "redis://127.0.0.1:6379/1"
 CELERY_TIMEZONE = "America/Mexico_City"
 CELERY_ENABLE_UTC = False
+
+# Reserva de carrito
+CART_RESERVATION_MAX_HOURS = int(os.getenv("CART_RESERVATION_MAX_HOURS", "3"))
+CART_RESERVATION_REFRESH_MINUTES = int(os.getenv("CART_RESERVATION_REFRESH_MINUTES", "40"))

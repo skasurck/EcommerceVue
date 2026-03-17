@@ -2,9 +2,12 @@ import logging
 import threading
 from dataclasses import dataclass
 from importlib import import_module
-from typing import Dict, List, Sequence, Tuple
+import re
+from typing import Any, Dict, List, Sequence, Tuple
+import unicodedata
 
 from django.core.exceptions import ImproperlyConfigured
+from PIL import Image, ImageOps
 
 from productos.category_tree import CATEGORY_TREE
 
@@ -13,9 +16,45 @@ logger = logging.getLogger(__name__)
 
 HYPOTHESIS_TEMPLATE = "Este texto es sobre {}."
 MODEL_NAME = "Recognai/bert-base-spanish-wwm-cased-xnli"
+IMAGE_MODEL_NAME = "openai/clip-vit-base-patch32"
 MAIN_THRESHOLD = 0.40
 SUB_THRESHOLD = 0.35
 NORMALIZATION_CONFIDENCE = 0.95
+MAIN_HIGH_CONFIDENCE = 0.70
+MAIN_SCORE_MARGIN = 0.12
+MAIN_CANDIDATE_LIMIT = 3
+SUB_CANDIDATE_LIMIT = 5
+COMBINED_MAIN_WEIGHT = 0.35
+COMBINED_SUB_WEIGHT = 0.55
+COMBINED_LEXICAL_WEIGHT = 0.10
+TEXT_MAIN_BLEND_WEIGHT = 0.70
+IMAGE_MAIN_BLEND_WEIGHT = 0.30
+MIN_IMAGE_CONFIDENCE_TO_BLEND = 0.30
+
+TOKEN_STOPWORDS = {
+    "con",
+    "para",
+    "por",
+    "del",
+    "las",
+    "los",
+    "una",
+    "uno",
+    "uns",
+    "de",
+    "el",
+    "la",
+    "and",
+    "for",
+    "the",
+    "usb",
+    "hdmi",
+    "vga",
+    "rj45",
+    "tipo",
+    "tipoa",
+    "tipoc",
+}
 
 
 def _collect_paths(node: Dict, trail: List[str], acc: List[str], seen: set) -> None:
@@ -111,6 +150,8 @@ def safe_path_from_slugs(main_slug: str, leaf_slug: str) -> str:
     return safe_path(main_label, leaf_name)
 
 _pipeline = None
+_image_pipeline = None
+_image_pipeline_load_failed = False
 
 
 def get_pipeline():
@@ -143,6 +184,43 @@ def get_pipeline():
             raise
 
     return _pipeline
+
+
+def get_image_pipeline():
+    """
+    Carga opcional del clasificador visual.
+    Si falla (modelo no disponible, dependencias, etc.), devuelve None y la
+    clasificación continúa solo con texto.
+    """
+    global _image_pipeline, _image_pipeline_load_failed
+    if _image_pipeline_load_failed:
+        return None
+    if _image_pipeline is None:
+        logger.info("Pipeline de visión no está cargado. Intentando inicializar...")
+        try:
+            transformers = import_module("transformers")
+            _image_pipeline = transformers.pipeline(
+                "zero-shot-image-classification",
+                model=IMAGE_MODEL_NAME,
+                device="cpu",
+            )
+            logger.info("Pipeline de visión inicializado correctamente.")
+        except (ModuleNotFoundError, ImproperlyConfigured):
+            logger.warning(
+                "No se pudo cargar el pipeline de visión por dependencias/configuración. "
+                "Se usará solo clasificación textual.",
+                exc_info=True,
+            )
+            _image_pipeline_load_failed = True
+            return None
+        except Exception:
+            logger.warning(
+                "No se pudo cargar el pipeline de visión. Se usará solo clasificación textual.",
+                exc_info=True,
+            )
+            _image_pipeline_load_failed = True
+            return None
+    return _image_pipeline
 
 
 @dataclass
@@ -182,8 +260,38 @@ class NormalizationRule:
 
 HARDWARE_SLUG = "computo-hardware"
 PRINT_SLUG = "impresion-y-copiado"
-HARDWARE_MAIN = MAIN_CATEGORY_BY_SLUG.get(HARDWARE_SLUG, "Cómputo (Hardware)")
-PRINT_MAIN = MAIN_CATEGORY_BY_SLUG.get(PRINT_SLUG, "Impresión y Copiado")
+AUDIO_VIDEO_SLUG = "audio-y-video"
+HARDWARE_MAIN = MAIN_CATEGORY_BY_SLUG.get(HARDWARE_SLUG, "Computo (Hardware)")
+PRINT_MAIN = MAIN_CATEGORY_BY_SLUG.get(PRINT_SLUG, "Impresion y Copiado")
+AUDIO_VIDEO_MAIN = MAIN_CATEGORY_BY_SLUG.get(AUDIO_VIDEO_SLUG, "Audio y Video")
+
+MAIN_IMAGE_PROMPTS_BY_SLUG = {
+    "computo-hardware": "computer hardware and peripherals",
+    "audio-y-video": "audio and video electronics like projectors and screens",
+    "energia": "power equipment, batteries, ups or chargers",
+    "impresion-y-copiado": "printers, copiers and printing supplies",
+    "punto-de-venta-pos": "point of sale equipment and POS terminals",
+    "seguridad-y-vigilancia": "security cameras and surveillance equipment",
+    "software-y-servicios": "software license or digital service product",
+}
+
+
+def _build_image_prompt_map() -> Dict[str, str]:
+    prompt_map: Dict[str, str] = {}
+    for main in MAIN_CATEGORIES:
+        slug = next(
+            (root.get("slug") for root in CATEGORY_TREE if root.get("name") == main and root.get("slug")),
+            None,
+        )
+        if slug:
+            prompt_map[main] = MAIN_IMAGE_PROMPTS_BY_SLUG.get(slug, f"{main} product")
+        else:
+            prompt_map[main] = f"{main} product"
+    return prompt_map
+
+
+MAIN_IMAGE_PROMPTS = _build_image_prompt_map()
+IMAGE_PROMPT_TO_MAIN: Dict[str, str] = {prompt: main for main, prompt in MAIN_IMAGE_PROMPTS.items()}
 
 
 def _hardware_leaf_rules() -> Tuple[NormalizationRule, ...]:
@@ -214,6 +322,11 @@ def _hardware_leaf_rules() -> Tuple[NormalizationRule, ...]:
 
 
 MANUAL_NORMALIZATION_RULES: Tuple[NormalizationRule, ...] = (
+    NormalizationRule(
+        ("proyector", "projector", "powerlite", "viewsonic"),
+        AUDIO_VIDEO_MAIN,
+        safe_path_from_slugs(AUDIO_VIDEO_SLUG, "proyectores"),
+    ),
     NormalizationRule(
         ("router gamer", "gaming router"),
         HARDWARE_MAIN,
@@ -268,6 +381,21 @@ MANUAL_NORMALIZATION_RULES: Tuple[NormalizationRule, ...] = (
         ("cartucho", "tóner", "toner", "ink"),
         PRINT_MAIN,
         safe_path_from_slugs(PRINT_SLUG, "toner"),
+    ),
+    NormalizationRule(
+        (
+            "ssd externo",
+            "ssd externa",
+            "ssd externos",
+            "ssd externas",
+            "external ssd",
+            "portable ssd",
+            "unidad de estado solido externa",
+            "unidad de estado sólido externa",
+            "disco ssd externo",
+        ),
+        HARDWARE_MAIN,
+        safe_path_from_slugs(HARDWARE_SLUG, "ssd-externos"),
     ),
     NormalizationRule(
         ("ssd", "m.2", "nvme"),
@@ -405,7 +533,7 @@ MANUAL_NORMALIZATION_RULES: Tuple[NormalizationRule, ...] = (
         safe_path_from_slugs(HARDWARE_SLUG, "ram-pc"),
     ),
     NormalizationRule(
-        ("usb", "memoria usb"),
+        ("memoria usb", "memorias usb", "usb flash", "flash drive", "pendrive"),
         HARDWARE_MAIN,
         safe_path_from_slugs(HARDWARE_SLUG, "memorias-usb"),
     ),
@@ -493,6 +621,180 @@ MANUAL_NORMALIZATION_RULES: Tuple[NormalizationRule, ...] = (
 
 NORMALIZATION_RULES: Tuple[NormalizationRule, ...] = MANUAL_NORMALIZATION_RULES + _hardware_leaf_rules()
 
+
+def _strip_accents(value: str) -> str:
+    normalized = unicodedata.normalize("NFKD", value)
+    return "".join(ch for ch in normalized if not unicodedata.combining(ch))
+
+
+def _tokenize(value: str) -> set[str]:
+    normalized = _strip_accents(value).lower()
+    tokens = re.findall(r"[a-z0-9]+", normalized)
+    out = set()
+    for token in tokens:
+        if len(token) < 3:
+            continue
+        if token.isdigit():
+            continue
+        if token in TOKEN_STOPWORDS:
+            continue
+        out.add(token)
+    return out
+
+
+def _leaf_from_path(path: str | None) -> str:
+    if not path:
+        return ""
+    return str(path).split(" > ")[-1].strip()
+
+
+def _lexical_overlap_score(text: str, path_label: str | None) -> float:
+    leaf = _leaf_from_path(path_label)
+    if not leaf:
+        return 0.0
+    text_tokens = _tokenize(text)
+    leaf_tokens = _tokenize(leaf)
+    if not text_tokens or not leaf_tokens:
+        return 0.0
+    overlap = text_tokens.intersection(leaf_tokens)
+    return len(overlap) / len(leaf_tokens)
+
+
+def _ranked_labels(result: Dict) -> List[tuple[str, float]]:
+    labels = result.get("labels") or []
+    scores = result.get("scores") or []
+    ranked: List[tuple[str, float]] = []
+    for index, label in enumerate(labels):
+        try:
+            score = float(scores[index])
+        except (IndexError, TypeError, ValueError):
+            continue
+        ranked.append((str(label), score))
+    return ranked
+
+
+def _ranked_image_labels(result: Any) -> List[tuple[str, float]]:
+    if not isinstance(result, list):
+        return []
+    best_by_main: Dict[str, float] = {}
+    for item in result:
+        if not isinstance(item, dict):
+            continue
+        raw_label = str(item.get("label", "")).strip()
+        main_label = IMAGE_PROMPT_TO_MAIN.get(raw_label, raw_label)
+        if main_label not in MAIN_CATEGORIES:
+            continue
+        try:
+            score = float(item.get("score", 0.0))
+        except (TypeError, ValueError):
+            continue
+        prev = best_by_main.get(main_label, 0.0)
+        if score > prev:
+            best_by_main[main_label] = score
+    return sorted(best_by_main.items(), key=lambda it: it[1], reverse=True)
+
+
+def _main_scores_from_image(image: Image.Image | None) -> List[tuple[str, float]]:
+    if image is None:
+        return []
+    image_classifier = get_image_pipeline()
+    if image_classifier is None:
+        return []
+    prompts = [MAIN_IMAGE_PROMPTS[main] for main in MAIN_CATEGORIES]
+    try:
+        image_result = image_classifier(image, candidate_labels=prompts)
+    except Exception:
+        logger.warning("Falló la clasificación visual; se continúa con texto.", exc_info=True)
+        return []
+    ranked = _ranked_image_labels(image_result)
+    if not ranked:
+        return []
+    if ranked[0][1] < MIN_IMAGE_CONFIDENCE_TO_BLEND:
+        return []
+    return ranked
+
+
+def _blend_main_rankings(
+    text_ranked: List[tuple[str, float]],
+    image_ranked: List[tuple[str, float]],
+) -> List[tuple[str, float]]:
+    if not text_ranked:
+        return []
+    if not image_ranked:
+        return text_ranked
+
+    text_scores = {label: score for label, score in text_ranked}
+    image_scores = {label: score for label, score in image_ranked}
+    blended: List[tuple[str, float]] = []
+    for label in MAIN_CATEGORIES:
+        score = (TEXT_MAIN_BLEND_WEIGHT * text_scores.get(label, 0.0)) + (
+            IMAGE_MAIN_BLEND_WEIGHT * image_scores.get(label, 0.0)
+        )
+        blended.append((label, score))
+    blended.sort(key=lambda it: it[1], reverse=True)
+    return blended
+
+
+def _select_main_candidates(main_ranked: List[tuple[str, float]]) -> List[tuple[str, float]]:
+    if not main_ranked:
+        return []
+    top_score = main_ranked[0][1]
+    if top_score >= MAIN_HIGH_CONFIDENCE:
+        return [main_ranked[0]]
+    min_allowed = max(MAIN_THRESHOLD, top_score - MAIN_SCORE_MARGIN)
+    candidates: List[tuple[str, float]] = []
+    for label, score in main_ranked:
+        if len(candidates) >= MAIN_CANDIDATE_LIMIT:
+            break
+        if score >= min_allowed:
+            candidates.append((label, score))
+    if not candidates:
+        candidates.append(main_ranked[0])
+    return candidates
+
+
+def _combined_score(main_score: float, sub_score: float | None, lexical_score: float) -> float:
+    effective_sub = sub_score if sub_score is not None else 0.0
+    return (
+        (COMBINED_MAIN_WEIGHT * main_score)
+        + (COMBINED_SUB_WEIGHT * effective_sub)
+        + (COMBINED_LEXICAL_WEIGHT * lexical_score)
+    )
+
+
+def _best_sub_for_main(classifier, text: str, main_label: str, main_score: float) -> tuple[str | None, float | None]:
+    sub_candidates = SUBCATEGORIES.get(main_label) or []
+    if not sub_candidates:
+        return None, None
+
+    sub_result = classifier(
+        text,
+        sub_candidates,
+        multi_label=True,
+        hypothesis_template=HYPOTHESIS_TEMPLATE,
+    )
+    ranked_sub = _ranked_labels(sub_result)
+    if not ranked_sub:
+        fallback_sub = GENERIC_SUBCATEGORY_BY_MAIN.get(main_label) or (sub_candidates[0] if sub_candidates else None)
+        return fallback_sub, None
+
+    best_sub_label: str | None = None
+    best_sub_score: float | None = None
+    best_score = -1.0
+    for sub_label, sub_score in ranked_sub[:SUB_CANDIDATE_LIMIT]:
+        lexical = _lexical_overlap_score(text, sub_label)
+        combined = _combined_score(main_score, sub_score, lexical)
+        if combined > best_score:
+            best_score = combined
+            best_sub_label = sub_label
+            best_sub_score = sub_score
+
+    if not best_sub_label or (best_sub_score is not None and best_sub_score < SUB_THRESHOLD):
+        fallback_sub = GENERIC_SUBCATEGORY_BY_MAIN.get(main_label) or (sub_candidates[0] if sub_candidates else None)
+        return fallback_sub, best_sub_score
+
+    return best_sub_label, best_sub_score
+
 def _normalize_labels(
     text: str,
     main_label: str,
@@ -518,41 +820,55 @@ def _normalize_labels(
     )
 
 
-def classify_text(text: str) -> ClassificationResult:
-    """Clasifica un texto en categorías y subcategorías."""
+def classify_text(text: str, image: Image.Image | None = None) -> ClassificationResult:
+    """Clasifica un texto en categorías y subcategorías (con apoyo opcional de imagen)."""
     classifier = get_pipeline()
     main_result = classifier(
         text,
         MAIN_CATEGORIES,
-        multi_label=False,
+        multi_label=True,
         hypothesis_template=HYPOTHESIS_TEMPLATE,
     )
-    main_label = main_result["labels"][0]
-    main_score = float(main_result["scores"][0])
-    if main_score < MAIN_THRESHOLD:
-        main_label = MAIN_CATEGORIES[0]
+    main_ranked_text = _ranked_labels(main_result)
+    main_ranked_image = _main_scores_from_image(image)
+    main_ranked = _blend_main_rankings(main_ranked_text, main_ranked_image)
+    if not main_ranked:
+        fallback_main = MAIN_CATEGORIES[0]
+        fallback_sub = GENERIC_SUBCATEGORY_BY_MAIN.get(fallback_main)
+        return _normalize_labels(text, fallback_main, fallback_sub, 0.0, None)
 
-    sub_candidates = SUBCATEGORIES.get(main_label) or []
-    sub_label = None
-    sub_score = None
-    if sub_candidates:
-        sub_result = classifier(
-            text,
-            sub_candidates,
-            multi_label=False,
-            hypothesis_template=HYPOTHESIS_TEMPLATE,
+    best_result: ClassificationResult | None = None
+    best_score = -1.0
+    for main_label, main_score in _select_main_candidates(main_ranked):
+        sub_label, sub_score = _best_sub_for_main(classifier, text, main_label, main_score)
+        lexical = _lexical_overlap_score(text, sub_label)
+        combined = _combined_score(main_score, sub_score, lexical)
+        candidate = ClassificationResult(
+            main=main_label,
+            sub=sub_label,
+            main_score=main_score,
+            sub_score=sub_score,
         )
-        sub_label = sub_result["labels"][0]
-        sub_score = float(sub_result["scores"][0])
+        if combined > best_score:
+            best_result = candidate
+            best_score = combined
 
-    if not sub_label or (sub_score is not None and sub_score < SUB_THRESHOLD):
-        fallback_sub = GENERIC_SUBCATEGORY_BY_MAIN.get(main_label)
-        if not fallback_sub and sub_candidates:
-            fallback_sub = sub_candidates[0]
-        sub_label = fallback_sub
+    if best_result is None:
+        main_label, main_score = main_ranked[0]
+        best_result = ClassificationResult(
+            main=main_label,
+            sub=GENERIC_SUBCATEGORY_BY_MAIN.get(main_label),
+            main_score=main_score,
+            sub_score=None,
+        )
 
-    normalized = _normalize_labels(text, main_label, sub_label, main_score, sub_score)
-    return normalized
+    return _normalize_labels(
+        text,
+        best_result.main,
+        best_result.sub,
+        best_result.main_score,
+        best_result.sub_score,
+    )
 
 
 def build_text_from_product(product) -> str:
@@ -563,4 +879,51 @@ def build_text_from_product(product) -> str:
             parts.append(str(value))
     return " \n".join(parts)
 
+
+def _read_image_field(image_field) -> Image.Image | None:
+    if not image_field or not getattr(image_field, "name", None):
+        return None
+    try:
+        image_field.open("rb")
+        img = Image.open(image_field)
+        img = ImageOps.exif_transpose(img).convert("RGB")
+        return img.copy()
+    except Exception:
+        logger.warning("No se pudo abrir la imagen del producto para clasificación visual.", exc_info=True)
+        return None
+    finally:
+        try:
+            image_field.close()
+        except Exception:
+            pass
+
+
+def load_product_image(product) -> Image.Image | None:
+    image_sources = [
+        getattr(product, "miniatura", None),
+        getattr(product, "imagen_principal", None),
+    ]
+
+    galeria_manager = getattr(product, "galeria", None)
+    if galeria_manager is not None:
+        try:
+            first_gallery = galeria_manager.first()
+            if first_gallery is not None:
+                image_sources.append(getattr(first_gallery, "imagen", None))
+        except Exception:
+            logger.debug("No se pudo leer la galería para clasificación visual.", exc_info=True)
+
+    for image_field in image_sources:
+        loaded = _read_image_field(image_field)
+        if loaded is not None:
+            return loaded
+    return None
+
+
+def classify_product(product) -> ClassificationResult:
+    text = build_text_from_product(product)
+    if not text:
+        text = product.nombre or f"Producto {product.pk}"
+    image = load_product_image(product)
+    return classify_text(text, image=image)
 

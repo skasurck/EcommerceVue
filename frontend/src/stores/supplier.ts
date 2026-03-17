@@ -8,7 +8,7 @@ export const useSupplierStore = defineStore('supplier', {
       const now = Date.now()
       const cached = this.cache.get(sku)
       if (cached && (now - cached.ts) < 5*60*1000) return cached
-      const { data } = await axios.get(`/api/suppliers/status`, { params: { sku } })
+      const { data } = await axios.get(`suppliers/status`, { params: { sku } })
       const item = { in_stock: !!data.in_stock, ts: now }
       this.cache.set(sku, item)
       return item

@@ -82,8 +82,8 @@
 <script setup>
 import { onMounted, computed, ref, watch, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useCarritoStore } from '../stores/carrito'
-import IconTrash from '../components/icons/IconTrash.vue'
+import { useCarritoStore } from '@/stores/carrito'
+import IconTrash from '@/components/icons/IconTrash.vue'
 
 defineOptions({ name: 'CarritoView' })
 const router = useRouter()

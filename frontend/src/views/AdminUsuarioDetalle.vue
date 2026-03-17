@@ -143,8 +143,8 @@
 <script setup>
 import { ref, reactive, onMounted, computed, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
-import { useAdminUsersStore } from '../stores/adminUsers'
-import { useAuthStore } from '../stores/auth'
+import { useAdminUsersStore } from '@/stores/adminUsers'
+import { useAuthStore } from '@/stores/auth'
 
 defineOptions({ name: 'AdminUsuarioDetalle' })
 

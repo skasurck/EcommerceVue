@@ -4,13 +4,68 @@
 
 @layer base {
   body {
-    @apply bg-gray-100 text-gray-900;
+    @apply bg-slate-100 text-slate-900;
+    transition: background-color 200ms ease, color 200ms ease;
+  }
+
+  body.dark {
+    @apply bg-slate-950 text-slate-100;
   }
 }
 
-/* bg modo oscuro para desarrolo */
-@media (prefers-color-scheme: dark) {
-  body {
-    @apply bg-gray-900 text-gray-100;
-  }
+/* Ajustes globales para mejorar legibilidad en modo oscuro en pantallas existentes */
+html.dark .bg-white {
+  @apply bg-slate-900;
+}
+
+html.dark .bg-gray-50,
+html.dark .bg-gray-100,
+html.dark .bg-slate-50,
+html.dark .bg-slate-100 {
+  @apply bg-slate-900;
+}
+
+html.dark .text-gray-900,
+html.dark .text-gray-800,
+html.dark .text-slate-900,
+html.dark .text-slate-800 {
+  @apply text-slate-100;
+}
+
+html.dark .text-gray-700,
+html.dark .text-gray-600,
+html.dark .text-slate-700,
+html.dark .text-slate-600,
+html.dark .text-slate-500 {
+  @apply text-slate-300;
+}
+
+html.dark .border-gray-200,
+html.dark .border-gray-300,
+html.dark .border-slate-200,
+html.dark .border-slate-300 {
+  @apply border-slate-700;
+}
+
+html.dark input,
+html.dark select,
+html.dark textarea {
+  @apply bg-slate-900 text-slate-100 border-slate-700;
+}
+
+html.dark input::placeholder,
+html.dark select::placeholder,
+html.dark textarea::placeholder {
+  @apply text-slate-400;
+}
+
+html.dark input:-webkit-autofill,
+html.dark input:-webkit-autofill:hover,
+html.dark input:-webkit-autofill:focus,
+html.dark textarea:-webkit-autofill,
+html.dark select:-webkit-autofill {
+  -webkit-text-fill-color: #f1f5f9;
+  -webkit-box-shadow: 0 0 0px 1000px #0f172a inset;
+  box-shadow: 0 0 0px 1000px #0f172a inset;
+  transition: background-color 5000s ease-in-out 0s;
 }

@@ -30,9 +30,9 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue';
-import { obtenerMetodosEnvio } from '../services/checkout';
-import { useCheckoutStore } from '../stores/checkout';
-import { useCarritoStore } from '../stores/carrito';
+import { obtenerMetodosEnvio } from '@/services/checkout';
+import { useCheckoutStore } from '@/stores/checkout';
+import { useCarritoStore } from '@/stores/carrito';
 
 const emit = defineEmits(['next', 'back']);
 const store = useCheckoutStore();

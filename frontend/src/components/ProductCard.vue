@@ -4,19 +4,24 @@
     <router-link :to="{ name: 'producto', params: { id: (p.id ?? producto.id) } }" class="block">
       <div class="relative">
         <!-- Discount badge -->
-        <div v-if="hasDiscount" class="absolute left-2 top-2 z-10 rounded-md bg-rose-600 px-2 py-0.5 text-white text-xs font-semibold">
+        <div v-if="hasDiscount && !isOutOfStock" class="absolute left-2 top-2 z-10 rounded-md bg-rose-600 px-2 py-0.5 text-white text-xs font-semibold">
           -{{ discountPct }}%
         </div>
         <!-- Promo label (shown when discounted) -->
-        <div v-if="hasDiscount" class="absolute left-2 top-8 z-10 rounded-md bg-rose-100 px-2 py-0.5 text-rose-700 text-xs font-medium">
+        <div v-if="hasDiscount && !isOutOfStock" class="absolute left-2 top-8 z-10 rounded-md bg-rose-100 px-2 py-0.5 text-rose-700 text-xs font-medium">
           Promoción
+        </div>
+        <!-- Agotado badge -->
+        <div v-if="isOutOfStock" class="absolute right-2 top-2 z-10 rounded-md bg-gray-700 px-2 py-0.5 text-white text-xs font-semibold tracking-wide">
+          Agotado
         </div>
 
         <img
           :src="imgSrc"
           :alt="p.nombre || 'Producto'"
           loading="lazy"
-          class="aspect-square w-full rounded-t-lg bg-gray-100 object-cover group-hover:opacity-90"
+          class="aspect-square w-full rounded-t-lg bg-gray-100 object-cover"
+          :class="isOutOfStock ? 'opacity-50 grayscale' : 'group-hover:opacity-90'"
         />
       </div>
 
@@ -63,7 +68,7 @@
         </div>
 
         <!-- Stock warning -->
-        <p v-if="stockLow" class="mt-2 text-xs font-medium text-amber-700">
+        <p v-if="stockLow && !isOutOfStock" class="mt-2 text-xs font-medium text-amber-700">
           Quedan {{ p.stock }} en inventario
         </p>
 
@@ -74,15 +79,23 @@
       </div>
     </router-link>
 
-    <!-- Add-to-cart floating button (emit only) -->
+    <!-- Add-to-cart floating button -->
     <button
       type="button"
-      class="absolute bottom-2 right-2 rounded-full bg-yellow-400 text-gray-900 p-2 shadow hover:bg-yellow-500"
-      @click.stop="emit('add-to-cart', producto)"
-      aria-label="Agregar al carrito"
+      class="absolute bottom-2 right-2 rounded-full p-2 shadow transition-colors"
+      :class="isOutOfStock
+        ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+        : 'bg-yellow-400 text-gray-900 hover:bg-yellow-500'"
+      :disabled="isOutOfStock"
+      @click.stop="!isOutOfStock && emit('add-to-cart', producto)"
+      :aria-label="isOutOfStock ? 'Producto agotado' : 'Agregar al carrito'"
     >
-      <!-- plus icon -->
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-5 w-5">
+      <!-- X icon when out of stock -->
+      <svg v-if="isOutOfStock" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-5 w-5">
+        <path fill-rule="evenodd" d="M5.47 5.47a.75.75 0 0 1 1.06 0L12 10.94l5.47-5.47a.75.75 0 1 1 1.06 1.06L13.06 12l5.47 5.47a.75.75 0 1 1-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 0 1-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" />
+      </svg>
+      <!-- Plus icon when available -->
+      <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-5 w-5">
         <path fill-rule="evenodd" d="M12 3.75a.75.75 0 0 1 .75.75v6.75H19.5a.75.75 0 0 1 0 1.5h-6.75V19.5a.75.75 0 0 1-1.5 0v-6.75H4.5a.75.75 0 0 1 0-1.5h6.75V4.5a.75.75 0 0 1 .75-.75Z" clip-rule="evenodd" />
       </svg>
     </button>
@@ -162,7 +175,7 @@ const p = computed(() => {
     precio_normal: pr.precio_normal ?? pr.precio ?? pr['Precio normal'] ?? pr.PrecioNormal ?? null,
     precio_rebajado: pr.precio_rebajado ?? pr['Precio rebajado'] ?? pr.PrecioRebajado ?? null,
     imagen_principal: pr.imagen_principal ?? pr['Imagen principal'] ?? pr.imagen ?? null,
-    estado_inventario: pr.estado_inventario ?? pr['Estado inventario'] ?? pr.estado ?? '',
+    estado_inventario: pr.estado_inventario ?? pr['Estado inventario'] ?? pr.estadoInventario ?? '',
     categoria: pr.categoria ?? pr.Categoria ?? '',
     marca: pr.marca ?? pr.Marca ?? '',
     atributos: normalizeAttributes(attrDetail, attrFallback),
@@ -228,6 +241,13 @@ const priceMinor = computed(() => {
 })
 
 const stockLow = computed(() => Number.isFinite(Number(p.value.stock)) && Number(p.value.stock) > 0 && Number(p.value.stock) < 10)
+const isOutOfStock = computed(() => {
+  if (p.value.estado_inventario === 'agotado') return true
+  const rawStock = p.value.stock
+  if (rawStock === null || rawStock === undefined) return false
+  const s = Number(rawStock)
+  return Number.isFinite(s) && s <= 0
+})
 
 const colors = computed(() => {
   const at = p.value.atributos || {}

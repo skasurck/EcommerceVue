@@ -5,9 +5,8 @@
 
         <!-- Brand + mobile toggle -->
         <div class="flex items-center gap-3">
-          <RouterLink to="/" class="flex items-center gap-2 text-cyan-400 hover:text-white font-semibold">
-            <span class="text-xl">🛒</span>
-            <span class="text-lg hidden xs:inline">MiTienda</span>
+          <RouterLink to="/" class="flex items-center">
+            <img src="/logo-mktska.png" alt="Mktska Digital" class="h-9 w-auto object-contain" />
           </RouterLink>
 
           <!-- Mobile toggle -->
@@ -19,32 +18,41 @@
           </button>
         </div>
 
-        <!-- Search (opcional) -->
+        <!-- Search -->
         <div class="hidden md:flex flex-1 mx-6 relative" @click.outside="showDropdown=false">
-          <form class="w-full" @submit.prevent="goSearch">
+          <form class="w-full flex gap-1" @submit.prevent="goSearch">
             <input
               v-model="q"
               type="search"
               placeholder="Buscar productos…"
-              class="w-full h-9 rounded-md bg-slate-800/70 text-slate-100 placeholder-slate-400 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 px-3"
+              class="flex-1 h-9 rounded-l-md bg-slate-800/70 text-slate-100 placeholder-slate-400 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 px-3"
               role="combobox"
               :aria-expanded="showDropdown"
               aria-controls="search-suggestions"
               @keydown="onKeydown"
               @focus="onFocus"
             />
+            <button
+              type="submit"
+              class="h-9 px-3 bg-cyan-500 hover:bg-cyan-400 text-white rounded-r-md transition flex items-center"
+              aria-label="Buscar"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.35-4.35m0 0A7.5 7.5 0 1 0 6.15 6.15a7.5 7.5 0 0 0 10.5 10.5Z"/>
+              </svg>
+            </button>
           </form>
           <div
             v-if="showDropdown"
             id="search-suggestions"
             role="listbox"
-            class="absolute top-full left-0 right-0 translate-y-1 bg-slate-900 border border-slate-700 rounded-md shadow-lg z-50 max-h-80 overflow-auto pointer-events-auto"
+            class="absolute top-full left-0 right-0 translate-y-1 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 max-h-96 overflow-auto pointer-events-auto text-slate-100"
           >
             <div v-if="loading" class="p-3 space-y-2">
-              <div v-for="n in 3" :key="n" class="flex items-center gap-2">
-                <div class="w-8 h-8 bg-slate-700 rounded animate-pulse"></div>
+              <div v-for="n in 5" :key="n" class="flex items-center gap-3 px-1">
+                <div class="w-10 h-10 bg-slate-700 rounded-lg animate-pulse shrink-0"></div>
                 <div class="flex-1 h-4 bg-slate-700 rounded animate-pulse"></div>
-                <div class="w-12 h-4 bg-slate-700 rounded animate-pulse"></div>
+                <div class="w-16 h-4 bg-slate-700 rounded animate-pulse shrink-0"></div>
               </div>
             </div>
             <div v-else-if="error" class="p-3 text-sm text-rose-300">Error al cargar</div>
@@ -58,24 +66,26 @@
                 @mouseenter="activeIndex = i"
                 @mouseleave="activeIndex = -1"
                 @click="selectSuggestion(item)"
-                class="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-slate-800"
+                class="flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors hover:bg-slate-800"
                 :class="{ 'bg-slate-800': i === activeIndex }"
               >
                 <img
                   :src="imgSrc(item)"
                   @error="onImgError"
-                  class="w-8 h-8 object-cover rounded"
+                  class="w-10 h-10 object-cover rounded-lg shrink-0 bg-slate-800"
                   alt=""
                 />
-                <div class="flex-1 truncate">{{ item.name }}</div>
-                <div class="text-sm text-cyan-300 whitespace-nowrap">{{ fmt(item.price_sale ?? item.price) }}</div>
+                <div class="flex-1 truncate text-sm text-slate-100">{{ item.name }}</div>
+                <div class="text-sm font-semibold text-cyan-300 whitespace-nowrap shrink-0">
+                  {{ fmt(item.price_sale ?? item.price) }}
+                </div>
               </li>
-              <li>
+              <li class="border-t border-slate-700">
                 <button
-                  class="w-full text-left px-3 py-2 text-sm text-cyan-400 hover:bg-slate-800"
+                  class="w-full text-center px-3 py-2.5 text-sm text-cyan-400 hover:bg-slate-800 hover:text-cyan-300 transition-colors"
                   @click.prevent="moreResults"
                 >
-                  Más resultados
+                  Ver todos los resultados →
                 </button>
               </li>
             </ul>
@@ -84,6 +94,17 @@
 
         <!-- Right actions -->
         <div class="flex items-center gap-3">
+          <button
+            type="button"
+            class="inline-flex items-center justify-center w-9 h-9 rounded-md border border-slate-700 text-slate-200 hover:bg-slate-800"
+            :aria-label="isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'"
+            :title="isDark ? 'Modo claro' : 'Modo oscuro'"
+            @click="toggleTheme"
+          >
+            <span v-if="isDark">☀</span>
+            <span v-else>☾</span>
+          </button>
+
           <!-- Links desktop -->
           <div class="hidden lg:flex items-center gap-4 text-sm">
             <RouterLink :to="{name:'productos'}"
@@ -162,30 +183,39 @@
       <!-- Mobile panel -->
       <div v-show="openMobile" class="lg:hidden pb-3">
         <div class="px-1 pt-2 relative" @click.outside="showDropdown=false">
-          <form @submit.prevent="goSearch">
+          <form @submit.prevent="goSearch" class="flex gap-1">
             <input
               v-model="q"
               type="search"
               placeholder="Buscar productos…"
-              class="w-full h-10 rounded-md bg-slate-800/70 text-slate-100 placeholder-slate-400 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 px-3"
+              class="flex-1 h-10 rounded-l-md bg-slate-800/70 text-slate-100 placeholder-slate-400 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 px-3"
               role="combobox"
               :aria-expanded="showDropdown"
               aria-controls="search-suggestions"
               @keydown="onKeydown"
               @focus="onFocus"
             />
+            <button
+              type="submit"
+              class="h-10 px-3 bg-cyan-500 hover:bg-cyan-400 text-white rounded-r-md transition flex items-center"
+              aria-label="Buscar"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.35-4.35m0 0A7.5 7.5 0 1 0 6.15 6.15a7.5 7.5 0 0 0 10.5 10.5Z"/>
+              </svg>
+            </button>
           </form>
           <div
             v-if="showDropdown"
             id="search-suggestions"
             role="listbox"
-            class="absolute top-full left-0 right-0 translate-y-1 bg-slate-900 border border-slate-700 rounded-md shadow-lg z-50 max-h-80 overflow-auto pointer-events-auto"
+            class="absolute top-full left-0 right-0 translate-y-1 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 max-h-96 overflow-auto pointer-events-auto text-slate-100"
           >
             <div v-if="loading" class="p-3 space-y-2">
-              <div v-for="n in 3" :key="n" class="flex items-center gap-2">
-                <div class="w-8 h-8 bg-slate-700 rounded animate-pulse"></div>
+              <div v-for="n in 5" :key="n" class="flex items-center gap-3 px-1">
+                <div class="w-10 h-10 bg-slate-700 rounded-lg animate-pulse shrink-0"></div>
                 <div class="flex-1 h-4 bg-slate-700 rounded animate-pulse"></div>
-                <div class="w-12 h-4 bg-slate-700 rounded animate-pulse"></div>
+                <div class="w-16 h-4 bg-slate-700 rounded animate-pulse shrink-0"></div>
               </div>
             </div>
             <div v-else-if="error" class="p-3 text-sm text-rose-300">Error al cargar</div>
@@ -199,30 +229,39 @@
                 @mouseenter="activeIndex = i"
                 @mouseleave="activeIndex = -1"
                 @click="selectSuggestion(item)"
-                class="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-slate-800"
+                class="flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors hover:bg-slate-800"
                 :class="{ 'bg-slate-800': i === activeIndex }"
               >
                 <img
                   :src="imgSrc(item)"
                   @error="onImgError"
-                  class="w-8 h-8 object-cover rounded"
+                  class="w-10 h-10 object-cover rounded-lg shrink-0 bg-slate-800"
                   alt=""
                 />
-                <div class="flex-1 truncate">{{ item.name }}</div>
-                <div class="text-sm text-cyan-300 whitespace-nowrap">{{ fmt(item.price_sale ?? item.price) }}</div>
+                <div class="flex-1 truncate text-sm text-slate-100">{{ item.name }}</div>
+                <div class="text-sm font-semibold text-cyan-300 whitespace-nowrap shrink-0">
+                  {{ fmt(item.price_sale ?? item.price) }}
+                </div>
               </li>
-              <li>
+              <li class="border-t border-slate-700">
                 <button
-                  class="w-full text-left px-3 py-2 text-sm text-cyan-400 hover:bg-slate-800"
+                  class="w-full text-center px-3 py-2.5 text-sm text-cyan-400 hover:bg-slate-800 hover:text-cyan-300 transition-colors"
                   @click.prevent="moreResults"
                 >
-                  Más resultados
+                  Ver todos los resultados →
                 </button>
               </li>
             </ul>
           </div>
         </div>
         <div class="mt-3 grid gap-1 text-sm">
+          <button
+            type="button"
+            class="px-3 py-2 rounded border border-slate-700 text-slate-200 hover:bg-slate-800 text-left"
+            @click="toggleTheme"
+          >
+            {{ isDark ? 'Usar modo claro' : 'Usar modo oscuro' }}
+          </button>
           <RouterLink to="/productos" class="px-3 py-2 rounded hover:bg-slate-800 text-slate-200" @click="openMobile=false">Tienda</RouterLink>
           <RouterLink to="/categorias" class="px-3 py-2 rounded hover:bg-slate-800 text-slate-200" @click="openMobile=false">Categorías</RouterLink>
           <RouterLink v-if="auth.isAuthenticated" to="/mi-cuenta" class="px-3 py-2 rounded hover:bg-slate-800 text-slate-200" @click="openMobile=false">Mi cuenta</RouterLink>
@@ -244,33 +283,20 @@ import { onMounted, watch, ref, computed, onBeforeUnmount } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useCarritoStore } from '@/stores/carrito'
 import CategoryMenu from './CategoryMenu.vue'
+import { useTheme } from '@/composables/useTheme'
+import api from '@/axios'
 
-// Base de la API: permite usar variable de entorno o cae al backend local en desarrollo
-const API_BASE =
-  import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? 'http://localhost:8000' : '')
-const DEFAULT_THUMB = 'https://via.placeholder.com/64x64?text=IMG'
+const DEFAULT_THUMB = '/placeholder-product.png'
 
-const normalizeUrl = (u) => {
-  try {
-    return new URL(u, window.location.origin).href
-  } catch {
-    return u
-  }
-}
-
-const imgSrc = (item) => {
-  return item.thumbnail ? normalizeUrl(item.thumbnail) : DEFAULT_THUMB
-}
-
-const onImgError = (e) => {
-  e.target.src = DEFAULT_THUMB
-}
+const imgSrc = (item) => item.thumbnail || DEFAULT_THUMB
+const onImgError = (e) => { e.target.src = DEFAULT_THUMB }
 
 defineOptions({ name: 'AppNavbar' })
 const auth = useAuthStore()
 const carrito = useCarritoStore()
 const router = useRouter()
 const route = useRoute()
+const { isDark, toggleTheme } = useTheme()
 
 // UI state
 const openMobile = ref(false)
@@ -282,7 +308,6 @@ const loading = ref(false)
 const error = ref(false)
 const showDropdown = ref(false)
 const activeIndex = ref(-1)
-let abortCtrl = null
 let debounceId = null
 
 // helpers
@@ -297,45 +322,26 @@ const initials = computed(() => {
   return (first + second).toUpperCase()
 })
 
-const goSearch = async () => {
+const goSearch = () => {
   const term = q.value?.trim()
   if (!term) return
-  
   showDropdown.value = false
   openMobile.value = false
-
-  try {
-    const params = new URLSearchParams({ q: term, exact: 'true' })
-    const res = await fetch(`${API_BASE}/api/search/products/?${params}`)
-    if (!res.ok) throw new Error('Search failed')
-    
-    const results = await res.json()
-    
-    if (results.length === 1 && results[0].id) {
-      // Coincidencia exacta, ir a la página del producto
-      router.push({ name: 'producto', params: { id: String(results[0].id) } })
-    } else {
-      // No hay coincidencia exacta o hay múltiples resultados, ir a la página de búsqueda
-      router.push({ name: 'productos', query: { q: term } })
-    }
-  } catch (e) {
-    console.error("Error en la búsqueda exacta:", e)
-    // Fallback a la búsqueda general en caso de error
-    router.push({ name: 'productos', query: { q: term } })
-  } finally {
-    q.value = ''
-  }
+  router.push({ name: 'busqueda', query: { q: term } })
+  q.value = ''
 }
 
 const fetchSuggestions = async (term) => {
-  if (abortCtrl) abortCtrl.abort()
-  abortCtrl = new AbortController()
-  const params = new URLSearchParams({ q: term, limit: '5' })
-  const res = await fetch(`${API_BASE}/api/search/products/?${params}`, {
-    signal: abortCtrl.signal
-  })
-  if (!res.ok) throw new Error('Network')
-  return await res.json()
+  const res = await api.get('productos/', { params: { search: term, page_size: 10 } })
+  const data = res.data
+  const list = Array.isArray(data) ? data : (data?.results ?? [])
+  return list.slice(0, 10).map(p => ({
+    id: p.id,
+    name: p.nombre,
+    price: p.precio_normal,
+    price_sale: p.precio_rebajado,
+    thumbnail: p.miniatura || p.imagen_principal || null,
+  }))
 }
 
 watch(q, (val) => {
@@ -346,20 +352,19 @@ watch(q, (val) => {
     showDropdown.value = false
     loading.value = false
     error.value = false
-    if (abortCtrl) abortCtrl.abort()
     return
   }
+  loading.value = true
+  showDropdown.value = true
   debounceId = setTimeout(async () => {
-    loading.value = true
     error.value = false
     activeIndex.value = -1
     try {
       suggestions.value = await fetchSuggestions(term)
-    } catch (e) {
-      if (e.name !== 'AbortError') error.value = true
+    } catch {
+      error.value = true
     } finally {
       loading.value = false
-      showDropdown.value = true
     }
   }, 300)
 })
@@ -424,7 +429,7 @@ watch(() => route.fullPath, () => {
 })
 
 onBeforeUnmount(() => {
-  if (abortCtrl) abortCtrl.abort()
+  if (debounceId) clearTimeout(debounceId)
 })
 
 const logout = () => {

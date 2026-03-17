@@ -22,7 +22,7 @@ const props = defineProps({
   },
 })
 
-const emits = defineEmits(['update:modelValue'])
+const emits = defineEmits(['update:modelValue', 'change'])
 
 const slider = ref(null)
 let sliderInstance = null
@@ -53,8 +53,14 @@ const getNormalizedModel = (range = getRange()) => {
 
 const isSameValues = (a = [], b = []) => Math.abs((a[0] ?? 0) - (b[0] ?? 0)) < 0.01 && Math.abs((a[1] ?? 0) - (b[1] ?? 0)) < 0.01
 
+const parseSliderValues = (values = []) => values.map((value) => toSafeNumber(parseFloat(value), 0))
+
 const emitModelValue = (values = []) => {
-  emits('update:modelValue', values.map((value) => toSafeNumber(parseFloat(value), 0)))
+  emits('update:modelValue', parseSliderValues(values))
+}
+
+const emitChangeValue = (values = []) => {
+  emits('change', parseSliderValues(values))
 }
 
 const createSlider = () => {
@@ -75,6 +81,7 @@ const createSlider = () => {
   })
 
   sliderInstance.on('update', emitModelValue)
+  sliderInstance.on('change', emitChangeValue)
 }
 
 const syncRange = () => {

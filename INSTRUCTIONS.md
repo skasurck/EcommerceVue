@@ -17,10 +17,18 @@ python backend/manage.py reset_categories
 .venv\Scripts\activate
 python backend\manage.py reset_categories
 ```
-
+```powershell
 cd frontend && npm run dev
 
+npm run dev
+
 cd backend && source venv/bin/activate && python manage.py runserver
+
+source venv/bin/activate
+
+python manage.py runserver
+
+python manage.py migrate
 
 cd backend && source venv/bin/activate && redis-server
 
@@ -31,6 +39,7 @@ cd backend && source venv/bin/activate && cd .. && gemini
 cd backend && source venv/bin/activate && cd ..
 
 cd backend && source venv/bin/activate && python manage.py process_images
+
 -------codigos--------
 
 npm run dev
@@ -44,6 +53,8 @@ redis-server
 celery -A tienda worker -l info
 
 gemini
+
+```
 
 https://youtu.be/tKSIuxfwhJU
 

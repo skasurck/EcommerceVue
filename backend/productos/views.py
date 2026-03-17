@@ -1,3 +1,4 @@
+import logging
 from rest_framework import viewsets, permissions, status, generics
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.filters import OrderingFilter
@@ -14,7 +15,6 @@ from django.views.decorators.cache import cache_page
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from decimal import Decimal, InvalidOperation
-from .ai import build_text_from_product, classify_text
 from .models import (
     Producto,
     Categoria,
@@ -23,7 +23,13 @@ from .models import (
     ValorAtributo,
     ImagenProducto,
     PrecioEscalonado,
+    ProductClassificationFeedback,
+    HomeSliderImage,
+    PromoBanner,
 )
+
+logger = logging.getLogger(__name__)
+
 from .serializers import (
     ProductoSerializer,
     ProductoListSerializer,
@@ -36,9 +42,11 @@ from .serializers import (
     PrecioEscalonadoSerializer,
     ProductSearchSerializer,
     PendingReviewProductSerializer,
+    HomeSliderImageSerializer,
+    PromoBannerSerializer,
 )
 from .forms import ProductoForm, PrecioEscalonadoFormSet
-from usuarios.permissions import IsAdminOrSuperAdmin
+from usuarios.permissions import IsAdminOrSuperAdmin, IsSuperAdmin
 from suppliers.models import ProductSupplierMap, SupplierProduct
 from rest_framework.viewsets import ReadOnlyModelViewSet
 
@@ -57,6 +65,7 @@ from django.db.models import Min, Max
 class PriceRangeAPIView(APIView):
     permission_classes = [permissions.AllowAny]
 
+    @method_decorator(cache_page(60 * 10))
     def get(self, request):
         result = Producto.objects.aggregate(min_precio=Min('precio_normal'), max_precio=Max('precio_normal'))
         return Response(result)
@@ -67,6 +76,8 @@ from .tasks import classify_products_task
 from django.utils import timezone
 from datetime import timedelta
 import logging
+
+from .learning import get_feedback_model, record_manual_feedback
 
 logger = logging.getLogger(__name__)
 
@@ -147,6 +158,61 @@ class ProductClassificationStatusView(APIView):
                 }
 
         return Response(response_data)
+
+
+class LearningStatsAPIView(APIView):
+    permission_classes = [IsSuperAdmin]
+
+    def get(self, request):
+        now = timezone.now()
+        last_7_days = now - timedelta(days=7)
+        last_30_days = now - timedelta(days=30)
+
+        feedback_qs = ProductClassificationFeedback.objects.all()
+        total_feedback = feedback_qs.count()
+        feedback_7d = feedback_qs.filter(created_at__gte=last_7_days).count()
+        feedback_30d = feedback_qs.filter(created_at__gte=last_30_days).count()
+        unique_products = (
+            feedback_qs.exclude(producto__isnull=True)
+            .values("producto_id")
+            .distinct()
+            .count()
+        )
+        unique_subcategories = feedback_qs.values("target_sub").distinct().count()
+
+        by_source = list(
+            feedback_qs.values("source")
+            .annotate(total=Count("id"))
+            .order_by("-total", "source")
+        )
+        top_subcategories = list(
+            feedback_qs.values("target_sub")
+            .annotate(total=Count("id"))
+            .order_by("-total", "target_sub")[:10]
+        )
+
+        feedback_model = get_feedback_model()
+        model_stats = {
+            "is_ready": bool(feedback_model is not None),
+            "total_samples": int(feedback_model.total_samples) if feedback_model is not None else 0,
+            "labels": int(len(feedback_model.label_support)) if feedback_model is not None else 0,
+        }
+
+        return Response(
+            {
+                "summary": {
+                    "total_feedback": total_feedback,
+                    "feedback_last_7_days": feedback_7d,
+                    "feedback_last_30_days": feedback_30d,
+                    "unique_products": unique_products,
+                    "unique_subcategories": unique_subcategories,
+                },
+                "by_source": by_source,
+                "top_subcategories": top_subcategories,
+                "model": model_stats,
+            }
+        )
+
 
 @method_decorator(cache_page(60), name="dispatch")
 class ProductSearchAPIView(APIView):
@@ -260,6 +326,15 @@ class ApplyCategoryAPIView(APIView):
             ]
         )
 
+        try:
+            record_manual_feedback(product, normalized_ids, source="manual_single")
+        except Exception:
+            logger.warning(
+                "No se pudo registrar feedback manual para producto %s",
+                product.id,
+                exc_info=True,
+            )
+
         return Response({"detail": "Categoría aplicada correctamente."})
 
 
@@ -336,6 +411,14 @@ class BulkApplyCategoryAPIView(APIView):
                         continue
                     categories = [valid_categories[category_id] for category_id in item["category_ids"]]
                     product.categorias.set(categories)
+                    try:
+                        record_manual_feedback(product, item["category_ids"], source="manual_bulk")
+                    except Exception:
+                        logger.warning(
+                            "No se pudo registrar feedback manual para producto %s",
+                            product.id,
+                            exc_info=True,
+                        )
                     product.category_ai_main = None
                     product.category_ai_sub = None
                     product.category_ai_conf_main = None
@@ -394,6 +477,9 @@ class ProductoViewSet(viewsets.ModelViewSet):
                         ),
                         to_attr="color_atributos",
                     )
+                ).annotate(
+                    # Evita N+1 en get_tiene_precios_escalonados del serializer
+                    has_tier=Exists(PrecioEscalonado.objects.filter(producto=OuterRef('pk')))
                 )
             )
         else:
@@ -515,7 +601,7 @@ class ProductoViewSet(viewsets.ModelViewSet):
         if serializer.is_valid():
             self.perform_create(serializer)
             return Response(serializer.data, status=201)
-        print("❌ Serializer errors:", serializer.errors)
+        logger.warning("Serializer errors on create: %s", serializer.errors)
         return Response(serializer.errors, status=400)
 
     def update(self, request, *args, **kwargs):
@@ -525,7 +611,7 @@ class ProductoViewSet(viewsets.ModelViewSet):
         if serializer.is_valid():
             self.perform_update(serializer)
             return Response(serializer.data)
-        print("❌ Errores del serializer:", serializer.errors)
+        logger.warning("Serializer errors on update: %s", serializer.errors)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def get_permissions(self):
@@ -533,6 +619,8 @@ class ProductoViewSet(viewsets.ModelViewSet):
             return [IsAdminOrSuperAdmin()]
         return [permissions.AllowAny()]
 
+@method_decorator(cache_page(60 * 15), name='list')
+@method_decorator(cache_page(60 * 15), name='retrieve')
 class CategoriaViewSet(viewsets.ModelViewSet):
     queryset = Categoria.objects.annotate(productos_count=Count('productos', distinct=True)).order_by('id')
     serializer_class = CategoriaSerializer
@@ -621,6 +709,55 @@ class PrecioEscalonadoViewSet(viewsets.ModelViewSet):
         return [permissions.AllowAny()]
 
 
+class HomeSliderImageViewSet(viewsets.ModelViewSet):
+    queryset = HomeSliderImage.objects.all().order_by("orden", "id")
+    serializer_class = HomeSliderImageSerializer
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        include_inactive = str(self.request.query_params.get("include_inactive", "")).lower() in ["1", "true", "yes"]
+        is_admin = bool(
+            self.request.user
+            and self.request.user.is_authenticated
+            and hasattr(self.request.user, "perfil")
+            and self.request.user.perfil.rol in ["admin", "super_admin"]
+        )
+
+        if self.action in ["list", "retrieve"] and not (include_inactive and is_admin):
+            queryset = queryset.filter(activo=True)
+        return queryset
+
+    def get_permissions(self):
+        if self.action in ["create", "update", "partial_update", "destroy"]:
+            return [IsAdminOrSuperAdmin()]
+        return [permissions.AllowAny()]
+
+
+class PromoBannerViewSet(viewsets.ModelViewSet):
+    queryset = PromoBanner.objects.all().order_by("orden", "id")
+    serializer_class = PromoBannerSerializer
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        include_inactive = str(self.request.query_params.get("include_inactive", "")).lower() in ["1", "true", "yes"]
+        is_admin = bool(
+            self.request.user
+            and self.request.user.is_authenticated
+            and hasattr(self.request.user, "perfil")
+            and self.request.user.perfil.rol in ["admin", "super_admin"]
+        )
+        if self.action in ["list", "retrieve"] and not (include_inactive and is_admin):
+            queryset = queryset.filter(activo=True)
+        return queryset
+
+    def get_permissions(self):
+        if self.action in ["create", "update", "partial_update", "destroy"]:
+            return [IsAdminOrSuperAdmin()]
+        return [permissions.AllowAny()]
+
+
 def _es_admin(user):
     return user.is_authenticated and hasattr(user, 'perfil') and user.perfil.rol in ['admin', 'super_admin']
 
@@ -655,3 +792,4 @@ def editar_producto(request, pk):
             'valores_atributo': valores_atributo,
         },
     )
+

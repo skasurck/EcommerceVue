@@ -69,8 +69,8 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import AccountTile from '@/components/AccountTile.vue'
-import profileImg from '../assets/profile-placeholder.svg'
-import { obtenerPerfil, actualizarPerfil } from '../services/account'
+import profileImg from '@/assets/profile-placeholder.svg'
+import { obtenerPerfil, actualizarPerfil } from '@/services/account'
 
 const perfil = ref({ perfil: { telefono: '', empresa: '' } })
 
