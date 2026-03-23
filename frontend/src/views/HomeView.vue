@@ -2,7 +2,7 @@
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
 import ProductRow from '@/components/ProductRow.vue'
 import ProductCard from '@/components/ProductCard.vue'
-import { obtenerProductos, obtenerHomeSlider, obtenerPromoBanners } from '@/services/api.js'
+import { obtenerProductos, obtenerHomeSlider, obtenerPromoBanners, obtenerProductosDestacados } from '@/services/api.js'
 import { useCarritoStore } from '@/stores/carrito'
 
 const nuevos = ref([])
@@ -157,12 +157,15 @@ onMounted(async () => {
   await fetchHomeSlider()
   startAutoplay()
 
-  const [ofertasResponse, allProductsResponse, bannersResponse] = await Promise.all([
-    fetchBloque({ en_oferta: 'true', page_size: 12 }),
-    fetchBloque(),
+  const [ofertasResponse, allProductsResponse, bannersResponse, destacadosResponse] = await Promise.all([
+    fetchBloque({ en_oferta: 'true', page_size: 12 }).catch(() => []),
+    fetchBloque().catch(() => []),
     obtenerPromoBanners({ ordering: 'orden' }).then(r => {
       const raw = Array.isArray(r.data?.results) ? r.data.results : Array.isArray(r.data) ? r.data : []
       return raw.filter(b => b.imagen_url)
+    }).catch(() => []),
+    obtenerProductosDestacados({ limite: 12 }).then(r => {
+      return Array.isArray(r.data) ? r.data : []
     }).catch(() => []),
   ])
 
@@ -171,7 +174,8 @@ onMounted(async () => {
   const all = allProductsResponse
 
   nuevos.value = [...all].sort((a, b) => b.id - a.id).slice(0, 12)
-  destacados.value = all.slice(0, 12)
+  // Usar destacados del endpoint dedicado; si está vacío, usar fallback del listado general
+  destacados.value = destacadosResponse.length > 0 ? destacadosResponse : all.slice(0, 12)
 })
 
 onBeforeUnmount(() => {
@@ -397,7 +401,7 @@ onBeforeUnmount(() => {
       <ProductRow title="Novedades" :productos="nuevos" to="/productos?orden=-id" @add-to-cart="handleAddToCart" />
 
       <section class="mt-8">
-        <h2 class="text-xl font-semibold mb-2 px-2">Recomendado</h2>
+        <h2 class="text-xl font-semibold mb-2 px-2">Destacados</h2>
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
           <ProductCard v-for="p in destacados" :key="p.id" :producto="p" @add-to-cart="handleAddToCart" />
         </div>

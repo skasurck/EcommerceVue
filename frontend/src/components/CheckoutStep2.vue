@@ -46,6 +46,12 @@ onMounted(async () => {
   try {
     const { data } = await obtenerMetodosEnvio();
     metodos.value = Array.isArray(data) ? data : (data?.results ?? []);
+    if (metodos.value.length > 0) {
+      const stored = store.metodoEnvio;
+      metodo.value = stored
+        ? (metodos.value.find(m => m.id === stored.id) ?? metodos.value[0])
+        : metodos.value[0];
+    }
   } catch {
     metodos.value = [];
   }

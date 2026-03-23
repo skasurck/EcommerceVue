@@ -19,6 +19,9 @@ from .views import (
     PriceRangeAPIView,
     HomeSliderImageViewSet,
     PromoBannerViewSet,
+    ProductosDestacadosAPIView,
+    ProductoDestacadoAdminViewSet,
+    ListaDeseosViewSet,
 )
 
 router = DefaultRouter()
@@ -29,8 +32,15 @@ router.register(r'atributos-base', AtributoViewSet, basename='atributos-base')
 router.register(r'atributos', ValorAtributoViewSet, basename='atributos')
 router.register(r'home-slider', HomeSliderImageViewSet, basename='home-slider')
 router.register(r'promo-banners', PromoBannerViewSet, basename='promo-banners')
+router.register(r'admin/destacados', ProductoDestacadoAdminViewSet, basename='admin-destacados')
+router.register(r'lista-deseos', ListaDeseosViewSet, basename='lista-deseos')
 
 urlpatterns = [
+    # Productos destacados (público)
+    path('productos-destacados/', ProductosDestacadosAPIView.as_view(), name='productos-destacados'),
+    # Gestión admin de destacados (forzar recálculo)
+    path('admin/destacados/recalcular/', ProductoDestacadoAdminViewSet.as_view({'post': 'recalcular'}), name='admin-destacados-recalcular'),
+
     path('ai/pending-review/', PendingReviewProductsAPIView.as_view(), name='ai-pending-review'),
     path('all-categories/', AllCategoriesAPIView.as_view(), name='all-categories'),
     path('productos/<int:pk>/apply-category/', ApplyCategoryAPIView.as_view(), name='producto-apply-category'),

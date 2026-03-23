@@ -37,6 +37,29 @@
         </div>
       </div>
     </div>
+    <!-- Resumen de artículos -->
+    <div v-if="carrito.items.length" class="mt-4 border rounded divide-y">
+      <div
+        v-for="item in carrito.items"
+        :key="item.id"
+        class="flex items-center gap-3 px-4 py-3"
+      >
+        <img
+          v-if="item.producto?.imagen_principal"
+          :src="item.producto.imagen_principal"
+          :alt="item.producto.nombre"
+          class="h-12 w-12 rounded object-cover shrink-0"
+        />
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium text-slate-900 truncate">{{ item.producto?.nombre }}</p>
+          <p class="text-xs text-slate-500">Cant. {{ item.cantidad }}</p>
+        </div>
+        <p class="text-sm font-semibold text-slate-900 shrink-0">
+          ${{ (Number(item.producto?.precio_rebajado ?? item.producto?.precio_normal ?? 0) * item.cantidad).toFixed(2) }}
+        </p>
+      </div>
+    </div>
+
     <div class="mt-4 p-4 border rounded">
       <div class="flex justify-between">
         <span>Subtotal</span>
@@ -105,6 +128,7 @@ const buildItemsSnapshot = () => {
       id: product.id ?? item.id,
       sku: product.sku ?? null,
       name: product.nombre ?? product.name ?? `Producto ${product.id ?? item.id}`,
+      image: product.miniatura ?? product.imagen_principal ?? null,
       quantity: Number(item.cantidad ?? 0),
       price,
       producto: item.producto,
@@ -259,12 +283,13 @@ const finalizar = async () => {
       tax: Number(pedido.impuestos ?? 0),
       currency: pedido.moneda ?? 'MXN',
       paymentMethod: store.metodoPago,
-      items: Array.isArray(pedido.items) && pedido.items.length
-        ? pedido.items.map((item) => ({
-            id: item.producto_id ?? item.id,
-            sku: item.sku ?? item.producto?.sku ?? null,
-            name: item.nombre ?? item.producto?.nombre ?? 'Producto',
-            price: Number(item.precio_unitario ?? item.precio ?? 0),
+      items: Array.isArray(pedido.detalles) && pedido.detalles.length
+        ? pedido.detalles.map((item) => ({
+            id: item.producto,
+            sku: item.producto_sku ?? null,
+            name: item.producto_nombre ?? 'Producto',
+            image: item.producto_imagen ?? null,
+            price: Number(item.precio_unitario ?? 0),
             quantity: Number(item.cantidad ?? 0),
           }))
         : snapshotItems,

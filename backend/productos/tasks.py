@@ -10,6 +10,23 @@ from .models import Producto
 logger = get_task_logger(__name__)
 
 
+@shared_task(bind=True, name='productos.recalcular_destacados')
+def recalcular_destacados_task(self):
+    """
+    Tarea periódica que recalcula los productos destacados automáticos.
+    Programada para ejecutarse cada hora desde celery.py.
+    """
+    from .services import actualizar_destacados_automaticos
+    logger.info("Iniciando recálculo de productos destacados automáticos...")
+    try:
+        actualizar_destacados_automaticos()
+        logger.info("Recálculo de destacados completado.")
+        return {'status': 'ok'}
+    except Exception as exc:
+        logger.exception("Error en recálculo de destacados: %s", exc)
+        raise
+
+
 @shared_task(bind=True)
 def classify_products_task(self, product_ids, overwrite=False):
     """Tarea asincrona de Celery para clasificar productos."""

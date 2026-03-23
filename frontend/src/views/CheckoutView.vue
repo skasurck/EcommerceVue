@@ -8,6 +8,35 @@
 
     <div v-else class="space-y-6">
       <h1 class="text-2xl font-semibold text-gray-900 text-center">Finaliza tu compra</h1>
+
+      <!-- Stepper -->
+      <nav v-if="hasItems" class="flex items-center justify-center gap-0">
+        <template v-for="(label, i) in ['Dirección', 'Envío', 'Pago']" :key="i">
+          <div class="flex flex-col items-center">
+            <div
+              class="flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold transition-colors"
+              :class="store.step === i + 1
+                ? 'bg-slate-900 text-white'
+                : store.step > i + 1
+                  ? 'bg-emerald-500 text-white'
+                  : 'bg-slate-200 text-slate-500'"
+            >
+              <span v-if="store.step > i + 1">✓</span>
+              <span v-else>{{ i + 1 }}</span>
+            </div>
+            <span
+              class="mt-1 text-xs"
+              :class="store.step === i + 1 ? 'font-semibold text-slate-900' : 'text-slate-400'"
+            >{{ label }}</span>
+          </div>
+          <div
+            v-if="i < 2"
+            class="mb-4 h-px w-12 transition-colors"
+            :class="store.step > i + 1 ? 'bg-emerald-500' : 'bg-slate-200'"
+          />
+        </template>
+      </nav>
+
       <div v-if="!hasItems" class="text-center text-gray-600">
         Tu carrito está vacío. Agrega productos para continuar.
       </div>

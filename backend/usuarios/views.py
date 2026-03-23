@@ -83,17 +83,33 @@ class UserProfileView(APIView):
     def get(self, request):
         with transaction.atomic():
             Perfil.objects.get_or_create(user=request.user)
-        serializer = UserProfileSerializer(request.user)
+        serializer = UserProfileSerializer(request.user, context={'request': request})
         return Response(serializer.data)
 
     def put(self, request):
         with transaction.atomic():
             Perfil.objects.get_or_create(user=request.user)
-        serializer = UserProfileSerializer(request.user, data=request.data)
+        serializer = UserProfileSerializer(request.user, data=request.data, context={'request': request})
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ProfilePhotoView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        foto = request.FILES.get('foto')
+        if not foto:
+            return Response({'detail': 'No se envió ninguna imagen.'}, status=status.HTTP_400_BAD_REQUEST)
+        perfil, _ = Perfil.objects.get_or_create(user=request.user)
+        if perfil.foto:
+            perfil.foto.delete(save=False)
+        perfil.foto = foto
+        perfil.save(update_fields=['foto'])
+        url = request.build_absolute_uri(perfil.foto.url)
+        return Response({'foto_url': url})
 
 
 class ChangePasswordView(APIView):

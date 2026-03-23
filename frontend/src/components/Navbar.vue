@@ -139,6 +139,22 @@
             </RouterLink>
           </div>
 
+          <!-- Wishlist -->
+          <RouterLink
+            v-if="auth.isAuthenticated"
+            to="/lista-deseos"
+            class="relative inline-flex items-center justify-center w-9 h-9 rounded-md hover:bg-slate-800 text-slate-200"
+            aria-label="Lista de deseos"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+            </svg>
+            <span v-if="wishlist.total"
+                  class="absolute -top-1 -right-1 min-w-[18px] h-[18px] text-[11px] leading-[18px] text-center rounded-full bg-rose-500 text-white px-1">
+              {{ wishlist.total }}
+            </span>
+          </RouterLink>
+
           <!-- Cart -->
            <!-- <RouterLink v-if="auth.isAuthenticated" to="/carrito" -->
           <RouterLink  to="/carrito"
@@ -170,6 +186,13 @@
                  @click.outside="openUser=false"
                  class="absolute right-0 mt-2 w-56 rounded-md border border-slate-700 bg-slate-900 shadow-lg p-1">
               <RouterLink to="/mi-cuenta" class="block px-3 py-2 rounded hover:bg-slate-800 text-sm text-slate-200">Mi cuenta</RouterLink>
+              <RouterLink to="/lista-deseos" class="flex items-center gap-2 px-3 py-2 rounded hover:bg-slate-800 text-sm text-slate-200">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                </svg>
+                Lista de deseos
+                <span v-if="wishlist.total" class="ml-auto text-xs bg-rose-500 text-white rounded-full px-1.5">{{ wishlist.total }}</span>
+              </RouterLink>
               <RouterLink v-if="auth.hasAnyRole?.(['admin','super_admin'])" to="/admin" class="block px-3 py-2 rounded hover:bg-slate-800 text-sm text-slate-200">Panel admin</RouterLink>
               <button @click="logout"
                       class="w-full text-left block px-3 py-2 rounded hover:bg-slate-800 text-sm text-rose-300">
@@ -265,6 +288,7 @@
           <RouterLink to="/productos" class="px-3 py-2 rounded hover:bg-slate-800 text-slate-200" @click="openMobile=false">Tienda</RouterLink>
           <RouterLink to="/categorias" class="px-3 py-2 rounded hover:bg-slate-800 text-slate-200" @click="openMobile=false">Categorías</RouterLink>
           <RouterLink v-if="auth.isAuthenticated" to="/mi-cuenta" class="px-3 py-2 rounded hover:bg-slate-800 text-slate-200" @click="openMobile=false">Mi cuenta</RouterLink>
+          <RouterLink v-if="auth.isAuthenticated" to="/lista-deseos" class="px-3 py-2 rounded hover:bg-slate-800 text-slate-200" @click="openMobile=false">Lista de deseos</RouterLink>
           <RouterLink v-if="auth.isAuthenticated && auth.hasAnyRole?.(['admin','super_admin'])" to="/admin" class="px-3 py-2 rounded hover:bg-slate-800 text-slate-200" @click="openMobile=false">Admin</RouterLink>
           <div v-if="!auth.isAuthenticated" class="flex gap-2 px-3 pt-1">
             <RouterLink to="/login" class="px-3 py-2 rounded bg-slate-800 text-slate-200 flex-1 text-center" @click="openMobile=false">Entrar</RouterLink>
@@ -282,6 +306,7 @@ import { RouterLink, useRouter, useRoute } from 'vue-router'
 import { onMounted, watch, ref, computed, onBeforeUnmount } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useCarritoStore } from '@/stores/carrito'
+import { useWishlistStore } from '@/stores/wishlist'
 import CategoryMenu from './CategoryMenu.vue'
 import { useTheme } from '@/composables/useTheme'
 import api from '@/axios'
@@ -294,6 +319,7 @@ const onImgError = (e) => { e.target.src = DEFAULT_THUMB }
 defineOptions({ name: 'AppNavbar' })
 const auth = useAuthStore()
 const carrito = useCarritoStore()
+const wishlist = useWishlistStore()
 const router = useRouter()
 const route = useRoute()
 const { isDark, toggleTheme } = useTheme()
@@ -416,9 +442,15 @@ const fmt = (n) => Number(n).toLocaleString('es-MX', { style: 'currency', curren
 
 onMounted(() => {
   carrito.cargar()
+  if (auth.isAuthenticated) wishlist.cargar()
 })
-watch(() => auth.isAuthenticated, () => {
+watch(() => auth.isAuthenticated, (val) => {
   carrito.cargar()
+  if (val) {
+    wishlist.cargar()
+  } else {
+    wishlist.clear()
+  }
 })
 
 // close dropdown on route change

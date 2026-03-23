@@ -202,6 +202,12 @@ const routes = [
     component: () => import('@/views/MisPedidos.vue')
   },
   {
+    path: '/mis-pedidos/:id',
+    name: 'MiPedidoDetalle',
+    component: () => import('@/views/MiPedidoDetalle.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/seguridad',
     name: 'Seguridad',
     component: () => import('@/views/Seguridad.vue')
@@ -210,6 +216,12 @@ const routes = [
     path: '/direcciones',
     name: 'Direcciones',
     component: () => import('@/views/Direcciones.vue')
+  },
+  {
+    path: '/lista-deseos',
+    name: 'lista-deseos',
+    component: () => import('@/views/WishlistView.vue'),
+    meta: { requiresAuth: true }
   },
   {
     path: '/busqueda',
@@ -225,6 +237,31 @@ const routes = [
     path: '/marca/:marcaId',
     name: 'marca',
     component: () => import('@/views/MarcaView.vue')
+  },
+  {
+    path: '/contacto',
+    name: 'contacto',
+    component: () => import('@/views/Contacto.vue')
+  },
+  {
+    path: '/politica-de-privacidad',
+    name: 'privacidad',
+    component: () => import('@/views/Privacidad.vue')
+  },
+  {
+    path: '/terminos-y-condiciones',
+    name: 'terminos',
+    component: () => import('@/views/Terminos.vue')
+  },
+  {
+    path: '/politica-de-devoluciones',
+    name: 'devoluciones',
+    component: () => import('@/views/Devoluciones.vue')
+  },
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'not-found',
+    component: () => import('@/views/NotFound.vue')
   }
 ]
 

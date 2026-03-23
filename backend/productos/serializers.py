@@ -16,6 +16,7 @@ from .models import (
     Marca,
     Atributo,
     ValorAtributo,
+    ProductoDestacado,
 )
 
 
@@ -287,7 +288,8 @@ class ProductoListSerializer(serializers.ModelSerializer):
         # Prioriza la miniatura, si no existe, usa la imagen principal.
         image_field = obj.miniatura or obj.imagen_principal
         if image_field:
-            return request.build_absolute_uri(image_field.url)
+            url = image_field.url
+            return request.build_absolute_uri(url) if request else url
         return None
 
     def get_tiene_precios_escalonados(self, obj):
@@ -614,3 +616,86 @@ class ProductoSerializer(serializers.ModelSerializer):
         if primary:
             return build_path(primary)
         return []
+
+
+class ProductoDestacadoPublicoSerializer(serializers.ModelSerializer):
+    """
+    Serializer para el endpoint público de productos destacados.
+    Extiende ProductoListSerializer con metadatos del destacado.
+    """
+    producto = ProductoListSerializer(read_only=True)
+    tipo_destacado = serializers.CharField(source='tipo', read_only=True)
+    motivo_destacado = serializers.CharField(source='motivo', read_only=True)
+
+    class Meta:
+        model = ProductoDestacado
+        fields = ['tipo_destacado', 'motivo_destacado', 'producto']
+
+    def to_representation(self, instance):
+        """Aplana: devuelve los campos del producto + metadatos de destacado."""
+        producto_data = ProductoListSerializer(
+            instance.producto, context=self.context
+        ).data
+        producto_data['tipo_destacado'] = instance.tipo
+        producto_data['motivo_destacado'] = instance.motivo
+        return producto_data
+
+
+class ProductoDestacadoAdminSerializer(serializers.ModelSerializer):
+    """
+    Serializer completo para gestión administrativa de productos destacados.
+    """
+    producto_nombre = serializers.CharField(source='producto.nombre', read_only=True)
+    producto_imagen = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ProductoDestacado
+        fields = [
+            'id',
+            'producto',
+            'producto_nombre',
+            'producto_imagen',
+            'tipo',
+            'activo',
+            'prioridad',
+            'fecha_inicio',
+            'fecha_fin',
+            'bloqueado',
+            'puntaje_auto',
+            'motivo',
+            'fecha_actualizacion',
+        ]
+        read_only_fields = ['puntaje_auto', 'fecha_actualizacion']
+
+    def get_producto_imagen(self, obj):
+        request = self.context.get('request')
+        image_field = obj.producto.miniatura or obj.producto.imagen_principal
+        if not image_field:
+            return None
+        url = image_field.url
+        return request.build_absolute_uri(url) if request else url
+
+
+# ──────────── LISTA DE DESEOS ────────────
+class ListaDeseosSerializer(serializers.ModelSerializer):
+    producto_id = serializers.IntegerField(source='producto.id', read_only=True)
+    nombre = serializers.CharField(source='producto.nombre', read_only=True)
+    precio_normal = serializers.DecimalField(source='producto.precio_normal', max_digits=10, decimal_places=2, read_only=True)
+    precio_rebajado = serializers.DecimalField(source='producto.precio_rebajado', max_digits=10, decimal_places=2, read_only=True, allow_null=True)
+    stock = serializers.IntegerField(source='producto.stock', read_only=True, allow_null=True)
+    estado_inventario = serializers.CharField(source='producto.estado_inventario', read_only=True)
+    imagen = serializers.SerializerMethodField()
+
+    class Meta:
+        from .models import ListaDeseos
+        model = ListaDeseos
+        fields = ['id', 'producto_id', 'nombre', 'precio_normal', 'precio_rebajado', 'stock', 'estado_inventario', 'imagen', 'fecha_agregado']
+        read_only_fields = ['id', 'fecha_agregado']
+
+    def get_imagen(self, obj):
+        request = self.context.get('request')
+        image_field = obj.producto.miniatura or obj.producto.imagen_principal
+        if not image_field:
+            return None
+        url = image_field.url
+        return request.build_absolute_uri(url) if request else url

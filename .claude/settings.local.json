@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(source venv/Scripts/activate)",
+      "Bash(python manage.py migrate productos 0021_listadeseos)",
+      "Bash(venv/Scripts/python.exe manage.py migrate productos 0021_listadeseos)"
+    ]
+  }
+}

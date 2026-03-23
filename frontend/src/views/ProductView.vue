@@ -180,6 +180,22 @@
                 Comprar ahora
               </button>
 
+              <!-- Wishlist button -->
+              <button
+                v-if="auth.isAuthenticated"
+                type="button"
+                class="mt-2 w-full rounded border py-2 text-sm font-medium flex items-center justify-center gap-2 transition-colors"
+                :class="isFavorito
+                  ? 'border-rose-300 bg-rose-50 text-rose-600 hover:bg-rose-100'
+                  : 'border-gray-300 text-gray-600 hover:border-rose-300 hover:text-rose-500'"
+                @click="toggleFav"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" :fill="isFavorito ? 'currentColor' : 'none'" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                </svg>
+                {{ isFavorito ? 'En tu lista de deseos' : 'Agregar a lista de deseos' }}
+              </button>
+
               <p v-if="stockLow" class="mt-2 text-xs font-medium text-amber-700">Quedan {{ p.stock }} en inventario</p>
 
             </div>
@@ -289,6 +305,8 @@ import { getCategorias } from '@/api/productos'
 import { useHead } from '@vueuse/head'
 import { useCarritoStore } from '@/stores/carrito'
 import { useAuthStore } from '@/stores/auth'
+import { useBreadcrumbStore } from '@/stores/breadcrumb'
+import { useWishlistStore } from '@/stores/wishlist'
 import ProductCard from '@/components/ProductCard.vue'
 
 const route = useRoute()
@@ -296,6 +314,7 @@ const producto = ref(null)
 const cantidad = ref(1)
 const carrito = useCarritoStore()
 const auth = useAuthStore()
+const wishlist = useWishlistStore()
 const loading = ref(true)
 const errorMsg = ref('')
 const relacionados = ref([])
@@ -587,6 +606,7 @@ onMounted(async () => {
     const { data } = await obtenerProducto(route.params.id)
     producto.value = data
     registerProductVisit(data)
+    useBreadcrumbStore().setLabel(data.nombre)
 
     // Meta-tags dinamicos
     useHead({
@@ -901,4 +921,8 @@ const hasAnyRelacionados = computed(
     relacionadosCategoriaLoading.value ||
     relacionadosCategoria.value.length > 0
 )
+
+const productoId = computed(() => producto.value?.id)
+const isFavorito = computed(() => auth.isAuthenticated && wishlist.esFavorito(productoId.value))
+const toggleFav = () => productoId.value && wishlist.toggle(productoId.value)
 </script>

@@ -5,7 +5,13 @@
     <section class="bg-white border rounded-lg p-5 mb-6">
       <h2 class="text-xl font-semibold mb-3">Perfil</h2>
       <div class="flex items-start gap-4">
-        <img :src="profileImg" alt="Perfil" class="w-20 h-20 rounded-full object-cover border-2 border-gray-200" />
+        <div class="relative shrink-0 cursor-pointer group" @click="fileInput.click()">
+          <img :src="fotoUrl" alt="Perfil" class="w-20 h-20 rounded-full object-cover border-2 border-gray-200" />
+          <div class="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
+            <span class="text-white text-xs font-medium">Cambiar</span>
+          </div>
+          <input ref="fileInput" type="file" accept="image/*" class="hidden" @change="onFotoChange" />
+        </div>
         <form @submit.prevent="guardarPerfil" class="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
           <input v-model="perfil.first_name" placeholder="Nombre" class="border p-2 rounded" />
           <input v-model="perfil.last_name" placeholder="Apellidos" class="border p-2 rounded" />
@@ -69,18 +75,28 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import AccountTile from '@/components/AccountTile.vue'
-import profileImg from '@/assets/profile-placeholder.svg'
-import { obtenerPerfil, actualizarPerfil } from '@/services/account'
+import placeholderImg from '@/assets/profile-placeholder.svg'
+import { obtenerPerfil, actualizarPerfil, subirFotoPerfil } from '@/services/account'
 
 const perfil = ref({ perfil: { telefono: '', empresa: '' } })
+const fotoUrl = ref(placeholderImg)
+const fileInput = ref(null)
 
 const cargarDatos = async () => {
   const { data } = await obtenerPerfil()
   perfil.value = data
   perfil.value.perfil = perfil.value.perfil || { telefono: '', empresa: '' }
+  fotoUrl.value = data.foto_url || placeholderImg
 }
 
 const guardarPerfil = async () => { await actualizarPerfil(perfil.value) }
+
+const onFotoChange = async (e) => {
+  const file = e.target.files[0]
+  if (!file) return
+  const { data } = await subirFotoPerfil(file)
+  fotoUrl.value = data.foto_url
+}
 
 onMounted(cargarDatos)
 </script>

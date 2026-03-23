@@ -49,14 +49,20 @@
       <section v-if="summary?.items?.length" class="rounded-2xl border bg-white p-6 shadow-sm">
         <h2 class="text-xl font-semibold text-slate-900 mb-4">Artículos del pedido</h2>
         <ul class="divide-y divide-slate-200">
-          <li v-for="item in summary.items" :key="`${item.id}-${item.sku}`" class="py-3 flex justify-between gap-4">
-            <div>
+          <li v-for="item in summary.items" :key="`${item.id}-${item.sku}`" class="py-3 flex items-center gap-4">
+            <img
+              v-if="item.image"
+              :src="item.image"
+              :alt="item.name"
+              class="h-14 w-14 rounded object-cover shrink-0"
+            />
+            <div class="flex-1 min-w-0">
               <p class="font-medium text-slate-900">{{ item.name }}</p>
               <p class="text-sm text-slate-500">
                 SKU: {{ item.sku || 'N/D' }} · Cantidad: {{ item.quantity }}
               </p>
             </div>
-            <p class="font-semibold text-slate-900">{{ formatMoney(item.price) }}</p>
+            <p class="font-semibold text-slate-900 shrink-0">{{ formatMoney(item.price) }}</p>
           </li>
         </ul>
       </section>
@@ -172,7 +178,8 @@ onMounted(async () => {
             name: item.producto_nombre,
             quantity: item.cantidad,
             price: item.precio_unitario,
-            sku: '' // Ajustar si el SKU está disponible
+            sku: item.producto_sku ?? null,
+            image: item.producto_imagen ?? null,
           })),
         };
         dispatchTrackingEvents(summary.value);

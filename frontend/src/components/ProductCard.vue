@@ -1,5 +1,20 @@
 <template>
   <div class="relative bg-white rounded-lg border shadow-sm group">
+    <!-- Wishlist heart button -->
+    <button
+      type="button"
+      class="absolute top-2 right-2 z-20 rounded-full p-1.5 transition-colors"
+      :class="isFavorito
+        ? 'bg-rose-50 text-rose-500 hover:bg-rose-100'
+        : 'bg-white/80 text-gray-300 hover:text-rose-400 hover:bg-rose-50 opacity-0 group-hover:opacity-100'"
+      :aria-label="isFavorito ? 'Quitar de favoritos' : 'Agregar a favoritos'"
+      @click.prevent.stop="toggleFav"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" :fill="isFavorito ? 'currentColor' : 'none'" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+      </svg>
+    </button>
+
     <!-- Link & image -->
     <router-link :to="{ name: 'producto', params: { id: (p.id ?? producto.id) } }" class="block">
       <div class="relative">
@@ -104,8 +119,12 @@
 
 <script setup>
 import { computed } from 'vue'
+import { useWishlistStore } from '@/stores/wishlist'
+import { useAuthStore } from '@/stores/auth'
 
 const emit = defineEmits(['add-to-cart'])
+const wishlist = useWishlistStore()
+const auth = useAuthStore()
 
 const props = defineProps({
   producto: { type: Object, required: true },
@@ -276,4 +295,15 @@ const tienePreciosEscalonados = computed(() => {
   const pe = p.value.precios_escalonados
   return Array.isArray(pe) ? pe.length > 0 : !!pe
 })
+
+const productoId = computed(() => p.value.id ?? props.producto?.id)
+const isFavorito = computed(() => auth.isAuthenticated && wishlist.esFavorito(productoId.value))
+
+const toggleFav = async () => {
+  if (!auth.isAuthenticated) {
+    // Redirect to login could be handled here, for now just return
+    return
+  }
+  await wishlist.toggle(productoId.value)
+}
 </script>

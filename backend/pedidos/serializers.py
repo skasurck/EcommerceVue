@@ -70,10 +70,20 @@ class MetodoEnvioSerializer(serializers.ModelSerializer):
 
 class PedidoItemSerializer(serializers.ModelSerializer):
     producto_nombre = serializers.CharField(source='producto.nombre', read_only=True)
+    producto_sku = serializers.CharField(source='producto.sku', read_only=True)
+    producto_imagen = serializers.SerializerMethodField()
+
+    def get_producto_imagen(self, obj):
+        request = self.context.get('request')
+        imagen = obj.producto.miniatura or obj.producto.imagen_principal
+        if imagen:
+            url = imagen.url
+            return request.build_absolute_uri(url) if request else url
+        return None
 
     class Meta:
         model = PedidoItem
-        fields = ['producto', 'producto_nombre', 'cantidad', 'precio_unitario', 'subtotal']
+        fields = ['producto', 'producto_nombre', 'producto_sku', 'producto_imagen', 'cantidad', 'precio_unitario', 'subtotal']
         read_only_fields = ['precio_unitario', 'subtotal']
 
 

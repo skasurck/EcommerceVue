@@ -15,6 +15,8 @@ export const actualizarHomeSlide = (id, payload) =>
   })
 export const eliminarHomeSlide = (id) => api.delete(`home-slider/${id}/`)
 
+export const obtenerProductosDestacados = (params = {}) => api.get('productos-destacados/', { params })
+
 export const obtenerPromoBanners = (params = {}) => api.get('promo-banners/', { params })
 export const crearPromoBanner = (payload) =>
   api.post('promo-banners/', payload, {
@@ -25,6 +27,11 @@ export const actualizarPromoBanner = (id, payload) =>
     headers: { 'Content-Type': 'multipart/form-data' },
   })
 export const eliminarPromoBanner = (id) => api.delete(`promo-banners/${id}/`)
+
+// Lista de deseos
+export const obtenerListaDeseos = () => api.get('lista-deseos/')
+export const agregarAListaDeseos = (productoId) => api.post('lista-deseos/', { producto: productoId })
+export const eliminarDeListaDeseos = (id) => api.delete(`lista-deseos/${id}/`)
 
 // Carrito
 export const obtenerCarrito = () => api.get('carrito/')

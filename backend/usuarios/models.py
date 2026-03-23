@@ -8,6 +8,7 @@ class Perfil(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="perfil")
     telefono = models.CharField(max_length=20, blank=True)
     empresa = models.CharField(max_length=150, blank=True)
+    foto = models.ImageField(upload_to='perfiles/', null=True, blank=True)
     rol = models.CharField(
         max_length=20,
         choices=[

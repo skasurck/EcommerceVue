@@ -30,10 +30,21 @@ class PerfilSerializer(serializers.ModelSerializer):
 
 class UserProfileSerializer(serializers.ModelSerializer):
     perfil = PerfilSerializer(required=False)
+    foto_url = serializers.SerializerMethodField()
+
+    def get_foto_url(self, obj):
+        request = self.context.get('request')
+        try:
+            foto = obj.perfil.foto
+        except Perfil.DoesNotExist:
+            return None
+        if foto:
+            return request.build_absolute_uri(foto.url) if request else foto.url
+        return None
 
     class Meta:
         model = User
-        fields = ["username", "first_name", "last_name", "email", "perfil"]
+        fields = ["username", "first_name", "last_name", "email", "perfil", "foto_url"]
         read_only_fields = ["username"]
 
     def update(self, instance, validated_data):

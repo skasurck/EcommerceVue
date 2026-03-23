@@ -26,6 +26,7 @@ from .models import (
     ProductClassificationFeedback,
     HomeSliderImage,
     PromoBanner,
+    ProductoDestacado,
 )
 
 logger = logging.getLogger(__name__)
@@ -44,6 +45,8 @@ from .serializers import (
     PendingReviewProductSerializer,
     HomeSliderImageSerializer,
     PromoBannerSerializer,
+    ProductoDestacadoPublicoSerializer,
+    ProductoDestacadoAdminSerializer,
 )
 from .forms import ProductoForm, PrecioEscalonadoFormSet
 from usuarios.permissions import IsAdminOrSuperAdmin, IsSuperAdmin
@@ -758,6 +761,60 @@ class PromoBannerViewSet(viewsets.ModelViewSet):
         return [permissions.AllowAny()]
 
 
+class ProductosDestacadosAPIView(APIView):
+    """
+    GET /api/productos-destacados/
+    Devuelve la lista final de productos destacados ya ordenados y listos para
+    consumir desde el frontend. No requiere autenticación.
+    Parámetro opcional: ?limite=<int> (default 12, máx 50)
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        from .services import get_destacados, LIMITE_DESTACADOS_DEFAULT
+        try:
+            limite = int(request.query_params.get('limite', LIMITE_DESTACADOS_DEFAULT))
+            limite = max(1, min(limite, 50))
+        except (TypeError, ValueError):
+            limite = LIMITE_DESTACADOS_DEFAULT
+
+        destacados = get_destacados(limite=limite)
+        serializer = ProductoDestacadoPublicoSerializer(
+            destacados, many=True, context={'request': request}
+        )
+        return Response(serializer.data)
+
+
+class ProductoDestacadoAdminViewSet(viewsets.ModelViewSet):
+    """
+    CRUD administrativo para gestionar productos destacados manualmente.
+    Solo accesible para administradores.
+    """
+    serializer_class = ProductoDestacadoAdminSerializer
+    permission_classes = [IsAdminOrSuperAdmin]
+    pagination_class = StandardResultsSetPagination
+
+    def get_queryset(self):
+        qs = (
+            ProductoDestacado.objects
+            .select_related('producto')
+            .order_by('tipo', 'prioridad', '-puntaje_auto', 'id')
+        )
+        tipo = self.request.query_params.get('tipo')
+        if tipo in ('manual', 'automatico'):
+            qs = qs.filter(tipo=tipo)
+        activo = self.request.query_params.get('activo')
+        if activo is not None:
+            qs = qs.filter(activo=activo.lower() in ('true', '1'))
+        return qs
+
+    def recalcular(self, request):
+        """POST /api/admin/destacados/recalcular/ — fuerza recálculo inmediato."""
+        from .tasks import recalcular_destacados_task
+        task = recalcular_destacados_task.delay()
+        return Response({'task_id': task.id, 'detail': 'Recálculo iniciado.'})
+
+
 def _es_admin(user):
     return user.is_authenticated and hasattr(user, 'perfil') and user.perfil.rol in ['admin', 'super_admin']
 
@@ -792,4 +849,37 @@ def editar_producto(request, pk):
             'valores_atributo': valores_atributo,
         },
     )
+
+
+# ──────────── LISTA DE DESEOS ────────────
+class ListaDeseosViewSet(viewsets.ModelViewSet):
+    from .serializers import ListaDeseosSerializer
+    from .models import ListaDeseos
+    serializer_class = ListaDeseosSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    http_method_names = ['get', 'post', 'delete', 'head', 'options']
+
+    def get_queryset(self):
+        from .models import ListaDeseos
+        return ListaDeseos.objects.filter(usuario=self.request.user).select_related('producto')
+
+    def get_serializer_class(self):
+        from .serializers import ListaDeseosSerializer
+        return ListaDeseosSerializer
+
+    def create(self, request, *args, **kwargs):
+        from .models import ListaDeseos, Producto
+        from .serializers import ListaDeseosSerializer
+        from rest_framework.response import Response
+        from rest_framework import status
+        producto_id = request.data.get('producto')
+        if not producto_id:
+            return Response({'detail': 'producto requerido.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            producto = Producto.objects.get(pk=producto_id)
+        except Producto.DoesNotExist:
+            return Response({'detail': 'Producto no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+        obj, created = ListaDeseos.objects.get_or_create(usuario=request.user, producto=producto)
+        serializer = ListaDeseosSerializer(obj, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
 

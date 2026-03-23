@@ -314,6 +314,98 @@ class HomeSliderImage(models.Model):
         super().delete(*args, **kwargs)
 
 
+# ──────────── PRODUCTOS DESTACADOS ────────────
+class ProductoDestacado(models.Model):
+    TIPO_MANUAL = 'manual'
+    TIPO_AUTO = 'automatico'
+    TIPO_CHOICES = [
+        (TIPO_MANUAL, 'Manual'),
+        (TIPO_AUTO, 'Automático'),
+    ]
+
+    MOTIVO_CAMPANA = 'campana'
+    MOTIVO_VENTAS = 'ventas'
+    MOTIVO_NOVEDAD = 'novedad'
+    MOTIVO_OFERTA = 'oferta'
+    MOTIVO_CHOICES = [
+        (MOTIVO_CAMPANA, 'Destacado manual por campaña'),
+        (MOTIVO_VENTAS, 'Destacado automático por ventas'),
+        (MOTIVO_NOVEDAD, 'Destacado automático por novedad'),
+        (MOTIVO_OFERTA, 'Destacado automático por oferta'),
+    ]
+
+    producto = models.OneToOneField(
+        Producto,
+        on_delete=models.CASCADE,
+        related_name='destacado',
+    )
+    tipo = models.CharField(
+        max_length=20,
+        choices=TIPO_CHOICES,
+        default=TIPO_MANUAL,
+        db_index=True,
+    )
+    activo = models.BooleanField(default=True, db_index=True)
+    prioridad = models.PositiveIntegerField(
+        default=0,
+        help_text="Menor número = más prioritario. Solo aplica para tipo manual.",
+    )
+    fecha_inicio = models.DateTimeField(
+        null=True, blank=True,
+        help_text="Fecha desde la que el destacado es válido. Null = siempre.",
+    )
+    fecha_fin = models.DateTimeField(
+        null=True, blank=True,
+        help_text="Fecha de vencimiento opcional. Null = sin vencimiento.",
+    )
+    bloqueado = models.BooleanField(
+        default=False,
+        help_text="Si está activo, el algoritmo automático no modificará este registro.",
+    )
+    puntaje_auto = models.FloatField(
+        null=True, blank=True,
+        help_text="Puntaje calculado por el algoritmo automático.",
+    )
+    motivo = models.CharField(
+        max_length=50,
+        choices=MOTIVO_CHOICES,
+        null=True, blank=True,
+        help_text="Razón principal del destacado.",
+    )
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['prioridad', '-puntaje_auto', 'id']
+        verbose_name = 'Producto Destacado'
+        verbose_name_plural = 'Productos Destacados'
+
+    def __str__(self):
+        return f"Destacado ({self.tipo}): {self.producto.nombre}"
+
+
+# ──────────── LISTA DE DESEOS ────────────
+class ListaDeseos(models.Model):
+    from django.contrib.auth import get_user_model
+    usuario = models.ForeignKey(
+        'auth.User',
+        on_delete=models.CASCADE,
+        related_name='lista_deseos'
+    )
+    producto = models.ForeignKey(
+        'Producto',
+        on_delete=models.CASCADE,
+        related_name='en_lista_deseos'
+    )
+    fecha_agregado = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('usuario', 'producto')
+        ordering = ['-fecha_agregado']
+
+    def __str__(self):
+        return f"{self.usuario.username} → {self.producto.nombre}"
+
+
 class PromoBanner(models.Model):
     titulo = models.CharField(max_length=120, blank=True, default="")
     descripcion = models.CharField(max_length=255, blank=True, default="")

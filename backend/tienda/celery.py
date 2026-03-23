@@ -26,4 +26,8 @@ app.conf.beat_schedule = {
         "task": "suppliers.tasks.sync_supermex_full",
         "schedule": crontab(minute="*/15"),
     },
+    "recalcular-destacados-cada-hora": {
+        "task": "productos.recalcular_destacados",
+        "schedule": crontab(minute=0),  # cada hora en punto
+    },
 }

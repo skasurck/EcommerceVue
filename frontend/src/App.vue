@@ -7,14 +7,18 @@
     class="min-h-screen bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-slate-100 transition-colors"
     :style="{ paddingTop: isAdmin ? '0px' : navHeight }"
   >
+    <Breadcrumb v-if="showBreadcrumb" />
     <RouterView v-slot="{ Component, route }">
       <component :is="Component" :key="route.fullPath" />
     </RouterView>
+    <Footer v-if="!isAdmin" />
   </main>
 </template>
 
 <script setup>
 import Navbar from './components/Navbar.vue'
+import Breadcrumb from './components/Breadcrumb.vue'
+import Footer from './components/Footer.vue'
 import { onMounted, onUnmounted, ref, computed, nextTick, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
@@ -28,6 +32,11 @@ const { initTheme } = useTheme()
 
 // ¿estamos en el layout admin?
 const isAdmin = computed(() => route.path.startsWith('/admin'))
+
+const hideBreadcrumbRoutes = new Set(['home', 'login', 'registro', 'gracias', 'not-found'])
+const showBreadcrumb = computed(() =>
+  !isAdmin.value && !hideBreadcrumbRoutes.has(route.name)
+)
 
 // altura dinámica del navbar público
 const navHeight = ref('0px')
