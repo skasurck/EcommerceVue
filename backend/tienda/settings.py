@@ -230,3 +230,16 @@ CELERY_ENABLE_UTC = False
 # Reserva de carrito
 CART_RESERVATION_MAX_HOURS = int(os.getenv("CART_RESERVATION_MAX_HOURS", "3"))
 CART_RESERVATION_REFRESH_MINUTES = int(os.getenv("CART_RESERVATION_REFRESH_MINUTES", "40"))
+
+# ── Email ──────────────────────────────────────────────────────────────────────
+# En desarrollo usa 'django.core.mail.backends.console.EmailBackend'
+# En producción cambia a 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'Mktska Digital <noreply@mktska.com>')
+TIENDA_NOMBRE = os.getenv('TIENDA_NOMBRE', 'Mktska Digital')
+FRONTEND_BASE_URL = os.getenv('FRONTEND_BASE_URL', 'http://localhost:5173')

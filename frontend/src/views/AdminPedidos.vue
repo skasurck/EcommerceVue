@@ -204,11 +204,48 @@
         </button>
       </div>
     </div>
+    <!-- Modal número de guía -->
+    <div
+      v-if="modalGuia.visible"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      @click.self="cancelarGuia"
+    >
+      <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4">
+        <h3 class="text-lg font-semibold text-slate-800 mb-1">Marcar como enviado</h3>
+        <p class="text-sm text-slate-500 mb-4">
+          Ingresa el número de guía de rastreo. Se enviará al cliente por correo.
+        </p>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Número de guía</label>
+        <input
+          v-model="modalGuia.numero"
+          type="text"
+          placeholder="Ej: 1Z9999999999999999"
+          class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          @keyup.enter="confirmarGuia"
+          ref="inputGuia"
+        />
+        <p class="text-xs text-slate-400 mt-1">Puedes dejarlo vacío si no tienes guía todavía.</p>
+        <div class="flex justify-end gap-3 mt-5">
+          <button
+            @click="cancelarGuia"
+            class="px-4 py-2 rounded border border-slate-300 text-sm hover:bg-slate-100"
+          >
+            Cancelar
+          </button>
+          <button
+            @click="confirmarGuia"
+            class="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium"
+          >
+            Confirmar envío
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, nextTick } from 'vue'
 import axios from '@/axios'
 import { money, formatFecha } from '@/utils/formatters'
 import { useRouter, RouterLink } from 'vue-router'
@@ -222,6 +259,33 @@ const seleccionarTodo = ref(false)
 const estadoBulk = ref('')
 const verPapelera = ref(false)
 const router = useRouter()
+const inputGuia = ref(null)
+
+// Modal de número de guía
+const modalGuia = ref({ visible: false, numero: '', pedido: null, bulk: false })
+
+function abrirModalGuia(pedido = null, bulk = false) {
+  modalGuia.value = { visible: true, numero: '', pedido, bulk }
+  nextTick(() => inputGuia.value?.focus())
+}
+
+function cancelarGuia() {
+  // Revertir el select si fue un cambio individual
+  if (modalGuia.value.pedido) {
+    fetchPedidos(pagina.value)
+  }
+  modalGuia.value.visible = false
+}
+
+async function confirmarGuia() {
+  const guia = modalGuia.value.numero.trim()
+  if (modalGuia.value.bulk) {
+    await _aplicarBulkEnviado(guia)
+  } else {
+    await _cambiarEstadoEnviado(modalGuia.value.pedido, guia)
+  }
+  modalGuia.value.visible = false
+}
 const unwrapList = (payload) => {
   if (Array.isArray(payload?.results)) return payload.results
   if (Array.isArray(payload)) return payload
@@ -249,6 +313,10 @@ function toggleTodo() {
 }
 
 async function cambiarEstado(pedido) {
+  if (pedido.estado === 'enviado') {
+    abrirModalGuia(pedido, false)
+    return
+  }
   if (!confirm('¿Cambiar estado del pedido?')) {
     fetchPedidos(pagina.value)
     return
@@ -257,10 +325,30 @@ async function cambiarEstado(pedido) {
   fetchPedidos(pagina.value)
 }
 
+async function _cambiarEstadoEnviado(pedido, numeroGuia) {
+  await axios.patch(`pedidos/${pedido.id}/`, { estado: 'enviado', numero_guia: numeroGuia })
+  fetchPedidos(pagina.value)
+}
+
 async function aplicarBulk() {
   if (!estadoBulk.value) return
+  if (estadoBulk.value === 'enviado') {
+    abrirModalGuia(null, true)
+    return
+  }
   if (!confirm('¿Aplicar cambio de estado a seleccionados?')) return
   const res = await axios.post('pedidos/bulk_update_estado/', { ids: seleccionados.value, estado: estadoBulk.value })
+  alert(`Actualizados: ${res.data.updated}, Fallidos: ${res.data.failed.length}`)
+  fetchPedidos(pagina.value)
+}
+
+async function _aplicarBulkEnviado(numeroGuia) {
+  if (!confirm('¿Marcar seleccionados como enviados?')) return
+  const res = await axios.post('pedidos/bulk_update_estado/', {
+    ids: seleccionados.value,
+    estado: 'enviado',
+    numero_guia: numeroGuia,
+  })
   alert(`Actualizados: ${res.data.updated}, Fallidos: ${res.data.failed.length}`)
   fetchPedidos(pagina.value)
 }

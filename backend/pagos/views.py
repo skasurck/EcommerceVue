@@ -85,7 +85,7 @@ class MercadoPagoWebhookView(APIView):
                             if pedido.estado != 'pagado':
                                 pedido.estado = 'pagado'
                                 pedido.mercadopago_payment_id = payment.get('id')
-                                pedido.save()
+                                pedido.save()  # dispara enviar_email_pago_confirmado via save()
                         except Pedido.DoesNotExist:
                             logger.warning("Webhook: Pedido con ID %s no encontrado.", external_reference)
             except Exception as e:

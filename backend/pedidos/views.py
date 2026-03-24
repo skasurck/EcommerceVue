@@ -130,6 +130,7 @@ class PedidoViewSet(viewsets.ModelViewSet):
     def bulk_update_estado(self, request):
         ids = request.data.get('ids', [])
         estado = request.data.get('estado')
+        numero_guia = request.data.get('numero_guia', '')
         allowed = ['pendiente', 'pagado', 'confirmado', 'enviado', 'cancelado']
         if estado not in allowed:
             return Response({'detail': 'Estado inválido'}, status=status.HTTP_400_BAD_REQUEST)
@@ -139,7 +140,11 @@ class PedidoViewSet(viewsets.ModelViewSet):
             try:
                 pedido = Pedido.objects.get(pk=pk)
                 pedido.estado = estado
-                pedido.save(update_fields=['estado'])
+                update_fields = ['estado']
+                if estado == 'enviado' and numero_guia:
+                    pedido.numero_guia = numero_guia
+                    update_fields.append('numero_guia')
+                pedido.save(update_fields=update_fields)
                 updated += 1
             except Pedido.DoesNotExist:
                 failed.append({'id': pk, 'error': 'No existe'})

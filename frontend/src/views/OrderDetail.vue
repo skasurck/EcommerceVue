@@ -60,6 +60,25 @@
           <div class="text-lg font-semibold text-slate-800">{{ money(pedido.total) }}</div>
         </div>
       </div>
+
+      <!-- Número de guía -->
+      <div class="mt-4">
+        <label class="block text-xs text-slate-500 mb-1">Número de guía de rastreo</label>
+        <div class="flex items-center gap-2">
+          <input
+            v-model="pedido.numero_guia"
+            type="text"
+            placeholder="Sin guía asignada"
+            class="h-9 rounded-md border border-slate-300 px-3 text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-72 font-mono"
+          />
+          <span
+            v-if="pedido.numero_guia"
+            class="inline-flex items-center gap-1 rounded-full bg-indigo-100 text-indigo-800 text-xs px-2 py-0.5 border border-indigo-200"
+          >
+            🚚 Con guía
+          </span>
+        </div>
+      </div>
     </section>
 
     <!-- Artículos -->
@@ -258,6 +277,7 @@ async function guardar() {
   if (!pedido.value.detalles.length) return alert('El pedido no puede quedar vacío.')
   const payload = {
     estado: pedido.value.estado,
+    numero_guia: pedido.value.numero_guia ?? '',
     direccion: pedido.value.direccion,
     items: pedido.value.detalles.map(i => ({ producto: i.producto, cantidad: i.cantidad }))
   }

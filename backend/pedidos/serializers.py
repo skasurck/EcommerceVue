@@ -110,9 +110,9 @@ class PedidoSerializer(serializers.ModelSerializer):
         model = Pedido
         fields = ['id', 'direccion', 'metodo_envio', 'metodo_envio_detalle', 'metodo_pago',
                   'metodo_pago_display', 'indicaciones', 'subtotal', 'costo_envio', 'total',
-                  'datos_pago', 'items', 'detalles', 'save_address', 'estado', 'historial',
-                  'creado', 'papelera', 'cliente_nombre_completo', 'direccion_resumen',
-                  'cart_id']
+                  'datos_pago', 'items', 'detalles', 'save_address', 'estado', 'numero_guia',
+                  'historial', 'creado', 'papelera', 'cliente_nombre_completo',
+                  'direccion_resumen', 'cart_id']
         read_only_fields = ['id', 'creado', 'subtotal', 'costo_envio', 'total', 'detalles',
                             'historial', 'metodo_envio_detalle', 'metodo_pago_display',
                             'papelera', 'cliente_nombre_completo', 'direccion_resumen',

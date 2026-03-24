@@ -74,6 +74,9 @@ class Pedido(models.Model):
     papelera = models.BooleanField(default=False)
     eliminado_en = models.DateTimeField(null=True, blank=True)
 
+    # Envío
+    numero_guia = models.CharField(max_length=200, blank=True, default='')
+
     # Mercado Pago
     mercadopago_preference_id = models.CharField(max_length=100, blank=True, null=True)
     mercadopago_payment_id = models.CharField(max_length=100, blank=True, null=True)
@@ -82,6 +85,7 @@ class Pedido(models.Model):
         return f"Pedido #{self.id}"
 
     def save(self, *args, **kwargs):
+        is_new = self.pk is None
         estado_anterior = None
         if self.pk:
             try:
@@ -105,6 +109,26 @@ class Pedido(models.Model):
                 pedido=self,
                 descripcion='Stock devuelto por cancelación',
             )
+
+        # ── Emails transaccionales ─────────────────────────────────────────
+        try:
+            from pedidos.emails import (
+                enviar_email_pedido_creado,
+                enviar_email_pago_confirmado,
+                enviar_email_enviado,
+                enviar_email_cancelado,
+            )
+            if is_new:
+                enviar_email_pedido_creado.delay(self.pk)
+            elif estado_anterior and estado_anterior != self.estado:
+                if self.estado == 'pagado':
+                    enviar_email_pago_confirmado.delay(self.pk)
+                elif self.estado == 'enviado':
+                    enviar_email_enviado.delay(self.pk)
+                elif self.estado == 'cancelado':
+                    enviar_email_cancelado.delay(self.pk)
+        except Exception:
+            pass  # no bloquear el guardado si el email falla
 
 
 class PedidoItem(models.Model):

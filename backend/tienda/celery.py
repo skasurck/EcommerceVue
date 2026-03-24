@@ -18,7 +18,8 @@ except RuntimeError:
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'tienda.settings')
 app = Celery('tienda')
 app.config_from_object('django.conf:settings', namespace='CELERY')
-app.autodiscover_tasks()
+app.autodiscover_tasks()                          # busca tasks.py en cada app
+app.autodiscover_tasks(related_name='emails')     # busca emails.py en cada app
 
 # cada 15 min: sync completo
 app.conf.beat_schedule = {
