@@ -1,9 +1,75 @@
-# suppliers/tasks.py (o donde tengas apply_rules)
+# suppliers/tasks.py
+import logging
+from celery import shared_task
 from django.utils import timezone
 from suppliers.models import SupplierProduct, ProductSupplierMap
 from productos.models import Producto
 from suppliers.utils import effective_qty
 from decimal import Decimal
+
+logger = logging.getLogger(__name__)
+
+
+@shared_task(bind=True)
+def run_supermex_scraper(self, start_url=None, product_urls=None, limit=0,
+                         max_pages=None, sleep_s=None, apply_updates=True, http2=True):
+    from suppliers.management.commands.sync_supermex import create_or_update_producto_from_supplier
+    from suppliers.scraper_supermex import get_client, plp_collect_all, upsert_product
+
+    self.update_state(state='PROGRESS', meta={'current': 0, 'total': 0, 'status': 'Recolectando URLs...'})
+
+    try:
+        if product_urls:
+            collected_urls = product_urls[:limit or None]
+        else:
+            with get_client(http2=http2) as client:
+                collected_urls = plp_collect_all(
+                    client, start_url, limit=limit,
+                    sleep_s=sleep_s, max_pages=max_pages,
+                )
+    except Exception as exc:
+        logger.exception("Error recolectando URLs: %s", exc)
+        raise
+
+    total = len(collected_urls)
+    results = []
+    processed_count = 0
+
+    for i, url in enumerate(collected_urls):
+        self.update_state(state='PROGRESS', meta={
+            'current': i + 1, 'total': total,
+            'status': f'Procesando {i + 1}/{total}: {url[:60]}...'
+        })
+        entry = {'url': url}
+        if apply_updates:
+            try:
+                supplier_product = upsert_product(url)
+                pre_existing = Producto.objects.filter(sku=supplier_product.supplier_sku).exists()
+                django_product = create_or_update_producto_from_supplier(supplier_product)
+                entry['status'] = 'ok'
+                if django_product:
+                    entry['django_product'] = {
+                        'id': django_product.id,
+                        'sku': django_product.sku,
+                        'nombre': django_product.nombre,
+                        'action': 'created' if not pre_existing else 'updated',
+                    }
+                processed_count += 1
+            except Exception as exc:
+                logger.exception("Error importando %s: %s", url, exc)
+                entry['status'] = 'error'
+                entry['error'] = str(exc)
+        else:
+            entry['status'] = 'skipped'
+        results.append(entry)
+
+    return {
+        'current': total, 'total': total,
+        'status': 'Completado',
+        'collected_count': total,
+        'processed_count': processed_count,
+        'results': results,
+    }
 
 MARKUP = Decimal("1.15")  # tu +15%
 

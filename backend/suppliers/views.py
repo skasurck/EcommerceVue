@@ -1,21 +1,18 @@
 import logging
 
+from celery.result import AsyncResult
 from django.db.models import Q
 from rest_framework import status
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from productos.models import Producto
-from suppliers.management.commands.sync_supermex import (
-    create_or_update_producto_from_supplier,
-)
 from suppliers.models import SupplierProduct
-from suppliers.scraper_supermex import get_client, plp_collect_all, upsert_product
 from suppliers.serializers import (
     SupplierProductSerializer,
     SupermexRunRequestSerializer,
 )
+from suppliers.tasks import run_supermex_scraper
 from suppliers.utils import effective_qty
 
 
@@ -48,91 +45,33 @@ class SupermexRunView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        start_url = data.get('start_url')
-        product_urls = data.get('product_urls')
-        limit = data.get('limit') or 0
-        max_pages = data.get('max_pages')
-        sleep_s = data.get('sleep_s')
-        apply_updates = data.get('apply_updates', True)
-        http2 = data.get('http2', True)
+        task = run_supermex_scraper.delay(
+            start_url=data.get('start_url'),
+            product_urls=data.get('product_urls'),
+            limit=data.get('limit') or 0,
+            max_pages=data.get('max_pages'),
+            sleep_s=data.get('sleep_s'),
+            apply_updates=data.get('apply_updates', True),
+            http2=data.get('http2', True),
+        )
 
-        try:
-            if product_urls:
-                collected_urls = product_urls[:limit or None]
-            else:
-                with get_client(http2=http2) as client:
-                    collected_urls = plp_collect_all(
-                        client,
-                        start_url,
-                        limit=limit,
-                        sleep_s=sleep_s,
-                        max_pages=max_pages,
-                    )
-        except Exception as exc:  # pragma: no cover - logs for debugging only
-            logger.exception("No se pudo recolectar URLs desde Supermex: %s", exc)
-            return Response(
-                {"detail": f"No se pudo recolectar URLs: {exc}"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        return Response({'task_id': task.id, 'status': 'queued'}, status=status.HTTP_202_ACCEPTED)
 
-        results = []
-        processed_count = 0
 
-        for url in collected_urls:
-            entry = {"url": url}
-            if apply_updates:
-                try:
-                    supplier_product = upsert_product(url)
-                    pre_existing = Producto.objects.filter(
-                        sku=supplier_product.supplier_sku
-                    ).exists()
-                    django_product = create_or_update_producto_from_supplier(
-                        supplier_product
-                    )
+class SupermexTaskStatusView(APIView):
+    permission_classes = [IsAdminUser]
 
-                    entry["status"] = "ok"
-                    entry["product"] = SupplierProductSerializer(
-                        supplier_product
-                    ).data
-                    if django_product:
-                        was_created = not pre_existing
-                        entry["django_product"] = {
-                            "id": django_product.id,
-                            "sku": django_product.sku,
-                            "nombre": django_product.nombre,
-                            "created": was_created,
-                            "action": "created" if was_created else "updated",
-                        }
-                    else:
-                        entry["django_product"] = None
-                        entry["note"] = (
-                            "Supplier sin precio: no se creó/actualizó Producto en Django."
-                        )
-                    processed_count += 1
-                except Exception as exc:  # pragma: no cover - defensive logging
-                    logger.exception("Error al importar %s: %s", url, exc)
-                    entry["status"] = "error"
-                    entry["error"] = str(exc)
-            else:
-                entry["status"] = "skipped"
-            results.append(entry)
-
-        response_payload = {
-            "collected_count": len(collected_urls),
-            "processed_count": processed_count,
-            "results": results,
-            "params": {
-                "start_url": start_url,
-                "limit": limit,
-                "max_pages": max_pages,
-                "sleep_s": sleep_s,
-                "apply_updates": apply_updates,
-                "http2": http2,
-                "product_urls": product_urls,
-            },
-        }
-
-        return Response(response_payload, status=status.HTTP_200_OK)
+    def get(self, request, task_id):
+        result = AsyncResult(task_id)
+        if result.state == 'PENDING':
+            data = {'state': 'PENDING', 'current': 0, 'total': 0, 'status': 'En cola...'}
+        elif result.state == 'PROGRESS':
+            data = {'state': 'PROGRESS', **result.info}
+        elif result.state == 'SUCCESS':
+            data = {'state': 'SUCCESS', **result.result}
+        else:
+            data = {'state': result.state, 'status': str(result.info)}
+        return Response(data)
 
 
 class SupermexLatestProductsView(APIView):

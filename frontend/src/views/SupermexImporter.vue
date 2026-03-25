@@ -127,6 +127,20 @@
             {{ runSummary.processed_count }} productos actualizados de {{ runSummary.collected_count }} URLs.
           </p>
         </div>
+
+        <!-- Barra de progreso -->
+        <div v-if="running" class="space-y-2">
+          <div class="flex justify-between text-sm text-slate-600">
+            <span>{{ progressStatus }}</span>
+            <span v-if="progressTotal > 0">{{ progressCurrent }}/{{ progressTotal }}</span>
+          </div>
+          <div class="w-full bg-slate-200 rounded-full h-2">
+            <div
+              class="bg-blue-600 h-2 rounded-full transition-all duration-300"
+              :style="{ width: progressPercent + '%' }"
+            ></div>
+          </div>
+        </div>
       </form>
     </section>
 
@@ -294,6 +308,9 @@ const form = reactive(defaultForm())
 const running = ref(false)
 const runError = ref('')
 const runSummary = ref(null)
+const progressCurrent = ref(0)
+const progressTotal = ref(0)
+const progressStatus = ref('Iniciando...')
 
 const latestProducts = ref([])
 const latestLoading = ref(false)
@@ -301,6 +318,9 @@ const latestError = ref('')
 const search = ref('')
 
 const hasProductUrls = computed(() => form.productUrlsText.trim().length > 0)
+const progressPercent = computed(() =>
+  progressTotal.value > 0 ? Math.round((progressCurrent.value / progressTotal.value) * 100) : 5
+)
 
 const parseProductUrls = () =>
   form.productUrlsText
@@ -369,6 +389,31 @@ const filteredProducts = computed(() => {
   })
 })
 
+const pollTask = async (taskId) => {
+  return new Promise((resolve, reject) => {
+    const interval = setInterval(async () => {
+      try {
+        ensureInterceptors()
+        const { data } = await api.get(`suppliers/supermex/task/${taskId}/`)
+        progressCurrent.value = data.current || 0
+        progressTotal.value = data.total || 0
+        progressStatus.value = data.status || 'Procesando...'
+
+        if (data.state === 'SUCCESS') {
+          clearInterval(interval)
+          resolve(data)
+        } else if (data.state === 'FAILURE') {
+          clearInterval(interval)
+          reject(new Error(data.status || 'La tarea falló'))
+        }
+      } catch (err) {
+        clearInterval(interval)
+        reject(err)
+      }
+    }, 2000)
+  })
+}
+
 const runScraper = async () => {
   if (!hasProductUrls.value && !form.startUrl) {
     runError.value = 'Debes proporcionar una URL de listado o URLs de producto.'
@@ -377,6 +422,9 @@ const runScraper = async () => {
 
   runError.value = ''
   running.value = true
+  progressCurrent.value = 0
+  progressTotal.value = 0
+  progressStatus.value = 'Iniciando...'
 
   try {
     ensureInterceptors()
@@ -398,12 +446,9 @@ const runScraper = async () => {
       payload.start_url = form.startUrl
     }
 
-    const { data } = await api.post(
-      'suppliers/supermex/run/', 
-      payload,
-      { timeout: 600000 } // Timeout de 10 minutos SOLO para el scraper
-    )
-    runSummary.value = data
+    const { data } = await api.post('suppliers/supermex/run/', payload)
+    const result = await pollTask(data.task_id)
+    runSummary.value = result
     await fetchLatest()
   } catch (error) {
     runError.value =
