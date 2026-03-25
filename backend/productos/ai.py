@@ -848,18 +848,21 @@ def _classify_with_openai(text: str) -> ClassificationResult:
 
     client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
+    main_list = "\n".join(f"- {m}" for m in MAIN_CATEGORIES)
+
     system_prompt = (
         "Eres un clasificador de productos para una tienda de tecnología en México. "
-        "Dado el nombre/descripción de un producto, elige la categoría principal y la subcategoría "
-        "más apropiada de la lista. Responde SOLO con JSON válido: "
-        '{"main": "<categoría principal exacta>", "sub": "<subcategoría exacta>"}'
+        "DEBES usar los nombres de categoría EXACTAMENTE como aparecen en la lista, "
+        "sin cambiar tildes, mayúsculas ni paréntesis. "
+        "Responde SOLO con JSON válido: "
+        '{"main": "<nombre exacto de la lista>", "sub": "<subcategoría exacta>"}'
     )
 
     user_prompt = (
         f"Producto: {text[:500]}\n\n"
-        f"Categorías disponibles (formato: Categoría Principal: sub1, sub2, ...):\n"
-        f"{_CATEGORY_PROMPT_CACHE}\n\n"
-        "Responde con JSON."
+        f"Categorías principales (copia el nombre EXACTO):\n{main_list}\n\n"
+        f"Subcategorías por categoría principal:\n{_CATEGORY_PROMPT_CACHE}\n\n"
+        "Responde con JSON usando los nombres exactos de las listas."
     )
 
     response = client.chat.completions.create(

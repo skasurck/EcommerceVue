@@ -288,9 +288,40 @@ const normalize = (value) => {
 
 const INVALID_SUGGESTION_VALUES = new Set(['', 'n/a', 'na', 'none', 'null', 'sin subcategoria'])
 const MAIN_CATEGORY_ALIASES = {
+  // Cómputo (Hardware)
   almacenamiento: 'computo hardware',
   storage: 'computo hardware',
   hardware: 'computo hardware',
+  computadoras: 'computo hardware',
+  computo: 'computo hardware',
+  'computo hardware': 'computo hardware',
+  computacion: 'computo hardware',
+  'tecnologia informatica': 'computo hardware',
+  laptops: 'computo hardware',
+  // Impresión y Copiado
+  impresoras: 'impresion y copiado',
+  impresion: 'impresion y copiado',
+  'impresion y copiado': 'impresion y copiado',
+  // Audio y Video
+  audio: 'audio y video',
+  video: 'audio y video',
+  multimedia: 'audio y video',
+  'audio y video': 'audio y video',
+  proyectores: 'audio y video',
+  // Seguridad y Vigilancia
+  seguridad: 'seguridad y vigilancia',
+  camaras: 'seguridad y vigilancia',
+  vigilancia: 'seguridad y vigilancia',
+  // Energía
+  energia: 'energia',
+  ups: 'energia',
+  baterias: 'energia',
+  // Punto de Venta (POS)
+  pos: 'punto de venta pos',
+  'punto de venta': 'punto de venta pos',
+  // Software y Servicios
+  software: 'software y servicios',
+  servicios: 'software y servicios',
 }
 
 const getCategoryEntries = () => {
