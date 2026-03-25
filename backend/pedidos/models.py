@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User
 
 from carrito.models import Cart
+from promotions.models import Cupon
 
 
 class Direccion(models.Model):
@@ -54,7 +55,9 @@ class Pedido(models.Model):
     metodo_envio = models.ForeignKey(MetodoEnvio, on_delete=models.PROTECT)
     metodo_pago = models.CharField(max_length=20, choices=METODO_PAGO_CHOICES)
     indicaciones = models.TextField(blank=True)
+    cupon = models.ForeignKey(Cupon, on_delete=models.SET_NULL, null=True, blank=True, related_name='pedidos')
     subtotal = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    descuento = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     costo_envio = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     datos_pago = models.JSONField(blank=True, default=dict)

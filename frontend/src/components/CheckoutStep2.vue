@@ -7,10 +7,18 @@
       </label>
     </div>
     <textarea v-model="indicaciones" placeholder="Indicaciones del pedido"></textarea>
+
+    <!-- Cupón de descuento -->
+    <CuponInput />
+
     <div class="mt-4 p-4 border rounded">
       <div class="flex justify-between">
         <span>Subtotal</span>
         <span>${{ subtotal.toFixed(2) }}</span>
+      </div>
+      <div v-if="store.descuento > 0" class="flex justify-between text-emerald-600">
+        <span>Descuento ({{ store.cupon?.codigo }})</span>
+        <span>-${{ store.descuento.toFixed(2) }}</span>
       </div>
       <div class="flex justify-between">
         <span>Envío</span>
@@ -33,6 +41,7 @@ import { ref, onMounted, computed } from 'vue';
 import { obtenerMetodosEnvio } from '@/services/checkout';
 import { useCheckoutStore } from '@/stores/checkout';
 import { useCarritoStore } from '@/stores/carrito';
+import CuponInput from '@/components/CuponInput.vue';
 
 const emit = defineEmits(['next', 'back']);
 const store = useCheckoutStore();
@@ -67,5 +76,5 @@ const onSubmit = () => {
 
 const subtotal = computed(() => Number(carrito.subtotal));
 const envio = computed(() => Number(metodo.value?.costo ?? 0));
-const total = computed(() => subtotal.value + envio.value);
+const total = computed(() => subtotal.value - store.descuento + envio.value);
 </script>

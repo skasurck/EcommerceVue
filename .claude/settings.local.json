@@ -3,7 +3,19 @@
     "allow": [
       "Bash(source venv/Scripts/activate)",
       "Bash(python manage.py migrate productos 0021_listadeseos)",
-      "Bash(venv/Scripts/python.exe manage.py migrate productos 0021_listadeseos)"
+      "Bash(venv/Scripts/python.exe manage.py migrate productos 0021_listadeseos)",
+      "Bash(python manage.py makemigrations promotions pedidos --name cupones_descuento)",
+      "Bash(./venv/Scripts/pip install:*)",
+      "Bash(./venv/Scripts/python manage.py makemigrations promotions pedidos --name cupones_descuento)",
+      "Bash(venv/Scripts/pip install:*)",
+      "Bash(echo \"Exit: $?\")",
+      "Bash(venv/Scripts/pip --version)",
+      "Bash(venv/Scripts/python -c \"import pip; print\\(pip.__version__\\)\")",
+      "Bash(venv/Scripts/python -m pip install selectolax)",
+      "Bash(venv/Scripts/python manage.py makemigrations promotions pedidos --name cupones_descuento)",
+      "Bash(venv/Scripts/python -m pip install httpx)",
+      "Bash(venv/Scripts/python -m pip install mercadopago)",
+      "Bash(venv/Scripts/python manage.py migrate)"
     ]
   }
 }

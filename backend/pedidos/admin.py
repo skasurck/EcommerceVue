@@ -25,5 +25,7 @@ class PedidoHistorialInline(admin.TabularInline):
 
 @admin.register(Pedido)
 class PedidoAdmin(admin.ModelAdmin):
-    list_display = ("id", "user", "metodo_envio", "metodo_pago", "estado", "total", "creado")
+    list_display = ("id", "user", "metodo_envio", "metodo_pago", "estado", "subtotal", "descuento", "total", "creado")
+    list_filter = ("estado", "metodo_pago")
     inlines = [PedidoItemInline, PedidoHistorialInline]
+    readonly_fields = ("subtotal", "descuento", "costo_envio", "total")

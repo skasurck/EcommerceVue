@@ -5,6 +5,7 @@ from rest_framework.exceptions import ValidationError
 from .models import Direccion, MetodoEnvio, Pedido, PedidoItem, PedidoHistorial
 from carrito.services import clear_cart, ensure_cart_for_request
 from productos.models import Producto
+from promotions.models import Cupon
 from usuarios.models import Perfil
 
 
@@ -99,6 +100,7 @@ class PedidoSerializer(serializers.ModelSerializer):
     detalles = PedidoItemSerializer(source='items', many=True, read_only=True)
     datos_pago = serializers.JSONField(required=False)
     save_address = serializers.BooleanField(write_only=True, required=False, default=False)
+    cupon_codigo = serializers.CharField(write_only=True, required=False, allow_blank=True)
     metodo_envio_detalle = MetodoEnvioSerializer(source='metodo_envio', read_only=True)
     metodo_pago_display = serializers.CharField(source='get_metodo_pago_display', read_only=True)
     historial = PedidoHistorialSerializer(many=True, read_only=True)
@@ -109,12 +111,12 @@ class PedidoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Pedido
         fields = ['id', 'direccion', 'metodo_envio', 'metodo_envio_detalle', 'metodo_pago',
-                  'metodo_pago_display', 'indicaciones', 'subtotal', 'costo_envio', 'total',
-                  'datos_pago', 'items', 'detalles', 'save_address', 'estado', 'numero_guia',
-                  'historial', 'creado', 'papelera', 'cliente_nombre_completo',
-                  'direccion_resumen', 'cart_id']
-        read_only_fields = ['id', 'creado', 'subtotal', 'costo_envio', 'total', 'detalles',
-                            'historial', 'metodo_envio_detalle', 'metodo_pago_display',
+                  'metodo_pago_display', 'indicaciones', 'subtotal', 'descuento', 'costo_envio',
+                  'total', 'datos_pago', 'items', 'detalles', 'save_address', 'cupon_codigo',
+                  'estado', 'numero_guia', 'historial', 'creado', 'papelera',
+                  'cliente_nombre_completo', 'direccion_resumen', 'cart_id']
+        read_only_fields = ['id', 'creado', 'subtotal', 'descuento', 'costo_envio', 'total',
+                            'detalles', 'historial', 'metodo_envio_detalle', 'metodo_pago_display',
                             'papelera', 'cliente_nombre_completo', 'direccion_resumen',
                             'cart_id']
         extra_kwargs = {'estado': {'required': False}}
@@ -154,6 +156,7 @@ class PedidoSerializer(serializers.ModelSerializer):
         direccion_data = validated_data.pop('direccion')
         items_data = validated_data.pop('items', None)
         save_address = validated_data.pop('save_address', False)
+        cupon_codigo = validated_data.pop('cupon_codigo', '').strip().upper() if 'cupon_codigo' in validated_data else ''
         validated_data.pop('user', None)
         user = request.user if request and request.user.is_authenticated else None
 
@@ -240,10 +243,27 @@ class PedidoSerializer(serializers.ModelSerializer):
                     producto.save(update_fields=['stock'])
                 subtotal += item_subtotal
 
+            # Aplicar cupón si viene uno
+            cupon = None
+            descuento = Decimal('0')
+            if cupon_codigo:
+                try:
+                    cupon = Cupon.objects.select_for_update().get(codigo__iexact=cupon_codigo)
+                    ok, mensaje = cupon.es_valido(subtotal)
+                    if not ok:
+                        raise ValidationError(f'Cupón inválido: {mensaje}')
+                    descuento = cupon.calcular_descuento(subtotal)
+                    cupon.usos_actuales += 1
+                    cupon.save(update_fields=['usos_actuales'])
+                except Cupon.DoesNotExist:
+                    raise ValidationError('El código de cupón no existe.')
+
+            pedido.cupon = cupon
             pedido.subtotal = subtotal
+            pedido.descuento = descuento
             pedido.costo_envio = metodo_envio.costo
-            pedido.total = subtotal + metodo_envio.costo
-            pedido.save(update_fields=['subtotal', 'costo_envio', 'total'])
+            pedido.total = subtotal - descuento + metodo_envio.costo
+            pedido.save(update_fields=['cupon', 'subtotal', 'descuento', 'costo_envio', 'total'])
 
             if cart:
                 clear_cart(cart)

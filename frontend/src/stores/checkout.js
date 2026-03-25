@@ -23,8 +23,18 @@ export const useCheckoutStore = defineStore('checkout', {
     metodoEnvio: null,
     indicaciones: '',
     metodoPago: '',
+    cupon: null,      // { id, codigo, descripcion, tipo, valor, descuento }
+    descuento: 0,
   }),
   actions: {
+    aplicarCupon(cuponData) {
+      this.cupon = cuponData;
+      this.descuento = Number(cuponData.descuento);
+    },
+    quitarCupon() {
+      this.cupon = null;
+      this.descuento = 0;
+    },
     reset() {
       this.step = 1;
       this.direccion = {
@@ -47,6 +57,8 @@ export const useCheckoutStore = defineStore('checkout', {
       this.metodoEnvio = null;
       this.indicaciones = '';
       this.metodoPago = '';
+      this.cupon = null;
+      this.descuento = 0;
     },
   },
 });

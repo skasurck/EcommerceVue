@@ -65,6 +65,10 @@
         <span>Subtotal</span>
         <span>${{ subtotal.toFixed(2) }}</span>
       </div>
+      <div v-if="store.descuento > 0" class="flex justify-between text-emerald-600">
+        <span>Descuento <span class="font-mono text-xs">({{ store.cupon?.codigo }})</span></span>
+        <span>-${{ store.descuento.toFixed(2) }}</span>
+      </div>
       <div class="flex justify-between">
         <span>Envío</span>
         <span>${{ envio.toFixed(2) }}</span>
@@ -217,6 +221,7 @@ const finalizar = async () => {
         metodo_pago: 'mercadopago',
         indicaciones: store.indicaciones,
         save_address: saveAddress,
+        ...(store.cupon ? { cupon_codigo: store.cupon.codigo } : {}),
       })
 
       const pedido = response.data
@@ -264,7 +269,7 @@ const finalizar = async () => {
   const snapshotItems = buildItemsSnapshot()
   const fallbackShipping = Number(store.metodoEnvio?.costo ?? 0)
   const fallbackSubtotal = Number(carrito.subtotal)
-  const fallbackTotal = fallbackSubtotal + fallbackShipping
+  const fallbackTotal = fallbackSubtotal - store.descuento + fallbackShipping
   try {
     const response = await crearPedido({
       direccion,
@@ -272,6 +277,7 @@ const finalizar = async () => {
       metodo_pago: store.metodoPago,
       indicaciones: store.indicaciones,
       save_address: saveAddress,
+      ...(store.cupon ? { cupon_codigo: store.cupon.codigo } : {}),
     })
     const pedido = response?.data || {}
     const resumen = {
@@ -279,6 +285,8 @@ const finalizar = async () => {
       folio: pedido.numero ?? pedido.folio ?? null,
       total: Number(pedido.total ?? fallbackTotal),
       subtotal: Number(pedido.subtotal ?? fallbackSubtotal),
+      descuento: Number(pedido.descuento ?? fallbackDescuento),
+      cuponCodigo: store.cupon?.codigo ?? null,
       shipping: Number(pedido.costo_envio ?? fallbackShipping),
       tax: Number(pedido.impuestos ?? 0),
       currency: pedido.moneda ?? 'MXN',
@@ -313,7 +321,7 @@ const finalizar = async () => {
 
 const subtotal = computed(() => Number(carrito.subtotal))
 const envio = computed(() => Number(store.metodoEnvio?.costo ?? 0))
-const total = computed(() => subtotal.value + envio.value)
+const total = computed(() => subtotal.value - store.descuento + envio.value)
 
 const disableFinalizeButton = computed(() => {
   if (creatingPreference.value) return true

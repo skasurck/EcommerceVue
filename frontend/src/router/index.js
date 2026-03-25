@@ -184,6 +184,12 @@ const routes = [
         meta: { title: 'Métodos de envío', requiresAuth: true, roles: ['super_admin'] }
       },
       {
+        path: 'cupones',
+        name: 'admin-cupones',
+        component: () => import('@/views/AdminCupones.vue'),
+        meta: { title: 'Cupones de descuento', requiresAuth: true, roles: ['admin', 'super_admin'] }
+      },
+      {
         path: 'productos/editar/:id',
         name: 'editar-producto',
         component: () => import('@/views/EditarProducto.vue'),

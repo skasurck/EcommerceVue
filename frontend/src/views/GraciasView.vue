@@ -31,6 +31,13 @@
             <dt class="text-sm text-slate-500">Subtotal</dt>
             <dd class="text-lg font-medium text-slate-900">{{ formatMoney(summary.subtotal) }}</dd>
           </div>
+          <div v-if="summary.descuento > 0">
+            <dt class="text-sm text-emerald-600">
+              Descuento
+              <span v-if="summary.cuponCodigo" class="font-mono">({{ summary.cuponCodigo }})</span>
+            </dt>
+            <dd class="text-lg font-medium text-emerald-600">-{{ formatMoney(summary.descuento) }}</dd>
+          </div>
           <div>
             <dt class="text-sm text-slate-500">Envío</dt>
             <dd class="text-lg font-medium text-slate-900">{{ formatMoney(summary.shipping) }}</dd>
@@ -170,6 +177,8 @@ onMounted(async () => {
           id: orderData.id,
           total: orderData.total,
           subtotal: orderData.subtotal,
+          descuento: Number(orderData.descuento ?? 0),
+          cuponCodigo: orderData.cupon ?? null,
           shipping: orderData.costo_envio,
           tax: 0, // Ajustar si hay impuestos
           paymentMethod: orderData.metodo_pago_display,

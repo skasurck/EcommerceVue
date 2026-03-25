@@ -74,6 +74,14 @@
               </RouterLink>
             </li>
 
+            <li>
+              <RouterLink to="/admin/cupones"
+                class="group flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800"
+                :class="sectionActive('/admin/cupones') ? 'bg-slate-800 text-white' : 'text-slate-300'">
+                <span>🏷️</span><span>Cupones</span>
+              </RouterLink>
+            </li>
+
             <!-- Editar página principal con submenú -->
             <li>
               <button @click="open.home = !open.home"
