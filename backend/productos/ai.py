@@ -1,4 +1,6 @@
+import json
 import logging
+import os
 import threading
 from dataclasses import dataclass
 from importlib import import_module
@@ -820,8 +822,86 @@ def _normalize_labels(
     )
 
 
+def _build_category_prompt() -> str:
+    """Construye una lista compacta de categorías para el prompt de OpenAI."""
+    lines = []
+    for main in MAIN_CATEGORIES:
+        subs = SUBCATEGORIES.get(main, [])
+        sub_names = [s.split(" > ")[-1] for s in subs[:20]]
+        lines.append(f"- {main}: {', '.join(sub_names)}")
+    return "\n".join(lines)
+
+
+_CATEGORY_PROMPT_CACHE: str | None = None
+
+
+def _classify_with_openai(text: str) -> ClassificationResult:
+    """Clasifica usando OpenAI gpt-4o-mini. Más rápido y barato que BERT en CPU."""
+    global _CATEGORY_PROMPT_CACHE
+    if _CATEGORY_PROMPT_CACHE is None:
+        _CATEGORY_PROMPT_CACHE = _build_category_prompt()
+
+    try:
+        from openai import OpenAI
+    except ImportError:
+        raise ImportError("Instala 'openai': pip install openai")
+
+    client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+
+    system_prompt = (
+        "Eres un clasificador de productos para una tienda de tecnología en México. "
+        "Dado el nombre/descripción de un producto, elige la categoría principal y la subcategoría "
+        "más apropiada de la lista. Responde SOLO con JSON válido: "
+        '{"main": "<categoría principal exacta>", "sub": "<subcategoría exacta>"}'
+    )
+
+    user_prompt = (
+        f"Producto: {text[:500]}\n\n"
+        f"Categorías disponibles (formato: Categoría Principal: sub1, sub2, ...):\n"
+        f"{_CATEGORY_PROMPT_CACHE}\n\n"
+        "Responde con JSON."
+    )
+
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        response_format={"type": "json_object"},
+        temperature=0,
+        max_tokens=100,
+    )
+
+    raw = response.choices[0].message.content or "{}"
+    data = json.loads(raw)
+
+    main_label = data.get("main", "").strip()
+    sub_leaf = data.get("sub", "").strip()
+
+    # Validar que el main existe, si no usar el primero
+    if main_label not in MAIN_CATEGORIES:
+        logger.warning("OpenAI devolvió main desconocido '%s', usando fallback.", main_label)
+        main_label = MAIN_CATEGORIES[0]
+
+    # Buscar la ruta completa para la subcategoría
+    sub_label = safe_path(main_label, sub_leaf) if sub_leaf else GENERIC_SUBCATEGORY_BY_MAIN.get(main_label)
+
+    return _normalize_labels(text, main_label, sub_label, 0.95, 0.90)
+
+
 def classify_text(text: str, image: Image.Image | None = None) -> ClassificationResult:
-    """Clasifica un texto en categorías y subcategorías (con apoyo opcional de imagen)."""
+    """Clasifica un texto en categorías y subcategorías.
+
+    Usa OpenAI si OPENAI_API_KEY está configurado (rápido),
+    si no usa el pipeline local BERT (lento en CPU).
+    """
+    if os.environ.get("OPENAI_API_KEY"):
+        try:
+            return _classify_with_openai(text)
+        except Exception as exc:
+            logger.warning("OpenAI falló (%s), cayendo a pipeline local.", exc)
+
     classifier = get_pipeline()
     main_result = classifier(
         text,
