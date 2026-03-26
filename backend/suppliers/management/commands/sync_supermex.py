@@ -134,6 +134,15 @@ def create_or_update_producto_from_supplier(sp: SupplierProduct) -> Producto | N
     except Exception:
         pass
 
+    # Si imagen_principal quedó vacía pero hay galería, promover la primera imagen
+    prod.refresh_from_db(fields=["imagen_principal"])
+    if not prod.imagen_principal:
+        from productos.models import ImagenProducto
+        first_gallery = ImagenProducto.objects.filter(producto=prod).first()
+        if first_gallery and first_gallery.imagen:
+            prod.imagen_principal = first_gallery.imagen
+            retry_save(prod, update_fields=["imagen_principal"])
+
     return prod
 # ------- Config por defecto (puedes mover esto a settings.py si prefieres) -------
 DEFAULT_CATEGORIES = [
