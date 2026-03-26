@@ -35,9 +35,11 @@ def run_supermex_scraper(self, start_url=None, product_urls=None, limit=0,
     # los más nuevos de Supermex queden con fecha_creacion más reciente en el DB
     collected_urls = list(reversed(collected_urls))
 
-    # Pre-cargar URLs ya existentes para saltarlas rápidamente
+    # Saltar solo si el producto existe en SupplierProduct Y tiene un Producto Django creado
+    existing_skus = set(Producto.objects.values_list('sku', flat=True))
     existing_urls = set(
-        SupplierProduct.objects.filter(supplier='supermex').values_list('product_url', flat=True)
+        SupplierProduct.objects.filter(supplier='supermex', supplier_sku__in=existing_skus)
+        .values_list('product_url', flat=True)
     )
 
     total = len(collected_urls)
