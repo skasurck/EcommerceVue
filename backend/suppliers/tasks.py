@@ -31,6 +31,10 @@ def run_supermex_scraper(self, start_url=None, product_urls=None, limit=0,
         logger.exception("Error recolectando URLs: %s", exc)
         raise
 
+    # Invertir orden: procesar primero los más viejos (última página) para que
+    # los más nuevos de Supermex queden con fecha_creacion más reciente en el DB
+    collected_urls = list(reversed(collected_urls))
+
     # Pre-cargar URLs ya existentes para saltarlas rápidamente
     existing_urls = set(
         SupplierProduct.objects.filter(supplier='supermex').values_list('product_url', flat=True)
