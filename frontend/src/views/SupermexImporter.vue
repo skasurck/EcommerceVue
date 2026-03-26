@@ -137,7 +137,7 @@
             Sync completado: {{ stockSyncResult.updated }} actualizados, {{ stockSyncResult.errors }} errores.
           </p>
           <p v-else-if="runSummary" class="text-sm text-slate-500">
-            {{ runSummary.processed_count }} productos actualizados de {{ runSummary.collected_count }} URLs.
+            {{ runSummary.processed_count }} nuevos importados, {{ runSummary.skipped_existing || 0 }} ya existían (omitidos), de {{ runSummary.collected_count }} URLs encontradas.
           </p>
         </div>
 

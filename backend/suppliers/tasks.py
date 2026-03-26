@@ -31,9 +31,15 @@ def run_supermex_scraper(self, start_url=None, product_urls=None, limit=0,
         logger.exception("Error recolectando URLs: %s", exc)
         raise
 
+    # Pre-cargar URLs ya existentes para saltarlas rápidamente
+    existing_urls = set(
+        SupplierProduct.objects.filter(supplier='supermex').values_list('product_url', flat=True)
+    )
+
     total = len(collected_urls)
     results = []
     processed_count = 0
+    skipped_count = 0
 
     for i, url in enumerate(collected_urls):
         self.update_state(state='PROGRESS', meta={
@@ -41,9 +47,18 @@ def run_supermex_scraper(self, start_url=None, product_urls=None, limit=0,
             'status': f'Procesando {i + 1}/{total}: {url[:60]}...'
         })
         entry = {'url': url}
+
+        # Saltar si el producto ya existe en la base de datos
+        if url in existing_urls:
+            entry['status'] = 'exists'
+            skipped_count += 1
+            results.append(entry)
+            continue
+
         if apply_updates:
             try:
                 supplier_product = upsert_product(url)
+                existing_urls.add(url)  # evita duplicados dentro de la misma ejecución
                 pre_existing = Producto.objects.filter(sku=supplier_product.supplier_sku).exists()
                 django_product = create_or_update_producto_from_supplier(supplier_product)
                 entry['status'] = 'ok'
@@ -68,6 +83,7 @@ def run_supermex_scraper(self, start_url=None, product_urls=None, limit=0,
         'status': 'Completado',
         'collected_count': total,
         'processed_count': processed_count,
+        'skipped_existing': skipped_count,
         'results': results,
     }
 
