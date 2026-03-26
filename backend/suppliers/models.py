@@ -14,6 +14,9 @@ class SupplierProduct(models.Model):
     available_qty = models.IntegerField(default=0)     # <-- NUEVO
     last_seen = models.DateTimeField(auto_now=True)
     checksum = models.CharField(max_length=64, blank=True)
+    # Caché de IDs de Odoo para llamadas AJAX directas (evita cargar HTML en sync de stock)
+    odoo_product_id = models.IntegerField(null=True, blank=True)
+    odoo_template_id = models.IntegerField(null=True, blank=True)
 
 class ProductSupplierMap(models.Model):
     product = models.ForeignKey(

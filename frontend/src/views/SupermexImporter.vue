@@ -116,13 +116,26 @@
           <button
             type="submit"
             class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
-            :disabled="running"
+            :disabled="running || stockSyncing"
           >
             <span v-if="running" class="animate-spin">⏳</span>
             <span v-else>🚀</span>
-            <span>{{ running ? 'Ejecutando...' : 'Ejecutar scraper' }}</span>
+            <span>{{ running ? 'Ejecutando...' : 'Importar productos nuevos' }}</span>
+          </button>
+          <button
+            type="button"
+            class="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
+            :disabled="running || stockSyncing"
+            @click="runStockSync"
+          >
+            <span v-if="stockSyncing" class="animate-spin">⏳</span>
+            <span v-else>🔄</span>
+            <span>{{ stockSyncing ? 'Sincronizando...' : 'Sincronizar stock y precios' }}</span>
           </button>
           <p v-if="runError" class="text-sm text-red-600">{{ runError }}</p>
+          <p v-else-if="stockSyncResult" class="text-sm text-emerald-600">
+            Sync completado: {{ stockSyncResult.updated }} actualizados, {{ stockSyncResult.errors }} errores.
+          </p>
           <p v-else-if="runSummary" class="text-sm text-slate-500">
             {{ runSummary.processed_count }} productos actualizados de {{ runSummary.collected_count }} URLs.
           </p>
@@ -306,6 +319,8 @@ const defaultForm = () => ({
 
 const form = reactive(defaultForm())
 const running = ref(false)
+const stockSyncing = ref(false)
+const stockSyncResult = ref(null)
 const runError = ref('')
 const runSummary = ref(null)
 const progressCurrent = ref(0)
@@ -457,6 +472,27 @@ const runScraper = async () => {
       'No se pudo ejecutar la importación. Intenta nuevamente.'
   } finally {
     running.value = false
+  }
+}
+
+const runStockSync = async () => {
+  runError.value = ''
+  stockSyncing.value = true
+  stockSyncResult.value = null
+  progressCurrent.value = 0
+  progressTotal.value = 0
+  progressStatus.value = 'Iniciando sync...'
+
+  try {
+    ensureInterceptors()
+    const { data } = await api.post('suppliers/supermex/stock-sync/', { http2: form.http2 })
+    const result = await pollTask(data.task_id)
+    stockSyncResult.value = result
+  } catch (error) {
+    runError.value = error.response?.data?.detail || error.message || 'Error al sincronizar stock.'
+  } finally {
+    stockSyncing.value = false
+    await fetchLatest()
   }
 }
 

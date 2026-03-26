@@ -832,6 +832,63 @@ def upsert_product(url: str):
         c.close()
 
 
+def sync_stock_for_product(sp, client: httpx.Client) -> dict:
+    """
+    Actualiza solo precio + stock de un SupplierProduct existente.
+    - Si tiene odoo_product_id cacheado: llama AJAX directo (sin cargar HTML).
+    - Si no: carga HTML, extrae IDs, los cachea para la próxima vez.
+    Devuelve dict con los campos actualizados o lanza excepción.
+    """
+    url = sp.product_url
+
+    # --- Intentar AJAX directo si tenemos los IDs cacheados ---
+    if sp.odoo_product_id and sp.odoo_template_id:
+        payload = {
+            "jsonrpc": "2.0", "method": "call",
+            "params": {
+                "product_template_id": sp.odoo_template_id,
+                "product_id": sp.odoo_product_id,
+                "combination": [], "add_qty": 1, "parent_combination": [],
+            },
+            "id": int(time.time() * 1000),
+        }
+        try:
+            r = client.post(
+                urljoin(BASE, "/website_sale/get_combination_info"),
+                json=payload,
+                headers={"X-Requested-With": "XMLHttpRequest", "Referer": url, "Content-Type": "application/json"},
+            )
+            if r.status_code == 200:
+                js = r.json()
+                if "error" not in js:
+                    qty = _extract_qty_from_json(js)
+                    result = js.get("result", {})
+                    price_txt = str(result.get("price", "") or result.get("list_price", ""))
+                    price = _parse_price_text(price_txt)
+                    in_stock = (qty > 0) if isinstance(qty, int) else bool(result.get("product_is_combination_possible", True))
+                    return {"price": price, "in_stock": in_stock, "qty": qty if isinstance(qty, int) else (1 if in_stock else 0), "method": "ajax_cached"}
+        except Exception as exc:
+            print(f"[STOCK] AJAX cacheado falló para {url}: {exc} — recargando HTML")
+
+    # --- Fallback: cargar HTML, extraer IDs y precio/stock ---
+    html = get_with(client, url)
+    sku_parsed, name, price, in_stock, _, _, qty, _ = parse_pdp(html, url)
+    product_id, template_id, _ = extract_ids_and_csrf(html, url)
+
+    # Intentar AJAX con los IDs recién extraídos
+    if product_id and product_id.isdigit() and template_id and template_id.isdigit():
+        ajax_qty = fetch_qty_via_ajax(client, html, url)
+        if isinstance(ajax_qty, int) and ajax_qty >= 0:
+            qty = ajax_qty
+            in_stock = ajax_qty > 0
+        # Guardar IDs en caché
+        sp.odoo_product_id = int(product_id)
+        sp.odoo_template_id = int(template_id)
+        sp.save(update_fields=["odoo_product_id", "odoo_template_id"])
+
+    return {"price": price, "in_stock": in_stock, "qty": qty if isinstance(qty, int) else (1 if in_stock else 0), "method": "html"}
+
+
 def crawl_all():
     categories = [
         "https://www.supermexdigital.mx/shop/monitores",

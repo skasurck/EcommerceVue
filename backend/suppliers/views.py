@@ -12,7 +12,7 @@ from suppliers.serializers import (
     SupplierProductSerializer,
     SupermexRunRequestSerializer,
 )
-from suppliers.tasks import run_supermex_scraper
+from suppliers.tasks import run_supermex_scraper, run_supermex_stock_sync
 from suppliers.utils import effective_qty
 
 
@@ -72,6 +72,16 @@ class SupermexTaskStatusView(APIView):
         else:
             data = {'state': result.state, 'status': str(result.info)}
         return Response(data)
+
+
+class SupermexStockSyncView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def post(self, request):
+        http2 = request.data.get('http2', True)
+        sleep_s = request.data.get('sleep_s', 0.3)
+        task = run_supermex_stock_sync.delay(http2=http2, sleep_s=sleep_s)
+        return Response({'task_id': task.id, 'status': 'queued'}, status=status.HTTP_202_ACCEPTED)
 
 
 class SupermexLatestProductsView(APIView):

@@ -71,6 +71,59 @@ def run_supermex_scraper(self, start_url=None, product_urls=None, limit=0,
         'results': results,
     }
 
+@shared_task(bind=True)
+def run_supermex_stock_sync(self, http2: bool = True, sleep_s: float = 0.3):
+    """
+    Scraper ligero: solo actualiza precio + stock de productos ya existentes.
+    No toca nombre/descripción/imágenes ni crea productos nuevos.
+    Ideal para ejecución diaria.
+    """
+    from suppliers.scraper_supermex import get_client, sync_stock_for_product
+    from suppliers.models import SupplierProduct
+
+    products = list(SupplierProduct.objects.filter(supplier="supermex").values_list("id", flat=True))
+    total = len(products)
+    updated = 0
+    errors = 0
+
+    self.update_state(state="PROGRESS", meta={"current": 0, "total": total, "status": f"Iniciando sync de {total} productos..."})
+
+    with get_client(http2=http2) as client:
+        for i, sp_id in enumerate(products):
+            try:
+                sp = SupplierProduct.objects.get(pk=sp_id)
+                self.update_state(state="PROGRESS", meta={
+                    "current": i + 1, "total": total,
+                    "status": f"{i + 1}/{total}: {sp.name[:50]}",
+                })
+                result = sync_stock_for_product(sp, client)
+
+                update_fields = ["in_stock", "available_qty", "last_seen"]
+                sp.in_stock = result["in_stock"]
+                sp.available_qty = result["qty"]
+                if result["price"] is not None:
+                    sp.price_supplier = result["price"]
+                    update_fields.append("price_supplier")
+                sp.save(update_fields=update_fields)
+                updated += 1
+            except Exception as exc:
+                logger.warning("Error sync stock %s: %s", sp_id, exc)
+                errors += 1
+
+            if sleep_s > 0:
+                import time
+                time.sleep(sleep_s)
+
+    apply_rules()
+
+    return {
+        "current": total, "total": total,
+        "status": "Completado",
+        "updated": updated,
+        "errors": errors,
+    }
+
+
 MARKUP = Decimal("1.15")  # tu +15%
 
 def apply_rules():
