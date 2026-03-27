@@ -48,47 +48,7 @@ const defaultSlides = [
 ]
 
 const canMoveSlide = computed(() => sliderImages.value.length > 1)
-const mobileQuickLinks = ['Tiendas', 'Ofertas', 'Ayuda', 'Seguimiento de pedidos', 'Devoluciones']
 const activeDesktopSlide = computed(() => sliderImages.value[currentSlide.value] || null)
-const locationLabel = ref('Detectando ubicación...')
-
-const LOCATION_STORAGE_KEY = 'home_delivery_location'
-
-const normalizeLocationLabel = (city, postalCode, country = '') => {
-  const cityPart = city?.trim() || 'Tu zona'
-  const postalPart = postalCode?.trim()
-  const countryPart = country?.trim()
-  const extra = [countryPart, postalPart].filter(Boolean).join(', ')
-  return extra ? `${cityPart}, ${extra}` : cityPart
-}
-
-const saveLocation = (label) => {
-  locationLabel.value = label
-  localStorage.setItem(LOCATION_STORAGE_KEY, label)
-}
-
-const changeLocation = () => {
-  const nextLocation = window.prompt('Ingresa tu ciudad y código postal', locationLabel.value)
-  if (!nextLocation) return
-  saveLocation(nextLocation.trim())
-}
-
-const detectLocationByIP = async () => {
-  try {
-    const controller = new AbortController()
-    const timeout = window.setTimeout(() => controller.abort(), 4000)
-    const response = await fetch('https://ipapi.co/json/', { signal: controller.signal })
-    clearTimeout(timeout)
-    if (!response.ok) return
-    const data = await response.json()
-    const label = normalizeLocationLabel(data?.city, data?.postal, data?.country_name)
-    saveLocation(label)
-  } catch (error) {
-    if (!localStorage.getItem(LOCATION_STORAGE_KEY)) {
-      locationLabel.value = 'Tu ubicación'
-    }
-  }
-}
 
 const goToSlide = (index) => {
   if (!sliderImages.value.length) return
