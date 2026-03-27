@@ -65,32 +65,46 @@ class MercadoPagoWebhookView(APIView):
             return Response({"detail": "Firma inválida"}, status=status.HTTP_400_BAD_REQUEST)
 
         notification = request.data
-        topic = notification.get('topic')
-        resource_id = notification.get('resource')
+        sdk = mercadopago.SDK(settings.MP_ACCESS_TOKEN_TEST if settings.DEBUG else settings.MP_ACCESS_TOKEN)
 
-        if topic == 'merchant_order':
-            # Lógica para 'merchant_order' si se usa
-            pass
-        elif topic == 'payment' and resource_id:
-            try:
-                sdk = mercadopago.SDK(settings.MP_ACCESS_TOKEN_TEST if settings.DEBUG else settings.MP_ACCESS_TOKEN)
-                payment_info = sdk.payment().get(resource_id)
-                payment = payment_info.get("response")
+        # Obtener el payment_id según el formato del evento
+        # Nuevo formato Webhooks: {"type": "payment", "action": "payment.updated", "data": {"id": "123"}}
+        # Formato IPN legacy:     {"topic": "payment", "resource": "/v1/payments/123"}
+        payment_id = None
 
-                if payment and payment.get('status') == 'approved':
-                    external_reference = payment.get('external_reference')
-                    if external_reference:
-                        try:
-                            pedido = Pedido.objects.get(id=external_reference)
-                            if pedido.estado != 'pagado':
-                                pedido.estado = 'pagado'
-                                pedido.mercadopago_payment_id = payment.get('id')
-                                pedido.save()  # dispara enviar_email_pago_confirmado via save()
-                        except Pedido.DoesNotExist:
-                            logger.warning("Webhook: Pedido con ID %s no encontrado.", external_reference)
-            except Exception as e:
-                logger.exception("Error procesando webhook de Mercado Pago: %s", e)
-        
+        notif_type = notification.get('type') or notification.get('topic', '')
+        if notif_type == 'payment':
+            data = notification.get('data') or {}
+            # Nuevo formato
+            payment_id = data.get('id') or request.query_params.get('data.id')
+            # IPN legacy: resource puede ser "/v1/payments/123" o solo "123"
+            if not payment_id:
+                resource = notification.get('resource', '')
+                payment_id = str(resource).split('/')[-1] if resource else None
+
+        if not payment_id:
+            # Evento no relevante (merchant_order, etc.) → responder 200 de todos modos
+            return Response(status=status.HTTP_200_OK)
+
+        try:
+            payment_info = sdk.payment().get(payment_id)
+            payment = payment_info.get("response", {})
+
+            if payment.get('status') == 'approved':
+                external_reference = payment.get('external_reference')
+                if external_reference:
+                    try:
+                        pedido = Pedido.objects.get(id=external_reference)
+                        if pedido.estado != 'pagado':
+                            pedido.estado = 'pagado'
+                            pedido.mercadopago_payment_id = str(payment.get('id', ''))
+                            pedido.save()
+                            logger.info("Pedido %s marcado como pagado via MP payment %s.", external_reference, payment_id)
+                    except Pedido.DoesNotExist:
+                        logger.warning("Webhook MP: pedido con external_reference=%s no encontrado.", external_reference)
+        except Exception as e:
+            logger.exception("Error procesando webhook de Mercado Pago (payment_id=%s): %s", payment_id, e)
+
         return Response(status=status.HTTP_200_OK)
 
 
