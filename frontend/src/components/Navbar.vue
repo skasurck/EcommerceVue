@@ -1,17 +1,17 @@
 <template>
-  <nav id="nav" class="fixed inset-x-0 top-0 z-50 bg-slate-900/95 backdrop-blur supports-[backdrop-filter]:bg-slate-900/80 border-b border-slate-800">
+  <nav id="nav" class="fixed inset-x-0 top-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur supports-[backdrop-filter]:bg-white/85 dark:supports-[backdrop-filter]:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 transition-colors">
     <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
       <div class="h-14 flex items-center justify-between">
 
         <!-- Brand + mobile toggle -->
         <div class="flex items-center gap-3">
           <RouterLink to="/" class="flex items-center">
-            <img src="/logo-mktska.png" alt="Mktska Digital" class="h-9 w-auto object-contain" />
+            <img src="/logo-mktska.png" alt="Mktska Digital" class="h-9 w-auto object-contain [filter:brightness(0)] dark:[filter:brightness(0)_invert(1)] transition-[filter]" />
           </RouterLink>
 
           <!-- Mobile toggle -->
           <button
-            class="inline-flex lg:hidden items-center justify-center p-2 rounded text-slate-300 hover:bg-slate-800"
+            class="inline-flex lg:hidden items-center justify-center p-2 rounded text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
             @click="openMobile = !openMobile" aria-label="Abrir menú">
             <span v-if="!openMobile">☰</span>
             <span v-else>✕</span>
@@ -25,7 +25,7 @@
               v-model="q"
               type="search"
               placeholder="Buscar productos…"
-              class="flex-1 h-9 rounded-l-md bg-slate-800/70 text-slate-100 placeholder-slate-400 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 px-3"
+              class="flex-1 h-9 rounded-l-md bg-slate-100 dark:bg-slate-800/70 text-slate-900 dark:text-slate-100 placeholder-slate-400 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 px-3"
               role="combobox"
               :aria-expanded="showDropdown"
               aria-controls="search-suggestions"
@@ -46,17 +46,17 @@
             v-if="showDropdown"
             id="search-suggestions"
             role="listbox"
-            class="absolute top-full left-0 right-0 translate-y-1 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 max-h-96 overflow-auto pointer-events-auto text-slate-100"
+            class="absolute top-full left-0 right-0 translate-y-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl z-50 max-h-96 overflow-auto pointer-events-auto text-slate-900 dark:text-slate-100"
           >
             <div v-if="loading" class="p-3 space-y-2">
               <div v-for="n in 5" :key="n" class="flex items-center gap-3 px-1">
-                <div class="w-10 h-10 bg-slate-700 rounded-lg animate-pulse shrink-0"></div>
-                <div class="flex-1 h-4 bg-slate-700 rounded animate-pulse"></div>
-                <div class="w-16 h-4 bg-slate-700 rounded animate-pulse shrink-0"></div>
+                <div class="w-10 h-10 bg-slate-200 dark:bg-slate-700 rounded-lg animate-pulse shrink-0"></div>
+                <div class="flex-1 h-4 bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div>
+                <div class="w-16 h-4 bg-slate-200 dark:bg-slate-700 rounded animate-pulse shrink-0"></div>
               </div>
             </div>
-            <div v-else-if="error" class="p-3 text-sm text-rose-300">Error al cargar</div>
-            <div v-else-if="!suggestions.length" class="p-3 text-sm text-slate-400">Sin resultados</div>
+            <div v-else-if="error" class="p-3 text-sm text-rose-500 dark:text-rose-300">Error al cargar</div>
+            <div v-else-if="!suggestions.length" class="p-3 text-sm text-slate-500 dark:text-slate-400">Sin resultados</div>
             <ul v-else>
               <li
                 v-for="(item, i) in suggestions"
@@ -66,23 +66,23 @@
                 @mouseenter="activeIndex = i"
                 @mouseleave="activeIndex = -1"
                 @click="selectSuggestion(item)"
-                class="flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors hover:bg-slate-800"
-                :class="{ 'bg-slate-800': i === activeIndex }"
+                class="flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
+                :class="{ 'bg-slate-100 dark:bg-slate-800': i === activeIndex }"
               >
                 <img
                   :src="imgSrc(item)"
                   @error="onImgError"
-                  class="w-10 h-10 object-cover rounded-lg shrink-0 bg-slate-800"
+                  class="w-10 h-10 object-cover rounded-lg shrink-0 bg-slate-200 dark:bg-slate-800"
                   alt=""
                 />
-                <div class="flex-1 truncate text-sm text-slate-100">{{ item.name }}</div>
-                <div class="text-sm font-semibold text-cyan-300 whitespace-nowrap shrink-0">
+                <div class="flex-1 truncate text-sm text-slate-800 dark:text-slate-100">{{ item.name }}</div>
+                <div class="text-sm font-semibold text-cyan-600 dark:text-cyan-300 whitespace-nowrap shrink-0">
                   {{ fmt(item.price_sale ?? item.price) }}
                 </div>
               </li>
-              <li class="border-t border-slate-700">
+              <li class="border-t border-slate-200 dark:border-slate-700">
                 <button
-                  class="w-full text-center px-3 py-2.5 text-sm text-cyan-400 hover:bg-slate-800 hover:text-cyan-300 transition-colors"
+                  class="w-full text-center px-3 py-2.5 text-sm text-cyan-600 dark:text-cyan-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-cyan-500 dark:hover:text-cyan-300 transition-colors"
                   @click.prevent="moreResults"
                 >
                   Ver todos los resultados →
@@ -96,7 +96,7 @@
         <div class="flex items-center gap-3">
           <button
             type="button"
-            class="inline-flex items-center justify-center w-9 h-9 rounded-md border border-slate-700 text-slate-200 hover:bg-slate-800"
+            class="inline-flex items-center justify-center w-9 h-9 rounded-md border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
             :aria-label="isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'"
             :title="isDark ? 'Modo claro' : 'Modo oscuro'"
             @click="toggleTheme"
@@ -108,33 +108,33 @@
           <!-- Links desktop -->
           <div class="hidden lg:flex items-center gap-4 text-sm">
             <RouterLink :to="{name:'productos'}"
-              class="px-2 py-1 rounded hover:text-cyan-300"
-              :class="isActive('/productos') ? 'text-cyan-300' : 'text-slate-200'">
+              class="px-2 py-1 rounded hover:text-cyan-600 dark:hover:text-cyan-300"
+              :class="isActive('/productos') ? 'text-cyan-600 dark:text-cyan-300' : 'text-slate-700 dark:text-slate-200'">
               Tienda
             </RouterLink>
 
             <div class="relative" v-click-outside="() => openCategories = false">
               <RouterLink :to="{name:'categorias'}"
-                class="px-2 py-1 rounded hover:text-cyan-300"
-                :class="isActive('/categorias') ? 'text-cyan-300' : 'text-slate-200'"
+                class="px-2 py-1 rounded hover:text-cyan-600 dark:hover:text-cyan-300"
+                :class="isActive('/categorias') ? 'text-cyan-600 dark:text-cyan-300' : 'text-slate-700 dark:text-slate-200'"
                 @click.prevent="openCategories = !openCategories">
                 Categorías
               </RouterLink>
-              <div v-if="openCategories" class="absolute left-0 mt-2 w-64 bg-slate-900 border border-slate-700 rounded-md shadow-lg">
+              <div v-if="openCategories" class="absolute left-0 mt-2 w-64 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md shadow-lg">
                 <CategoryMenu />
               </div>
             </div>
 
             <RouterLink v-if="auth.isAuthenticated" to="/mi-cuenta"
-              class="px-2 py-1 rounded hover:text-cyan-300"
-              :class="isActive('/mi-cuenta') ? 'text-cyan-300' : 'text-slate-200'">
+              class="px-2 py-1 rounded hover:text-cyan-600 dark:hover:text-cyan-300"
+              :class="isActive('/mi-cuenta') ? 'text-cyan-600 dark:text-cyan-300' : 'text-slate-700 dark:text-slate-200'">
               Mi cuenta
             </RouterLink>
 
             <RouterLink v-if="auth.isAuthenticated && auth.hasAnyRole?.(['admin','super_admin'])"
               to="/admin"
-              class="px-2 py-1 rounded hover:text-cyan-300"
-              :class="sectionActive('/admin') ? 'text-cyan-300' : 'text-slate-200'">
+              class="px-2 py-1 rounded hover:text-cyan-600 dark:hover:text-cyan-300"
+              :class="sectionActive('/admin') ? 'text-cyan-600 dark:text-cyan-300' : 'text-slate-700 dark:text-slate-200'">
               Admin
             </RouterLink>
           </div>
@@ -143,7 +143,7 @@
           <RouterLink
             v-if="auth.isAuthenticated"
             to="/lista-deseos"
-            class="relative inline-flex items-center justify-center w-9 h-9 rounded-md hover:bg-slate-800 text-slate-200"
+            class="relative inline-flex items-center justify-center w-9 h-9 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-200"
             aria-label="Lista de deseos"
           >
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
@@ -158,7 +158,7 @@
           <!-- Cart -->
            <!-- <RouterLink v-if="auth.isAuthenticated" to="/carrito" -->
           <RouterLink  to="/carrito"
-            class="relative inline-flex items-center justify-center w-9 h-9 rounded-md hover:bg-slate-800 text-slate-200"
+            class="relative inline-flex items-center justify-center w-9 h-9 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-200"
             aria-label="Carrito">
             <span>🛒</span>
             <span v-if="carrito.totalCantidad"
@@ -169,14 +169,14 @@
 
           <!-- Auth buttons / user menu -->
           <div v-if="!auth.isAuthenticated" class="hidden sm:flex items-center gap-2">
-            <RouterLink to="/login" class="text-slate-200 hover:text-cyan-300 text-sm">Entrar</RouterLink>
-            <RouterLink to="/registro" class="text-slate-200 hover:text-cyan-300 text-sm">Registrarse</RouterLink>
+            <RouterLink to="/login" class="text-slate-700 dark:text-slate-200 hover:text-cyan-600 dark:hover:text-cyan-300 text-sm">Entrar</RouterLink>
+            <RouterLink to="/registro" class="text-slate-700 dark:text-slate-200 hover:text-cyan-600 dark:hover:text-cyan-300 text-sm">Registrarse</RouterLink>
           </div>
 
           <div v-else class="relative">
             <button @click="openUser = !openUser"
-                    class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-slate-800 text-slate-200">
-              <span class="inline-block w-6 h-6 rounded-full bg-slate-700 grid place-items-center text-[12px]">
+                    class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200">
+              <span class="inline-block w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 grid place-items-center text-[12px]">
                 {{ initials }}
               </span>
               <span class="hidden md:inline text-sm truncate max-w-[140px]">{{ userLabel }}</span>
@@ -184,18 +184,18 @@
 
             <div v-if="openUser"
                  @click.outside="openUser=false"
-                 class="absolute right-0 mt-2 w-56 rounded-md border border-slate-700 bg-slate-900 shadow-lg p-1">
-              <RouterLink to="/mi-cuenta" class="block px-3 py-2 rounded hover:bg-slate-800 text-sm text-slate-200">Mi cuenta</RouterLink>
-              <RouterLink to="/lista-deseos" class="flex items-center gap-2 px-3 py-2 rounded hover:bg-slate-800 text-sm text-slate-200">
+                 class="absolute right-0 mt-2 w-56 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg p-1">
+              <RouterLink to="/mi-cuenta" class="block px-3 py-2 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-sm text-slate-700 dark:text-slate-200">Mi cuenta</RouterLink>
+              <RouterLink to="/lista-deseos" class="flex items-center gap-2 px-3 py-2 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-sm text-slate-700 dark:text-slate-200">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                 </svg>
                 Lista de deseos
                 <span v-if="wishlist.total" class="ml-auto text-xs bg-rose-500 text-white rounded-full px-1.5">{{ wishlist.total }}</span>
               </RouterLink>
-              <RouterLink v-if="auth.hasAnyRole?.(['admin','super_admin'])" to="/admin" class="block px-3 py-2 rounded hover:bg-slate-800 text-sm text-slate-200">Panel admin</RouterLink>
+              <RouterLink v-if="auth.hasAnyRole?.(['admin','super_admin'])" to="/admin" class="block px-3 py-2 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-sm text-slate-700 dark:text-slate-200">Panel admin</RouterLink>
               <button @click="logout"
-                      class="w-full text-left block px-3 py-2 rounded hover:bg-slate-800 text-sm text-rose-300">
+                      class="w-full text-left block px-3 py-2 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-sm text-rose-500 dark:text-rose-300">
                 Cerrar sesión
               </button>
             </div>
@@ -211,7 +211,7 @@
               v-model="q"
               type="search"
               placeholder="Buscar productos…"
-              class="flex-1 h-10 rounded-l-md bg-slate-800/70 text-slate-100 placeholder-slate-400 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 px-3"
+              class="flex-1 h-10 rounded-l-md bg-slate-100 dark:bg-slate-800/70 text-slate-900 dark:text-slate-100 placeholder-slate-400 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 px-3"
               role="combobox"
               :aria-expanded="showDropdown"
               aria-controls="search-suggestions"
@@ -232,17 +232,17 @@
             v-if="showDropdown"
             id="search-suggestions"
             role="listbox"
-            class="absolute top-full left-0 right-0 translate-y-1 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 max-h-96 overflow-auto pointer-events-auto text-slate-100"
+            class="absolute top-full left-0 right-0 translate-y-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl z-50 max-h-96 overflow-auto pointer-events-auto text-slate-900 dark:text-slate-100"
           >
             <div v-if="loading" class="p-3 space-y-2">
               <div v-for="n in 5" :key="n" class="flex items-center gap-3 px-1">
-                <div class="w-10 h-10 bg-slate-700 rounded-lg animate-pulse shrink-0"></div>
-                <div class="flex-1 h-4 bg-slate-700 rounded animate-pulse"></div>
-                <div class="w-16 h-4 bg-slate-700 rounded animate-pulse shrink-0"></div>
+                <div class="w-10 h-10 bg-slate-200 dark:bg-slate-700 rounded-lg animate-pulse shrink-0"></div>
+                <div class="flex-1 h-4 bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div>
+                <div class="w-16 h-4 bg-slate-200 dark:bg-slate-700 rounded animate-pulse shrink-0"></div>
               </div>
             </div>
-            <div v-else-if="error" class="p-3 text-sm text-rose-300">Error al cargar</div>
-            <div v-else-if="!suggestions.length" class="p-3 text-sm text-slate-400">Sin resultados</div>
+            <div v-else-if="error" class="p-3 text-sm text-rose-500 dark:text-rose-300">Error al cargar</div>
+            <div v-else-if="!suggestions.length" class="p-3 text-sm text-slate-500 dark:text-slate-400">Sin resultados</div>
             <ul v-else>
               <li
                 v-for="(item, i) in suggestions"
@@ -252,23 +252,23 @@
                 @mouseenter="activeIndex = i"
                 @mouseleave="activeIndex = -1"
                 @click="selectSuggestion(item)"
-                class="flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors hover:bg-slate-800"
-                :class="{ 'bg-slate-800': i === activeIndex }"
+                class="flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
+                :class="{ 'bg-slate-100 dark:bg-slate-800': i === activeIndex }"
               >
                 <img
                   :src="imgSrc(item)"
                   @error="onImgError"
-                  class="w-10 h-10 object-cover rounded-lg shrink-0 bg-slate-800"
+                  class="w-10 h-10 object-cover rounded-lg shrink-0 bg-slate-200 dark:bg-slate-800"
                   alt=""
                 />
-                <div class="flex-1 truncate text-sm text-slate-100">{{ item.name }}</div>
-                <div class="text-sm font-semibold text-cyan-300 whitespace-nowrap shrink-0">
+                <div class="flex-1 truncate text-sm text-slate-800 dark:text-slate-100">{{ item.name }}</div>
+                <div class="text-sm font-semibold text-cyan-600 dark:text-cyan-300 whitespace-nowrap shrink-0">
                   {{ fmt(item.price_sale ?? item.price) }}
                 </div>
               </li>
-              <li class="border-t border-slate-700">
+              <li class="border-t border-slate-200 dark:border-slate-700">
                 <button
-                  class="w-full text-center px-3 py-2.5 text-sm text-cyan-400 hover:bg-slate-800 hover:text-cyan-300 transition-colors"
+                  class="w-full text-center px-3 py-2.5 text-sm text-cyan-600 dark:text-cyan-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-cyan-500 dark:hover:text-cyan-300 transition-colors"
                   @click.prevent="moreResults"
                 >
                   Ver todos los resultados →
@@ -280,19 +280,19 @@
         <div class="mt-3 grid gap-1 text-sm">
           <button
             type="button"
-            class="px-3 py-2 rounded border border-slate-700 text-slate-200 hover:bg-slate-800 text-left"
+            class="px-3 py-2 rounded border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 text-left"
             @click="toggleTheme"
           >
             {{ isDark ? 'Usar modo claro' : 'Usar modo oscuro' }}
           </button>
-          <RouterLink to="/productos" class="px-3 py-2 rounded hover:bg-slate-800 text-slate-200" @click="openMobile=false">Tienda</RouterLink>
-          <RouterLink to="/categorias" class="px-3 py-2 rounded hover:bg-slate-800 text-slate-200" @click="openMobile=false">Categorías</RouterLink>
-          <RouterLink v-if="auth.isAuthenticated" to="/mi-cuenta" class="px-3 py-2 rounded hover:bg-slate-800 text-slate-200" @click="openMobile=false">Mi cuenta</RouterLink>
-          <RouterLink v-if="auth.isAuthenticated" to="/lista-deseos" class="px-3 py-2 rounded hover:bg-slate-800 text-slate-200" @click="openMobile=false">Lista de deseos</RouterLink>
-          <RouterLink v-if="auth.isAuthenticated && auth.hasAnyRole?.(['admin','super_admin'])" to="/admin" class="px-3 py-2 rounded hover:bg-slate-800 text-slate-200" @click="openMobile=false">Admin</RouterLink>
+          <RouterLink to="/productos" class="px-3 py-2 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200" @click="openMobile=false">Tienda</RouterLink>
+          <RouterLink to="/categorias" class="px-3 py-2 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200" @click="openMobile=false">Categorías</RouterLink>
+          <RouterLink v-if="auth.isAuthenticated" to="/mi-cuenta" class="px-3 py-2 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200" @click="openMobile=false">Mi cuenta</RouterLink>
+          <RouterLink v-if="auth.isAuthenticated" to="/lista-deseos" class="px-3 py-2 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200" @click="openMobile=false">Lista de deseos</RouterLink>
+          <RouterLink v-if="auth.isAuthenticated && auth.hasAnyRole?.(['admin','super_admin'])" to="/admin" class="px-3 py-2 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200" @click="openMobile=false">Admin</RouterLink>
           <div v-if="!auth.isAuthenticated" class="flex gap-2 px-3 pt-1">
-            <RouterLink to="/login" class="px-3 py-2 rounded bg-slate-800 text-slate-200 flex-1 text-center" @click="openMobile=false">Entrar</RouterLink>
-            <RouterLink to="/registro" class="px-3 py-2 rounded border border-slate-700 text-slate-200 flex-1 text-center" @click="openMobile=false">Registrarse</RouterLink>
+            <RouterLink to="/login" class="px-3 py-2 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 flex-1 text-center" @click="openMobile=false">Entrar</RouterLink>
+            <RouterLink to="/registro" class="px-3 py-2 rounded border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 flex-1 text-center" @click="openMobile=false">Registrarse</RouterLink>
           </div>
           <button v-else class="px-3 py-2 rounded bg-rose-600/90 hover:bg-rose-600 text-white text-left" @click="logout">Cerrar sesión</button>
         </div>

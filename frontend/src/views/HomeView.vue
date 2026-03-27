@@ -184,48 +184,15 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <main class="bg-gray-100 min-h-screen">
-    <section class="lg:hidden bg-[#131f32] text-white">
-      <div class="px-3 pt-2 pb-3">
-        <div class="mt-2 bg-white rounded-xl p-1.5 flex items-center gap-2">
-          <input
-            type="text"
-            placeholder="Buscar en mktska.com"
-            class="flex-1 text-sm text-slate-800 px-2 py-2 outline-none rounded-lg"
-          />
-          <button class="h-10 w-12 rounded-lg bg-amber-400 text-slate-900 text-xl font-bold">⌕</button>
-        </div>
-
-        <div class="mt-3 overflow-x-auto mobile-no-scrollbar">
-          <div class="flex items-center gap-5 text-sm font-semibold whitespace-nowrap">
-            <span v-for="link in mobileQuickLinks" :key="link">{{ link }}</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="bg-[#223553] px-3 py-2 text-sm font-medium flex items-center justify-between gap-2">
-        <button
-          type="button"
-          class="text-left truncate"
-          @click="changeLocation"
-        >
-          📍 Enviar a {{ locationLabel }}
-        </button>
-        <button
-          type="button"
-          class="shrink-0 rounded-md bg-white/10 px-2 py-1 text-xs font-semibold hover:bg-white/20"
-          @click="detectLocationByIP"
-        >
-          Auto
-        </button>
-      </div>
-
+  <main class="bg-gray-100 dark:bg-slate-950 min-h-screen">
+    <!-- Slider mobile -->
+    <section class="lg:hidden bg-slate-100 dark:bg-slate-900">
       <div class="px-2 py-3 overflow-x-auto mobile-no-scrollbar">
         <div class="flex gap-3 snap-x snap-mandatory">
           <article
             v-for="(slide, index) in sliderImages"
             :key="`mobile-slide-${index}`"
-            class="relative snap-start shrink-0 w-[78%] h-[360px] rounded-2xl bg-white text-slate-900 overflow-hidden border border-slate-200"
+            class="relative snap-start shrink-0 w-[78%] h-[360px] rounded-2xl bg-white dark:bg-slate-800 text-slate-900 overflow-hidden border border-slate-200 dark:border-slate-700"
           >
             <img
               :src="slide.mobileSrc || slide.src"
