@@ -306,6 +306,53 @@ class HomeSliderImage(models.Model):
     def __str__(self):
         return self.titulo or f"Slide #{self.pk}"
 
+    def _convert_to_webp(self, field, upload_to):
+        """Convierte el campo de imagen a WebP y lo guarda en el campo."""
+        try:
+            field.open()
+            with Image.open(field) as img:
+                img.load()
+            base_name = os.path.splitext(os.path.basename(field.name))[0]
+            if img.mode in ('RGBA', 'LA', 'P'):
+                background = Image.new('RGB', img.size, (255, 255, 255))
+                if 'A' in img.mode:
+                    background.paste(img, mask=img.split()[-1])
+                else:
+                    background.paste(img)
+                img = background
+            buffer = BytesIO()
+            img.save(buffer, format='WEBP', quality=85)
+            filename = f"{slugify(base_name)}_{get_random_string(7)}.webp"
+            field.save(filename, ContentFile(buffer.getvalue()), save=False)
+        except Exception as e:
+            logger.exception("Error convirtiendo imagen a WebP en %s: %s", self.__class__.__name__, e)
+
+    def save(self, *args, **kwargs):
+        old_instance = None
+        if self.pk:
+            try:
+                old_instance = HomeSliderImage.objects.get(pk=self.pk)
+            except HomeSliderImage.DoesNotExist:
+                pass
+
+        # Procesar imagen desktop
+        imagen_changed = old_instance and old_instance.imagen != self.imagen
+        if (self.pk is None and self.imagen) or imagen_changed:
+            if imagen_changed and old_instance.imagen:
+                old_instance.imagen.delete(save=False)
+            if not self.imagen.name.lower().endswith('.webp'):
+                self._convert_to_webp(self.imagen, 'home_slider/')
+
+        # Procesar imagen mobile
+        imagen_mobile_changed = old_instance and old_instance.imagen_mobile != self.imagen_mobile
+        if (self.pk is None and self.imagen_mobile) or imagen_mobile_changed:
+            if imagen_mobile_changed and old_instance.imagen_mobile:
+                old_instance.imagen_mobile.delete(save=False)
+            if self.imagen_mobile and not self.imagen_mobile.name.lower().endswith('.webp'):
+                self._convert_to_webp(self.imagen_mobile, 'home_slider/mobile/')
+
+        super().save(*args, **kwargs)
+
     def delete(self, *args, **kwargs):
         if self.imagen:
             self.imagen.delete(save=False)
@@ -422,6 +469,40 @@ class PromoBanner(models.Model):
 
     def __str__(self):
         return self.titulo or f"Banner #{self.pk}"
+
+    def save(self, *args, **kwargs):
+        old_instance = None
+        if self.pk:
+            try:
+                old_instance = PromoBanner.objects.get(pk=self.pk)
+            except PromoBanner.DoesNotExist:
+                pass
+
+        imagen_changed = old_instance and old_instance.imagen != self.imagen
+        if (self.pk is None and self.imagen) or imagen_changed:
+            if imagen_changed and old_instance.imagen:
+                old_instance.imagen.delete(save=False)
+            if not self.imagen.name.lower().endswith('.webp'):
+                try:
+                    self.imagen.open()
+                    with Image.open(self.imagen) as img:
+                        img.load()
+                    base_name = os.path.splitext(os.path.basename(self.imagen.name))[0]
+                    if img.mode in ('RGBA', 'LA', 'P'):
+                        background = Image.new('RGB', img.size, (255, 255, 255))
+                        if 'A' in img.mode:
+                            background.paste(img, mask=img.split()[-1])
+                        else:
+                            background.paste(img)
+                        img = background
+                    buffer = BytesIO()
+                    img.save(buffer, format='WEBP', quality=85)
+                    filename = f"{slugify(base_name)}_{get_random_string(7)}.webp"
+                    self.imagen.save(filename, ContentFile(buffer.getvalue()), save=False)
+                except Exception as e:
+                    logger.exception("Error convirtiendo imagen de banner a WebP: %s", e)
+
+        super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
         if self.imagen:

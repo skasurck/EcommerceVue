@@ -318,6 +318,9 @@ const defaultForm = () => ({
 })
 
 const form = reactive(defaultForm())
+const LS_SCRAPER_KEY = 'supermex_scraper_task_id'
+const LS_STOCK_KEY = 'supermex_stock_task_id'
+
 const running = ref(false)
 const stockSyncing = ref(false)
 const stockSyncResult = ref(null)
@@ -462,7 +465,9 @@ const runScraper = async () => {
     }
 
     const { data } = await api.post('suppliers/supermex/run/', payload)
+    localStorage.setItem(LS_SCRAPER_KEY, data.task_id)
     const result = await pollTask(data.task_id)
+    localStorage.removeItem(LS_SCRAPER_KEY)
     runSummary.value = result
     await fetchLatest()
   } catch (error) {
@@ -486,7 +491,9 @@ const runStockSync = async () => {
   try {
     ensureInterceptors()
     const { data } = await api.post('suppliers/supermex/stock-sync/', { http2: form.http2 })
+    localStorage.setItem(LS_STOCK_KEY, data.task_id)
     const result = await pollTask(data.task_id)
+    localStorage.removeItem(LS_STOCK_KEY)
     stockSyncResult.value = result
   } catch (error) {
     runError.value = error.response?.data?.detail || error.message || 'Error al sincronizar stock.'
@@ -517,5 +524,41 @@ const fetchLatest = async () => {
   }
 }
 
-onMounted(fetchLatest)
+onMounted(async () => {
+  await fetchLatest()
+
+  // Retomar scraper de importación si estaba en progreso
+  const scraperTaskId = localStorage.getItem(LS_SCRAPER_KEY)
+  if (scraperTaskId) {
+    running.value = true
+    progressStatus.value = 'Retomando importación en progreso...'
+    try {
+      const result = await pollTask(scraperTaskId)
+      localStorage.removeItem(LS_SCRAPER_KEY)
+      runSummary.value = result
+      await fetchLatest()
+    } catch {
+      localStorage.removeItem(LS_SCRAPER_KEY)
+    } finally {
+      running.value = false
+    }
+  }
+
+  // Retomar sync de stock si estaba en progreso
+  const stockTaskId = localStorage.getItem(LS_STOCK_KEY)
+  if (stockTaskId) {
+    stockSyncing.value = true
+    progressStatus.value = 'Retomando sync de stock en progreso...'
+    try {
+      const result = await pollTask(stockTaskId)
+      localStorage.removeItem(LS_STOCK_KEY)
+      stockSyncResult.value = result
+      await fetchLatest()
+    } catch {
+      localStorage.removeItem(LS_STOCK_KEY)
+    } finally {
+      stockSyncing.value = false
+    }
+  }
+})
 </script>
