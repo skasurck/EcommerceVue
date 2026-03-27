@@ -31,4 +31,8 @@ app.conf.beat_schedule = {
         "task": "productos.recalcular_destacados",
         "schedule": crontab(minute=0),  # cada hora en punto
     },
+    "cancelar-pedidos-mp-abandonados": {
+        "task": "pedidos.cancelar_pedidos_mp_abandonados",
+        "schedule": crontab(minute=0, hour="*/2"),  # cada 2 horas
+    },
 }

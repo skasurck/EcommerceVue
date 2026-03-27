@@ -14,6 +14,23 @@ from django.views.decorators.csrf import csrf_exempt
 logger = logging.getLogger(__name__)
 
 
+def _get_mp_token():
+    """
+    Retorna el token correcto según la variable MP_TEST_MODE o DEBUG.
+    Permite usar credenciales de prueba en el servidor de producción
+    simplemente poniendo MP_TEST_MODE=true en el .env.
+    """
+    test_mode = getattr(settings, 'MP_TEST_MODE', settings.DEBUG)
+    # MP_TEST_MODE puede llegar como string "true"/"false" desde el .env
+    if isinstance(test_mode, str):
+        test_mode = test_mode.lower() in ('true', '1', 'yes')
+    token = settings.MP_ACCESS_TOKEN_TEST if test_mode else settings.MP_ACCESS_TOKEN
+    # Fallback: si el token seleccionado está vacío, intentar el otro
+    if not token:
+        token = settings.MP_ACCESS_TOKEN or settings.MP_ACCESS_TOKEN_TEST
+    return token
+
+
 def _verify_mp_signature(request) -> bool:
     """
     Verifica la firma del webhook de Mercado Pago usando HMAC-SHA256.
@@ -65,7 +82,7 @@ class MercadoPagoWebhookView(APIView):
             return Response({"detail": "Firma inválida"}, status=status.HTTP_400_BAD_REQUEST)
 
         notification = request.data
-        sdk = mercadopago.SDK(settings.MP_ACCESS_TOKEN_TEST if settings.DEBUG else settings.MP_ACCESS_TOKEN)
+        sdk = mercadopago.SDK(_get_mp_token())
 
         # Obtener el payment_id según el formato del evento
         # Nuevo formato Webhooks: {"type": "payment", "action": "payment.updated", "data": {"id": "123"}}
@@ -110,7 +127,7 @@ class MercadoPagoWebhookView(APIView):
 
 class MercadoPagoPreferenceView(APIView):
     def post(self, request, *args, **kwargs):
-        sdk = mercadopago.SDK(settings.MP_ACCESS_TOKEN_TEST if settings.DEBUG else settings.MP_ACCESS_TOKEN)
+        sdk = mercadopago.SDK(_get_mp_token())
 
         cart_items = request.data.get('items', [])
         external_reference = request.data.get('external_reference')  # ID del pedido

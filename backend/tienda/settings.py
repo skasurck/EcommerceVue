@@ -175,6 +175,7 @@ DATABASES = {
 # 🔹 Credenciales de Mercado Pago
 MP_ACCESS_TOKEN = os.getenv("MP_ACCESS_TOKEN", "")
 MP_ACCESS_TOKEN_TEST = os.getenv("MP_ACCESS_TOKEN_TEST", "")
+MP_TEST_MODE = os.getenv("MP_TEST_MODE", "")  # "true" para forzar modo prueba en producción
 # Secreto para verificar la firma de webhooks entrantes de Mercado Pago
 MP_WEBHOOK_SECRET = os.getenv("MP_WEBHOOK_SECRET", "")
 

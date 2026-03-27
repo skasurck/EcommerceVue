@@ -64,16 +64,13 @@
       </div>
     </div>
 
-    <!-- Wallet Brick de Mercado Pago -->
-    <div v-if="metodoPago === 'mercadopago' && (creatingPreference || preferenceId)" class="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-      <div v-if="creatingPreference" class="flex items-center justify-center gap-3 py-8 text-slate-500 dark:text-slate-400">
-        <svg class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-        </svg>
-        <span class="text-sm">Preparando el pago seguro…</span>
-      </div>
-      <div id="walletBrick_container" class="min-h-[60px]"></div>
+    <!-- Estado: preparando pago -->
+    <div v-if="metodoPago === 'mercadopago' && creatingPreference" class="rounded-xl border border-cyan-200 dark:border-cyan-800 bg-cyan-50 dark:bg-cyan-900/20 p-4 flex items-center gap-3">
+      <svg class="w-5 h-5 animate-spin text-cyan-500 shrink-0" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+      </svg>
+      <span class="text-sm text-cyan-700 dark:text-cyan-300">Preparando tu pago seguro, serás redirigido en un momento…</span>
     </div>
 
     <!-- Resumen del pedido -->
@@ -159,7 +156,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useCheckoutStore } from '@/stores/checkout'
@@ -175,13 +172,6 @@ const auth = useAuthStore()
 const metodoPago = ref(store.metodoPago || 'mercadopago')
 const error = ref('')
 const creatingPreference = ref(false)
-const preferenceId = ref(null)
-const walletBrickController = ref(null)
-const mpInstance = ref(null)
-const mpPublicKey =
-  import.meta.env.VITE_MP_PUBLIC_KEY ||
-  import.meta.env.VITE_MP_PUBLIC_KEY_TEST ||
-  ''
 
 const fmt = (n) => Number(n).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })
 
@@ -202,47 +192,8 @@ const buildItemsSnapshot = () => {
   })
 }
 
-const waitForMercadoPago = () => {
-  if (typeof window === 'undefined') return Promise.reject(new Error('No disponible en SSR'))
-  if (window.MercadoPago) return Promise.resolve(window.MercadoPago)
-  return new Promise((resolve, reject) => {
-    let attempts = 0
-    const interval = setInterval(() => {
-      if (window.MercadoPago) { clearInterval(interval); resolve(window.MercadoPago) }
-      else if (++attempts >= 40) { clearInterval(interval); reject(new Error('No se pudo cargar el SDK de Mercado Pago')) }
-    }, 100)
-  })
-}
-
-const cleanupMercadoPago = async () => {
-  preferenceId.value = null
-  if (walletBrickController.value?.unmount) {
-    try { await walletBrickController.value.unmount() } catch { /* silencioso */ }
-  }
-  walletBrickController.value = null
-  mpInstance.value = null
-}
-
-const renderWalletBrick = async (prefId) => {
-  if (!mpPublicKey) throw new Error('Falta la clave pública de Mercado Pago (VITE_MP_PUBLIC_KEY_TEST)')
-  const MercadoPago = await waitForMercadoPago()
-  mpInstance.value = new MercadoPago(mpPublicKey, { locale: 'es-MX' })
-  if (walletBrickController.value?.unmount) await walletBrickController.value.unmount()
-  walletBrickController.value = await mpInstance.value.bricks().create('wallet', 'walletBrick_container', {
-    initialization: { preferenceId: prefId },
-    callbacks: {
-      onError: (mpError) => {
-        console.error('Wallet Brick error', mpError)
-        error.value = 'No se pudo iniciar el checkout de Mercado Pago'
-      },
-    },
-  })
-}
 
 const finalizar = async () => {
-  // Si MP ya está listo → el Wallet Brick maneja el pago
-  if (metodoPago.value === 'mercadopago' && preferenceId.value) return
-
   store.metodoPago = metodoPago.value
   error.value = ''
 
@@ -261,7 +212,7 @@ const finalizar = async () => {
         ...(store.cupon ? { cupon_codigo: store.cupon.codigo } : {}),
       })
       const pedidoId = pedidoRes.data.id
-      const origin = window.location?.origin || 'http://localhost:5173'
+      const origin = window.location?.origin || 'https://mktska.net'
       const prefRes = await createMercadoPagoPreference({
         items: carrito.items,
         external_reference: pedidoId,
@@ -274,19 +225,15 @@ const finalizar = async () => {
         failure_url: `${origin}/checkout?status=failure`,
         pending_url: `${origin}/checkout?status=pending`,
       })
-      const { init_point, preference_id } = prefRes.data || {}
-      if (preference_id && mpPublicKey) {
-        preferenceId.value = preference_id
-        await renderWalletBrick(preference_id)
+      const { init_point } = prefRes.data || {}
+      if (init_point) {
+        window.location.href = init_point
         return
       }
-      if (init_point) { window.location.href = init_point; return }
-      throw new Error('Mercado Pago no devolvió datos suficientes')
+      throw new Error('Mercado Pago no devolvió la URL de pago')
     } catch (e) {
       console.error(e)
       error.value = e.response?.data?.error || e.response?.data?.detail || e.message || 'No se pudo procesar el pago'
-      await cleanupMercadoPago()
-    } finally {
       creatingPreference.value = false
     }
     return
@@ -346,22 +293,16 @@ const subtotal = computed(() => Number(carrito.subtotal))
 const envio = computed(() => Number(store.metodoEnvio?.costo ?? 0))
 const total = computed(() => subtotal.value - store.descuento + envio.value)
 
-const disableFinalizeButton = computed(() =>
-  creatingPreference.value || (metodoPago.value === 'mercadopago' && !!preferenceId.value)
-)
+const disableFinalizeButton = computed(() => creatingPreference.value)
 
 const finalizarLabel = computed(() => {
   if (creatingPreference.value) return 'Procesando...'
-  if (metodoPago.value === 'mercadopago' && preferenceId.value) return 'Usa el botón de arriba'
   if (metodoPago.value === 'mercadopago') return 'Ir a Mercado Pago →'
   return 'Confirmar pedido'
 })
 
-watch(() => metodoPago.value, async (nuevo, anterior) => {
+watch(() => metodoPago.value, (nuevo) => {
   store.metodoPago = nuevo
-  if (nuevo !== 'mercadopago' && anterior === 'mercadopago') await cleanupMercadoPago()
   if (nuevo !== 'mercadopago') error.value = ''
 })
-
-onBeforeUnmount(() => cleanupMercadoPago())
 </script>
