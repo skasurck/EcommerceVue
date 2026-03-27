@@ -110,6 +110,12 @@
 
         <!-- Fila 2: Links de navegación -->
         <div class="flex items-center gap-1 px-4 lg:px-8 py-1 border-t border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/60 overflow-x-auto mobile-no-scrollbar">
+          <RouterLink to="/"
+            class="px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap hover:bg-slate-200 dark:hover:bg-slate-800"
+            :class="isActive('/') ? 'text-cyan-600 dark:text-cyan-300' : 'text-slate-700 dark:text-slate-300'">
+            Inicio
+          </RouterLink>
+
           <RouterLink to="/productos"
             class="px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap hover:bg-slate-200 dark:hover:bg-slate-800"
             :class="isActive('/productos') ? 'text-cyan-600 dark:text-cyan-300' : 'text-slate-700 dark:text-slate-300'">
@@ -153,6 +159,13 @@
             class="px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800">
             Registrarse
           </RouterLink>
+
+          <!-- Modo oscuro: siempre visible, al final de la barra -->
+          <button type="button" @click="toggleTheme"
+            class="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 shrink-0">
+            <span>{{ isDark ? '☀' : '☾' }}</span>
+            {{ isDark ? 'Modo claro' : 'Modo oscuro' }}
+          </button>
         </div>
       </div>
 
@@ -306,6 +319,7 @@
           <div class="my-1 border-t border-slate-100 dark:border-slate-800"></div>
 
           <!-- Navegación -->
+          <RouterLink to="/" class="px-3 py-2.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-medium" @click="openMobile=false">Inicio</RouterLink>
           <RouterLink to="/productos" class="px-3 py-2.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-medium" @click="openMobile=false">Tienda</RouterLink>
           <RouterLink to="/categorias" class="px-3 py-2.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-medium" @click="openMobile=false">Categorías</RouterLink>
           <RouterLink v-if="auth.isAuthenticated" to="/mi-cuenta" class="px-3 py-2.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-medium" @click="openMobile=false">Mi cuenta</RouterLink>
