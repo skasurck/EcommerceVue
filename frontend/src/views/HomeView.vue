@@ -107,13 +107,6 @@ const fetchBloque = async (params) => {
 }
 
 onMounted(async () => {
-  const storedLocation = localStorage.getItem(LOCATION_STORAGE_KEY)
-  if (storedLocation) {
-    locationLabel.value = storedLocation
-  } else {
-    detectLocationByIP()
-  }
-
   await fetchHomeSlider()
   startAutoplay()
 
