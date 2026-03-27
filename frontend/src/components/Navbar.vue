@@ -3,125 +3,156 @@
     <div class="mx-auto max-w-7xl">
 
       <!-- ═══════════════════════════════════════════════
-           DESKTOP: fila única
+           DESKTOP: dos filas estilo Amazon
       ═══════════════════════════════════════════════ -->
-      <div class="hidden lg:flex h-14 items-center justify-between px-4 sm:px-6 lg:px-8">
+      <div class="hidden lg:block">
 
-        <!-- Logo -->
-        <RouterLink to="/" class="flex items-center shrink-0">
-          <img src="/logo-mktska.png" alt="Mktska Digital" class="h-9 w-auto object-contain [filter:brightness(0)] dark:[filter:brightness(0)_invert(1)] transition-[filter]" />
-        </RouterLink>
+        <!-- Fila 1: Logo | Ubicación | Búsqueda | Cuenta | Carrito -->
+        <div class="flex h-14 items-center gap-4 px-4 lg:px-8">
 
-        <!-- Search desktop -->
-        <div class="flex flex-1 mx-6 relative" @click.outside="showDropdown=false">
-          <form class="w-full flex gap-1" @submit.prevent="goSearch">
-            <input
-              v-model="q"
-              type="search"
-              placeholder="Buscar productos…"
-              class="flex-1 h-9 rounded-l-md bg-slate-100 dark:bg-slate-800/70 text-slate-900 dark:text-slate-100 placeholder-slate-400 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 px-3"
-              role="combobox"
-              :aria-expanded="showDropdown"
-              aria-controls="search-desktop"
-              @keydown="onKeydown"
-              @focus="onFocus"
-            />
-            <button type="submit" class="h-9 px-3 bg-cyan-500 hover:bg-cyan-400 text-white rounded-r-md transition flex items-center" aria-label="Buscar">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.35-4.35m0 0A7.5 7.5 0 1 0 6.15 6.15a7.5 7.5 0 0 0 10.5 10.5Z"/>
-              </svg>
-            </button>
-          </form>
-          <SearchDropdown id="search-desktop" :show="showDropdown" :loading="loading" :error="error" :suggestions="suggestions" :active-index="activeIndex" @select="selectSuggestion" @more="moreResults" @hover="activeIndex = $event" />
-        </div>
+          <!-- Logo -->
+          <RouterLink to="/" class="flex items-center shrink-0">
+            <img src="/logo-mktska.png" alt="Mktska Digital" class="h-9 w-auto object-contain [filter:brightness(0)] dark:[filter:brightness(0)_invert(1)] transition-[filter]" />
+          </RouterLink>
 
-        <!-- Right actions desktop -->
-        <div class="flex items-center gap-3">
-          <!-- Tema -->
-          <button type="button"
-            class="inline-flex items-center justify-center w-9 h-9 rounded-md border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
-            :aria-label="isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'"
-            @click="toggleTheme">
-            <span v-if="isDark">☀</span>
-            <span v-else>☾</span>
+          <!-- Ubicación -->
+          <button type="button" @click="changeLocation"
+            class="shrink-0 flex flex-col items-start leading-tight hover:ring-1 hover:ring-cyan-400 rounded px-1 py-0.5 transition-shadow">
+            <span class="text-[10px] text-slate-500 dark:text-slate-400">Enviar a</span>
+            <span class="text-xs font-bold text-slate-800 dark:text-slate-100 flex items-center gap-0.5 max-w-[110px] truncate">
+              {{ locationLabel }}
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+            </span>
           </button>
 
-          <!-- Links desktop -->
-          <div class="flex items-center gap-4 text-sm">
-            <RouterLink :to="{name:'productos'}"
-              class="px-2 py-1 rounded hover:text-cyan-600 dark:hover:text-cyan-300"
-              :class="isActive('/productos') ? 'text-cyan-600 dark:text-cyan-300' : 'text-slate-700 dark:text-slate-200'">
-              Tienda
-            </RouterLink>
+          <!-- Búsqueda -->
+          <div class="flex flex-1 relative" @click.outside="showDropdown=false">
+            <form class="w-full flex" @submit.prevent="goSearch">
+              <input
+                v-model="q"
+                type="search"
+                placeholder="Buscar productos…"
+                class="flex-1 h-10 rounded-l-md bg-slate-100 dark:bg-slate-800/70 text-slate-900 dark:text-slate-100 placeholder-slate-400 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 px-3 text-sm"
+                role="combobox"
+                :aria-expanded="showDropdown"
+                aria-controls="search-desktop"
+                @keydown="onKeydown"
+                @focus="onFocus"
+              />
+              <button type="submit" class="h-10 px-4 bg-cyan-500 hover:bg-cyan-400 text-white rounded-r-md transition flex items-center" aria-label="Buscar">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.35-4.35m0 0A7.5 7.5 0 1 0 6.15 6.15a7.5 7.5 0 0 0 10.5 10.5Z"/>
+                </svg>
+              </button>
+            </form>
+            <SearchDropdown id="search-desktop" :show="showDropdown" :loading="loading" :error="error" :suggestions="suggestions" :active-index="activeIndex" @select="selectSuggestion" @more="moreResults" @hover="activeIndex = $event" />
+          </div>
 
-            <div class="relative" v-click-outside="() => openCategories = false">
-              <RouterLink :to="{name:'categorias'}"
-                class="px-2 py-1 rounded hover:text-cyan-600 dark:hover:text-cyan-300"
-                :class="isActive('/categorias') ? 'text-cyan-600 dark:text-cyan-300' : 'text-slate-700 dark:text-slate-200'"
-                @click.prevent="openCategories = !openCategories">
-                Categorías
+          <!-- Cuenta -->
+          <div class="shrink-0">
+            <!-- No autenticado -->
+            <div v-if="!auth.isAuthenticated" class="flex flex-col items-start leading-tight">
+              <span class="text-[10px] text-slate-500 dark:text-slate-400">
+                Hola, <RouterLink to="/login" class="text-cyan-600 dark:text-cyan-400 hover:underline">identifícate</RouterLink>
+              </span>
+              <RouterLink to="/login" class="text-xs font-bold text-slate-800 dark:text-slate-100 hover:text-cyan-600 dark:hover:text-cyan-300 flex items-center gap-0.5">
+                Cuenta y listas
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
               </RouterLink>
-              <div v-if="openCategories" class="absolute left-0 mt-2 w-64 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md shadow-lg">
-                <CategoryMenu />
+            </div>
+
+            <!-- Autenticado -->
+            <div v-else class="relative">
+              <button @click="openUser = !openUser"
+                class="flex flex-col items-start leading-tight hover:ring-1 hover:ring-cyan-400 rounded px-1 py-0.5 transition-shadow">
+                <span class="text-[10px] text-slate-500 dark:text-slate-400">Hola, {{ userFirstName }}</span>
+                <span class="text-xs font-bold text-slate-800 dark:text-slate-100 flex items-center gap-0.5">
+                  Mi cuenta
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+                </span>
+              </button>
+
+              <div v-if="openUser" @click.outside="openUser=false"
+                class="absolute right-0 mt-2 w-60 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-xl p-1 z-50">
+                <p class="px-3 py-2 text-xs text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-800 truncate">{{ userLabel }}</p>
+                <!-- Modo oscuro dentro del dropdown -->
+                <button @click="toggleTheme" class="w-full flex items-center gap-2 px-3 py-2 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-sm text-slate-700 dark:text-slate-200">
+                  <span>{{ isDark ? '☀' : '☾' }}</span>
+                  {{ isDark ? 'Modo claro' : 'Modo oscuro' }}
+                </button>
+                <div class="my-1 border-t border-slate-100 dark:border-slate-800"></div>
+                <RouterLink to="/mi-cuenta" class="block px-3 py-2 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-sm text-slate-700 dark:text-slate-200">Mi cuenta</RouterLink>
+                <RouterLink to="/lista-deseos" class="flex items-center gap-2 px-3 py-2 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-sm text-slate-700 dark:text-slate-200">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                  </svg>
+                  Lista de deseos
+                  <span v-if="wishlist.total" class="ml-auto text-xs bg-rose-500 text-white rounded-full px-1.5">{{ wishlist.total }}</span>
+                </RouterLink>
+                <RouterLink v-if="auth.hasAnyRole?.(['admin','super_admin'])" to="/admin" class="block px-3 py-2 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-sm text-slate-700 dark:text-slate-200">Panel admin</RouterLink>
+                <div class="my-1 border-t border-slate-100 dark:border-slate-800"></div>
+                <button @click="logout" class="w-full text-left block px-3 py-2 rounded hover:bg-rose-50 dark:hover:bg-rose-900/20 text-sm text-rose-500 dark:text-rose-400">Cerrar sesión</button>
               </div>
             </div>
-
-            <RouterLink v-if="auth.isAuthenticated && auth.hasAnyRole?.(['admin','super_admin'])"
-              to="/admin"
-              class="px-2 py-1 rounded hover:text-cyan-600 dark:hover:text-cyan-300"
-              :class="sectionActive('/admin') ? 'text-cyan-600 dark:text-cyan-300' : 'text-slate-700 dark:text-slate-200'">
-              Admin
-            </RouterLink>
           </div>
 
-          <!-- Wishlist -->
-          <RouterLink v-if="auth.isAuthenticated" to="/lista-deseos"
-            class="relative inline-flex items-center justify-center w-9 h-9 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-200"
-            aria-label="Lista de deseos">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-            </svg>
-            <span v-if="wishlist.total" class="absolute -top-1 -right-1 min-w-[18px] h-[18px] text-[11px] leading-[18px] text-center rounded-full bg-rose-500 text-white px-1">{{ wishlist.total }}</span>
+          <!-- Carrito -->
+          <RouterLink to="/carrito" class="shrink-0 flex flex-col items-center leading-tight hover:ring-1 hover:ring-cyan-400 rounded px-1 py-0.5 transition-shadow" aria-label="Carrito">
+            <div class="relative">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-slate-700 dark:text-slate-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
+              </svg>
+              <span v-if="carrito.totalCantidad" class="absolute -top-1.5 -right-1.5 min-w-[20px] h-[20px] text-[11px] leading-[20px] text-center rounded-full bg-cyan-500 text-white font-bold px-1">{{ carrito.totalCantidad }}</span>
+            </div>
+            <span class="text-[10px] font-bold text-slate-800 dark:text-slate-100">Carrito</span>
+          </RouterLink>
+        </div>
+
+        <!-- Fila 2: Links de navegación -->
+        <div class="flex items-center gap-1 px-4 lg:px-8 py-1 border-t border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/60 overflow-x-auto mobile-no-scrollbar">
+          <RouterLink to="/productos"
+            class="px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap hover:bg-slate-200 dark:hover:bg-slate-800"
+            :class="isActive('/productos') ? 'text-cyan-600 dark:text-cyan-300' : 'text-slate-700 dark:text-slate-300'">
+            Tienda
           </RouterLink>
 
-          <!-- Cart -->
-          <RouterLink to="/carrito"
-            class="relative inline-flex items-center justify-center w-9 h-9 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-200"
-            aria-label="Carrito">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
-            </svg>
-            <span v-if="carrito.totalCantidad" class="absolute -top-1 -right-1 min-w-[18px] h-[18px] text-[11px] leading-[18px] text-center rounded-full bg-cyan-500 text-white px-1">{{ carrito.totalCantidad }}</span>
-          </RouterLink>
-
-          <!-- Auth / User menu desktop -->
-          <div v-if="!auth.isAuthenticated" class="flex items-center gap-2">
-            <RouterLink to="/login" class="text-slate-700 dark:text-slate-200 hover:text-cyan-600 dark:hover:text-cyan-300 text-sm">Entrar</RouterLink>
-            <RouterLink to="/registro" class="text-slate-700 dark:text-slate-200 hover:text-cyan-600 dark:hover:text-cyan-300 text-sm">Registrarse</RouterLink>
-          </div>
-
-          <div v-else class="relative">
-            <button @click="openUser = !openUser"
-                    class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200">
-              <span class="inline-flex w-7 h-7 rounded-full bg-cyan-100 dark:bg-slate-700 items-center justify-center text-[12px] font-semibold text-cyan-700 dark:text-slate-100">{{ initials }}</span>
-              <span class="hidden md:inline text-sm truncate max-w-[140px]">{{ userFirstName }}</span>
+          <div class="relative" v-click-outside="() => openCategories = false">
+            <button
+              class="px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap hover:bg-slate-200 dark:hover:bg-slate-800 flex items-center gap-1"
+              :class="isActive('/categorias') ? 'text-cyan-600 dark:text-cyan-300' : 'text-slate-700 dark:text-slate-300'"
+              @click="openCategories = !openCategories">
+              Categorías
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
             </button>
-
-            <div v-if="openUser" @click.outside="openUser=false"
-                 class="absolute right-0 mt-2 w-56 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg p-1">
-              <p class="px-3 py-2 text-xs text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-800">{{ userLabel }}</p>
-              <RouterLink to="/mi-cuenta" class="block px-3 py-2 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-sm text-slate-700 dark:text-slate-200">Mi cuenta</RouterLink>
-              <RouterLink to="/lista-deseos" class="flex items-center gap-2 px-3 py-2 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-sm text-slate-700 dark:text-slate-200">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                </svg>
-                Lista de deseos
-                <span v-if="wishlist.total" class="ml-auto text-xs bg-rose-500 text-white rounded-full px-1.5">{{ wishlist.total }}</span>
-              </RouterLink>
-              <RouterLink v-if="auth.hasAnyRole?.(['admin','super_admin'])" to="/admin" class="block px-3 py-2 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-sm text-slate-700 dark:text-slate-200">Panel admin</RouterLink>
-              <button @click="logout" class="w-full text-left block px-3 py-2 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-sm text-rose-500 dark:text-rose-300">Cerrar sesión</button>
+            <div v-if="openCategories" class="absolute left-0 top-full mt-1 w-64 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md shadow-lg z-50">
+              <CategoryMenu />
             </div>
           </div>
+
+          <RouterLink v-if="auth.isAuthenticated" to="/lista-deseos"
+            class="px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap hover:bg-slate-200 dark:hover:bg-slate-800 flex items-center gap-1"
+            :class="isActive('/lista-deseos') ? 'text-cyan-600 dark:text-cyan-300' : 'text-slate-700 dark:text-slate-300'">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+            </svg>
+            Favoritos
+            <span v-if="wishlist.total" class="text-xs bg-rose-500 text-white rounded-full px-1.5 leading-4">{{ wishlist.total }}</span>
+          </RouterLink>
+
+          <RouterLink v-if="auth.isAuthenticated && auth.hasAnyRole?.(['admin','super_admin'])" to="/admin"
+            class="px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap hover:bg-slate-200 dark:hover:bg-slate-800"
+            :class="sectionActive('/admin') ? 'text-cyan-600 dark:text-cyan-300' : 'text-slate-700 dark:text-slate-300'">
+            Panel admin
+          </RouterLink>
+
+          <RouterLink v-if="!auth.isAuthenticated" to="/login"
+            class="px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800">
+            Entrar
+          </RouterLink>
+          <RouterLink v-if="!auth.isAuthenticated" to="/registro"
+            class="px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800">
+            Registrarse
+          </RouterLink>
         </div>
       </div>
 
