@@ -18,7 +18,8 @@
       "Bash(venv/Scripts/python manage.py migrate)",
       "Bash(find /c/Users/skasu/Documents/Proyectos/EcommerceVue/EcommerceVue -type d -name *payment* -o -type d -name *checkout* -o -type d -name *order* -o -type d -name *mercado*)",
       "Bash(find /c/Users/skasu/Documents/Proyectos/EcommerceVue/EcommerceVue/frontend/src/views -type f -name *[Cc]heckout* -o -name *[Pp]ago*)",
-      "Bash(python manage.py makemigrations pedidos --name=\"add_estados_disputa_contracargo\")"
+      "Bash(python manage.py makemigrations pedidos --name=\"add_estados_disputa_contracargo\")",
+      "Bash(find c:/Users/skasu/Documents/Proyectos/EcommerceVue/EcommerceVue -path *icon* -o -path *categor*icon*)"
     ]
   }
 }

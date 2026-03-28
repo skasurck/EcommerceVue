@@ -122,18 +122,11 @@
             Tienda
           </RouterLink>
 
-          <div class="relative" v-click-outside="() => openCategories = false">
-            <button
-              class="px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap hover:bg-slate-200 dark:hover:bg-slate-800 flex items-center gap-1"
-              :class="isActive('/categorias') ? 'text-cyan-600 dark:text-cyan-300' : 'text-slate-700 dark:text-slate-300'"
-              @click="openCategories = !openCategories">
-              Categorías
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
-            </button>
-            <div v-if="openCategories" class="absolute left-0 top-full mt-1 w-64 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md shadow-lg z-50">
-              <CategoryMenu />
-            </div>
-          </div>
+          <RouterLink to="/categorias"
+            class="px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap hover:bg-slate-200 dark:hover:bg-slate-800"
+            :class="sectionActive('/categori') ? 'text-cyan-600 dark:text-cyan-300' : 'text-slate-700 dark:text-slate-300'">
+            Categorías
+          </RouterLink>
 
           <RouterLink v-if="auth.isAuthenticated" to="/lista-deseos"
             class="px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap hover:bg-slate-200 dark:hover:bg-slate-800 flex items-center gap-1"

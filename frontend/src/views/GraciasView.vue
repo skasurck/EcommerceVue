@@ -166,7 +166,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useHead } from '@vueuse/head'
 import { getOrderByPreferenceId } from '@/services/pedidos'
-import api from '@/services/api'
+import api from '@/axios'
 
 const route = useRoute()
 const router = useRouter()
