@@ -52,13 +52,31 @@
           </div>
         </label>
 
-        <!-- Datos de transferencia -->
+        <!-- Datos de transferencia (dinámicos desde el admin) -->
         <div v-if="metodoPago === 'transferencia'" class="rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 p-4 text-sm space-y-1.5">
           <p class="font-semibold text-slate-700 dark:text-slate-300 mb-2">Datos para transferencia</p>
-          <div class="flex justify-between"><span class="text-slate-500 dark:text-slate-400">Banco</span><span class="font-medium text-slate-800 dark:text-slate-100">BBVA</span></div>
-          <div class="flex justify-between"><span class="text-slate-500 dark:text-slate-400">CLABE</span><span class="font-mono font-medium text-slate-800 dark:text-slate-100">000000000000000000</span></div>
-          <div class="flex justify-between"><span class="text-slate-500 dark:text-slate-400">Beneficiario</span><span class="font-medium text-slate-800 dark:text-slate-100">Mktska Digital</span></div>
-          <p class="text-xs text-amber-600 dark:text-amber-400 pt-1">⚠ Envía tu comprobante de pago al correo de contacto para confirmar tu pedido.</p>
+          <template v-if="datosBanco">
+            <div v-if="datosBanco.banco" class="flex justify-between">
+              <span class="text-slate-500 dark:text-slate-400">Banco</span>
+              <span class="font-medium text-slate-800 dark:text-slate-100">{{ datosBanco.banco }}</span>
+            </div>
+            <div v-if="datosBanco.clabe" class="flex justify-between">
+              <span class="text-slate-500 dark:text-slate-400">CLABE</span>
+              <span class="font-mono font-medium text-slate-800 dark:text-slate-100">{{ datosBanco.clabe }}</span>
+            </div>
+            <div v-if="datosBanco.numero_cuenta" class="flex justify-between">
+              <span class="text-slate-500 dark:text-slate-400">Núm. cuenta</span>
+              <span class="font-mono font-medium text-slate-800 dark:text-slate-100">{{ datosBanco.numero_cuenta }}</span>
+            </div>
+            <div v-if="datosBanco.beneficiario" class="flex justify-between">
+              <span class="text-slate-500 dark:text-slate-400">Beneficiario</span>
+              <span class="font-medium text-slate-800 dark:text-slate-100">{{ datosBanco.beneficiario }}</span>
+            </div>
+            <p v-if="datosBanco.instrucciones" class="text-xs text-amber-600 dark:text-amber-400 pt-1 border-t border-slate-200 dark:border-slate-700 mt-1">
+              {{ datosBanco.instrucciones }}
+            </p>
+          </template>
+          <p v-else class="text-slate-400 dark:text-slate-500 text-xs">Cargando datos bancarios…</p>
         </div>
 
       </div>
@@ -129,26 +147,34 @@
     </div>
 
     <!-- Acciones -->
-    <div class="flex gap-3 pt-2">
+    <div class="flex gap-3 pt-1">
       <button
         type="button"
         @click="emit('back')"
-        class="flex-1 sm:flex-none px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-        ← Atrás
+        class="flex items-center gap-1.5 px-5 py-3 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+      >
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/>
+        </svg>
+        Atrás
       </button>
       <button
         type="button"
         @click="finalizar"
         :disabled="disableFinalizeButton"
-        class="flex-1 px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2"
+        class="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-colors"
         :class="disableFinalizeButton
           ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed'
-          : 'bg-cyan-500 hover:bg-cyan-400 text-white shadow-sm'">
+          : 'bg-cyan-500 hover:bg-cyan-400 text-white shadow-sm'"
+      >
         <svg v-if="creatingPreference" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
         </svg>
         {{ finalizarLabel }}
+        <svg v-if="!creatingPreference" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/>
+        </svg>
       </button>
     </div>
 
@@ -156,13 +182,14 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useCheckoutStore } from '@/stores/checkout'
 import { useCarritoStore } from '@/stores/carrito'
 import { crearPedido } from '@/services/checkout'
 import { createMercadoPagoPreference } from '@/services/pagos'
+import axios from '@/axios'
 
 const emit = defineEmits(['back', 'complete'])
 const router = useRouter()
@@ -172,6 +199,15 @@ const auth = useAuthStore()
 const metodoPago = ref(store.metodoPago || 'mercadopago')
 const error = ref('')
 const creatingPreference = ref(false)
+
+// Datos bancarios dinámicos
+const datosBanco = ref(null)
+onMounted(async () => {
+  try {
+    const { data } = await axios.get('/pagos/transferencia/config/')
+    datosBanco.value = data
+  } catch { /* silencioso */ }
+})
 
 const fmt = (n) => Number(n).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })
 

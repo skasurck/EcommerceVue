@@ -7,6 +7,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
 from pedidos.models import Pedido
+from pagos.models import ConfiguracionTransferencia
 import json
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
@@ -279,3 +280,32 @@ class MercadoPagoPreferenceView(APIView):
         except Exception as e:
             logger.exception("Error al crear preferencia de Mercado Pago: %s", e)
             return Response({"error": "Hubo un problema al comunicarse con Mercado Pago."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+TRANSFERENCIA_FIELDS = ['banco', 'clabe', 'numero_cuenta', 'beneficiario', 'instrucciones', 'activa']
+
+
+class ConfiguracionTransferenciaView(APIView):
+    """
+    GET  — público, para el checkout.
+    PUT  — solo admin/super_admin.
+    """
+
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [permissions.AllowAny()]
+        return [permissions.IsAuthenticated()]
+
+    def get(self, request):
+        cfg = ConfiguracionTransferencia.get()
+        return Response({f: getattr(cfg, f) for f in TRANSFERENCIA_FIELDS})
+
+    def put(self, request):
+        if not request.user.is_staff and not getattr(request.user, 'rol', '') in ('admin', 'super_admin'):
+            return Response({'detail': 'No autorizado'}, status=status.HTTP_403_FORBIDDEN)
+        cfg = ConfiguracionTransferencia.get()
+        for field in TRANSFERENCIA_FIELDS:
+            if field in request.data:
+                setattr(cfg, field, request.data[field])
+        cfg.save()
+        return Response({f: getattr(cfg, f) for f in TRANSFERENCIA_FIELDS})
