@@ -832,7 +832,73 @@ def _build_category_prompt() -> str:
     return "\n".join(lines)
 
 
+def _build_full_category_prompt() -> str:
+    """Construye el árbol completo de categorías con rutas exactas para LLMs."""
+    lines = []
+    for main in MAIN_CATEGORIES:
+        lines.append(f"\n{main}:")
+        for path in SUBCATEGORIES.get(main, []):
+            lines.append(f"  - {path}")
+    return "\n".join(lines)
+
+
 _CATEGORY_PROMPT_CACHE: str | None = None
+_FULL_CATEGORY_PROMPT_CACHE: str | None = None
+
+
+def _classify_with_anthropic(text: str) -> ClassificationResult:
+    """Clasifica usando Claude Haiku. Más preciso que BERT."""
+    global _FULL_CATEGORY_PROMPT_CACHE
+    if _FULL_CATEGORY_PROMPT_CACHE is None:
+        _FULL_CATEGORY_PROMPT_CACHE = _build_full_category_prompt()
+
+    try:
+        import anthropic
+    except ImportError:
+        raise ImportError("Instala 'anthropic': pip install anthropic")
+
+    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+
+    main_list = "\n".join(f"- {m}" for m in MAIN_CATEGORIES)
+
+    system_prompt = (
+        "Eres un clasificador experto de productos de tecnología para una tienda en México. "
+        "Tu tarea es asignar la categoría principal y subcategoría MÁS ESPECÍFICA posible. "
+        "DEBES usar los nombres EXACTAMENTE como aparecen en las listas, respetando tildes, mayúsculas y paréntesis. "
+        'Responde ÚNICAMENTE con JSON válido: {"main": "<nombre exacto>", "sub": "<ruta exacta completa>"}'
+    )
+
+    user_prompt = (
+        f"Producto: {text[:600]}\n\n"
+        f"CATEGORÍAS PRINCIPALES (copia el nombre EXACTO):\n{main_list}\n\n"
+        f"ÁRBOL COMPLETO DE SUBCATEGORÍAS (usa la ruta completa 'Principal > Sub > Hoja'):\n{_FULL_CATEGORY_PROMPT_CACHE}\n\n"
+        "Elige la categoría y subcategoría más específica y apropiada. "
+        "Responde solo con JSON."
+    )
+
+    message = client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=150,
+        messages=[{"role": "user", "content": f"{system_prompt}\n\n{user_prompt}"}],
+    )
+
+    raw = message.content[0].text.strip()
+    # Extraer JSON si viene con texto adicional
+    import re as _re
+    json_match = _re.search(r'\{[^}]+\}', raw, _re.DOTALL)
+    raw = json_match.group(0) if json_match else raw
+    data = json.loads(raw)
+
+    main_label = data.get("main", "").strip()
+    sub_leaf = data.get("sub", "").strip()
+
+    if main_label not in MAIN_CATEGORIES:
+        logger.warning("Anthropic devolvió main desconocido '%s', usando fallback.", main_label)
+        main_label = MAIN_CATEGORIES[0]
+
+    sub_label = safe_path(main_label, sub_leaf) if sub_leaf else GENERIC_SUBCATEGORY_BY_MAIN.get(main_label)
+
+    return ClassificationResult(main=main_label, sub=sub_label, main_score=0.97, sub_score=0.95)
 
 
 def _classify_with_openai(text: str) -> ClassificationResult:
@@ -896,9 +962,14 @@ def _classify_with_openai(text: str) -> ClassificationResult:
 def classify_text(text: str, image: Image.Image | None = None) -> ClassificationResult:
     """Clasifica un texto en categorías y subcategorías.
 
-    Usa OpenAI si OPENAI_API_KEY está configurado (rápido),
-    si no usa el pipeline local BERT (lento en CPU).
+    Prioridad: Anthropic Claude > OpenAI > pipeline local BERT.
     """
+    if os.environ.get("ANTHROPIC_API_KEY"):
+        try:
+            return _classify_with_anthropic(text)
+        except Exception as exc:
+            logger.warning("Anthropic falló (%s), intentando OpenAI.", exc)
+
     if os.environ.get("OPENAI_API_KEY"):
         try:
             return _classify_with_openai(text)

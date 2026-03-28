@@ -26,6 +26,7 @@ s3transfer==0.13.1
 jmespath==1.0.1
 transformers
 openai
+anthropic
 selectolax==0.4.1
 lxml==6.0.1
 openpyxl==3.0.7
