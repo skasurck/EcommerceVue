@@ -132,13 +132,16 @@
                 <select
                   v-model="pedido.estado"
                   @change="cambiarEstado(pedido)"
-                  class="h-9 rounded-md border border-slate-300 px-2 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  class="h-9 rounded-md border px-2 font-medium text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                  :class="estadoClasses(pedido.estado)"
                 >
                   <option value="pendiente">Pendiente</option>
                   <option value="pagado">Pagado</option>
                   <option value="confirmado">Confirmado</option>
                   <option value="enviado">Enviado</option>
                   <option value="cancelado">Cancelado</option>
+                  <option value="en_disputa">En disputa</option>
+                  <option value="contracargo">Contracargo</option>
                 </select>
               </td>
               <td class="px-3 py-2 text-slate-700">
@@ -248,6 +251,18 @@
 import { ref, nextTick } from 'vue'
 import axios from '@/axios'
 import { money, formatFecha } from '@/utils/formatters'
+
+const ESTADO_CLASSES = {
+  pendiente:   'bg-amber-50  border-amber-300  text-amber-800',
+  pagado:      'bg-emerald-50 border-emerald-400 text-emerald-800',
+  confirmado:  'bg-blue-50   border-blue-300   text-blue-800',
+  enviado:     'bg-indigo-50 border-indigo-300 text-indigo-800',
+  cancelado:   'bg-red-50    border-red-300    text-red-800',
+  en_disputa:  'bg-orange-50 border-orange-300 text-orange-800',
+  contracargo: 'bg-rose-100  border-rose-400   text-rose-900',
+}
+const estadoClasses = (estado) =>
+  ESTADO_CLASSES[estado] ?? 'bg-slate-50 border-slate-300 text-slate-800'
 import { useRouter, RouterLink } from 'vue-router'
 
 const pedidos = ref([])
