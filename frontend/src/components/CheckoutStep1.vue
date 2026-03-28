@@ -262,7 +262,7 @@ const buscarCP = async (cp) => {
     const primero = zips[0];
     // Auto-llenar campos —  el usuario puede corregirlos si quiere
     estado.value = primero.d_estado ?? estado.value;
-    ciudad.value = primero.d_ciudad || primero.D_mnpio || ciudad.value;
+    ciudad.value = primero.D_mnpio || primero.d_ciudad || ciudad.value;
     pais.value = 'México';
     // Si solo hay una colonia, auto-seleccionarla
     if (colonias.value.length === 1) colonia.value = colonias.value[0];
