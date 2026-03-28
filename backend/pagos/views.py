@@ -84,41 +84,89 @@ class MercadoPagoWebhookView(APIView):
         notification = request.data
         sdk = mercadopago.SDK(_get_mp_token())
 
-        # Obtener el payment_id según el formato del evento
-        # Nuevo formato Webhooks: {"type": "payment", "action": "payment.updated", "data": {"id": "123"}}
-        # Formato IPN legacy:     {"topic": "payment", "resource": "/v1/payments/123"}
-        payment_id = None
-
         notif_type = notification.get('type') or notification.get('topic', '')
+        data = notification.get('data') or {}
+        event_id = data.get('id') or request.query_params.get('data.id')
+
+        # ── Contracargo ──────────────────────────────────────────────────────
+        if notif_type == 'chargebacks':
+            try:
+                pedido = Pedido.objects.get(mercadopago_payment_id=str(event_id)) if event_id else None
+                if pedido:
+                    pedido.estado = 'contracargo'
+                    pedido.save(update_fields=['estado'])
+                    logger.critical(
+                        "CONTRACARGO recibido: pedido #%s, chargeback_id=%s",
+                        pedido.id, event_id,
+                    )
+                else:
+                    logger.critical("CONTRACARGO recibido pero pedido no encontrado: chargeback_id=%s", event_id)
+            except Exception as e:
+                logger.exception("Error procesando contracargo (id=%s): %s", event_id, e)
+            return Response(status=status.HTTP_200_OK)
+
+        # ── Pago (aprobado, fraude, disputa) ─────────────────────────────────
+        payment_id = None
         if notif_type == 'payment':
-            data = notification.get('data') or {}
-            # Nuevo formato
-            payment_id = data.get('id') or request.query_params.get('data.id')
-            # IPN legacy: resource puede ser "/v1/payments/123" o solo "123"
+            payment_id = event_id
             if not payment_id:
                 resource = notification.get('resource', '')
                 payment_id = str(resource).split('/')[-1] if resource else None
 
         if not payment_id:
-            # Evento no relevante (merchant_order, etc.) → responder 200 de todos modos
             return Response(status=status.HTTP_200_OK)
 
         try:
             payment_info = sdk.payment().get(payment_id)
             payment = payment_info.get("response", {})
+            pay_status = payment.get('status', '')
+            pay_detail = payment.get('status_detail', '')
+            external_reference = payment.get('external_reference')
 
-            if payment.get('status') == 'approved':
-                external_reference = payment.get('external_reference')
-                if external_reference:
-                    try:
-                        pedido = Pedido.objects.get(id=external_reference)
-                        if pedido.estado != 'pagado':
-                            pedido.estado = 'pagado'
-                            pedido.mercadopago_payment_id = str(payment.get('id', ''))
-                            pedido.save()
-                            logger.info("Pedido %s marcado como pagado via MP payment %s.", external_reference, payment_id)
-                    except Pedido.DoesNotExist:
-                        logger.warning("Webhook MP: pedido con external_reference=%s no encontrado.", external_reference)
+            # Fraudes: status_detail con indicadores de fraude o acción de alerta
+            FRAUD_DETAILS = {
+                'cc_rejected_blacklist', 'cc_rejected_fraud',
+                'fraud_risk_detected', 'risk_alert',
+            }
+            is_fraud = (
+                pay_detail in FRAUD_DETAILS
+                or notification.get('action', '') in ('risk_alert', 'payment.fraud_risk')
+            )
+
+            if external_reference:
+                try:
+                    pedido = Pedido.objects.get(id=external_reference)
+
+                    if is_fraud:
+                        pedido.estado = 'en_disputa'
+                        pedido.save(update_fields=['estado'])
+                        logger.critical(
+                            "ALERTA DE FRAUDE: pedido #%s, payment_id=%s, detail=%s",
+                            pedido.id, payment_id, pay_detail,
+                        )
+
+                    elif pay_status == 'approved' and pedido.estado != 'pagado':
+                        pedido.estado = 'pagado'
+                        pedido.mercadopago_payment_id = str(payment.get('id', ''))
+                        pedido.save(update_fields=['estado', 'mercadopago_payment_id'])
+                        logger.info(
+                            "Pedido #%s marcado como pagado via MP payment %s.",
+                            pedido.id, payment_id,
+                        )
+
+                    elif pay_status == 'in_mediation' and pedido.estado != 'en_disputa':
+                        pedido.estado = 'en_disputa'
+                        pedido.save(update_fields=['estado'])
+                        logger.warning(
+                            "Pedido #%s en mediación (disputa), payment_id=%s.",
+                            pedido.id, payment_id,
+                        )
+
+                except Pedido.DoesNotExist:
+                    logger.warning(
+                        "Webhook MP: pedido con external_reference=%s no encontrado (payment_id=%s).",
+                        external_reference, payment_id,
+                    )
         except Exception as e:
             logger.exception("Error procesando webhook de Mercado Pago (payment_id=%s): %s", payment_id, e)
 

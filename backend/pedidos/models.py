@@ -69,6 +69,8 @@ class Pedido(models.Model):
             ('confirmado', 'Confirmado'),
             ('enviado', 'Enviado'),
             ('cancelado', 'Cancelado'),
+            ('en_disputa', 'En disputa'),
+            ('contracargo', 'Contracargo'),
         ],
         default='pendiente',
     )
