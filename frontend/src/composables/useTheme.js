@@ -22,7 +22,7 @@ const initTheme = () => {
   if (initialized || typeof window === 'undefined') return
 
   const saved = localStorage.getItem(STORAGE_KEY)
-  const initialTheme = saved === 'dark' || saved === 'light' ? saved : getSystemTheme()
+  const initialTheme = saved === 'dark' || saved === 'light' ? saved : 'light'
   applyTheme(initialTheme)
   initialized = true
 }

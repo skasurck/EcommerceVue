@@ -29,6 +29,8 @@ export const useCarritoStore = defineStore('carrito', {
     items: /** @type {Array<{id:string|number,cantidad:number,producto:any,reserva_expira?:string|null}>} */ ([]),
     reservaExpira: /** @type {string|null} */ (null),
     _loaded: false,
+    drawerOpen: false,
+    lastAdded: /** @type {any|null} */ (null),
   }),
 
   getters: {
@@ -89,6 +91,8 @@ export const useCarritoStore = defineStore('carrito', {
           await api.post('carrito/', { producto: producto.id, cantidad: Number(cantidad || 1) })
           await this.cargar()
         }
+        this.lastAdded = { ...producto, cantidadAgregada: Number(cantidad || 1) }
+        this.drawerOpen = true
       } catch (err) {
         console.error('[carrito] Error al agregar:', err)
       }

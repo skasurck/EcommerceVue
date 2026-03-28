@@ -1,6 +1,7 @@
 <template>
   <!-- Navbar solo fuera de /admin -->
   <Navbar v-if="!isAdmin" />
+  <CartDrawer v-if="!isAdmin" />
 
   <!-- Si hay navbar, damos padding-top. Si no, 0 -->
   <main
@@ -19,6 +20,7 @@
 import Navbar from './components/Navbar.vue'
 import Breadcrumb from './components/Breadcrumb.vue'
 import Footer from './components/Footer.vue'
+import CartDrawer from './components/CartDrawer.vue'
 import { onMounted, onUnmounted, ref, computed, nextTick, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
