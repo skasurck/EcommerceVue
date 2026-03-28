@@ -60,3 +60,4 @@ https://youtu.be/tKSIuxfwhJU
 
 Contestame en español y de ahora en adelante todo lo que te pregunte responde en español. ¿Entendido?
 
+git clone https://github.com/skasurck/EcommerceVue.git .

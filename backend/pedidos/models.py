@@ -101,7 +101,7 @@ class Pedido(models.Model):
 
         if (
             self.estado == 'cancelado'
-            and estado_anterior in ['pagado', 'confirmado']
+            and estado_anterior in ['pendiente', 'pagado', 'confirmado']
             and not self.stock_restaurado
         ):
             for item in self.items.all():

@@ -68,4 +68,34 @@ sudo systemctl restart gunicorn
 ```bash
 sudo journalctl -u gunicorn -f         # logs de Django en vivo
 sudo tail -f /var/log/nginx/error.log  # errores de Nginx
+sudo journalctl -u celery -f           # logs de Celery en vivo
+```
+
+---
+
+## Celery (tareas asíncronas)
+
+**Broker:** Redis en `redis://127.0.0.1:6379/0`
+
+### Estado y reinicio
+```bash
+sudo systemctl status celery
+sudo systemctl status celery-beat      # tareas programadas
+sudo systemctl restart celery
+sudo systemctl restart celery-beat
+```
+
+### Monitorear workers y tareas
+```bash
+cd /var/www/mitienda/backend
+source venv/bin/activate
+celery -A tienda inspect active        # tareas corriendo ahora mismo
+celery -A tienda inspect registered    # tareas registradas
+celery -A tienda inspect stats         # estadísticas del worker
+```
+
+### Ver colas en Redis
+```bash
+redis-cli llen celery                  # mensajes pendientes en la cola
+redis-cli monitor                      # ver todo lo que pasa en Redis en vivo
 ```
