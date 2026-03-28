@@ -865,7 +865,8 @@ def _classify_with_anthropic(text: str) -> ClassificationResult:
         "Eres un clasificador experto de productos de tecnología para una tienda en México. "
         "Tu tarea es asignar la categoría principal y subcategoría MÁS ESPECÍFICA posible. "
         "DEBES usar los nombres EXACTAMENTE como aparecen en las listas, respetando tildes, mayúsculas y paréntesis. "
-        'Responde ÚNICAMENTE con JSON válido: {"main": "<nombre exacto>", "sub": "<ruta exacta completa>"}'
+        "También debes indicar tu nivel de confianza del 1 al 10 (10=totalmente seguro, 1=muy dudoso). "
+        'Responde ÚNICAMENTE con JSON válido: {"main": "<nombre exacto>", "sub": "<ruta exacta completa>", "confidence": <1-10>}'
     )
 
     user_prompt = (
@@ -883,7 +884,6 @@ def _classify_with_anthropic(text: str) -> ClassificationResult:
     )
 
     raw = message.content[0].text.strip()
-    # Extraer JSON si viene con texto adicional
     import re as _re
     json_match = _re.search(r'\{[^}]+\}', raw, _re.DOTALL)
     raw = json_match.group(0) if json_match else raw
@@ -891,14 +891,20 @@ def _classify_with_anthropic(text: str) -> ClassificationResult:
 
     main_label = data.get("main", "").strip()
     sub_leaf = data.get("sub", "").strip()
+    confidence_raw = data.get("confidence", 7)
+    try:
+        confidence = max(0.0, min(1.0, float(confidence_raw) / 10.0))
+    except (TypeError, ValueError):
+        confidence = 0.70
 
     if main_label not in MAIN_CATEGORIES:
         logger.warning("Anthropic devolvió main desconocido '%s', usando fallback.", main_label)
         main_label = MAIN_CATEGORIES[0]
+        confidence = min(confidence, 0.50)
 
     sub_label = safe_path(main_label, sub_leaf) if sub_leaf else GENERIC_SUBCATEGORY_BY_MAIN.get(main_label)
 
-    return ClassificationResult(main=main_label, sub=sub_label, main_score=0.97, sub_score=0.95)
+    return ClassificationResult(main=main_label, sub=sub_label, main_score=confidence, sub_score=confidence)
 
 
 def _classify_with_openai(text: str) -> ClassificationResult:
