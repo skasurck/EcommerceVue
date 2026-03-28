@@ -210,6 +210,9 @@
 
         <div v-if="loading && productos.length > 0" class="text-center text-gray-500 py-4">Cargando más productos...</div>
         <div v-if="!loading && pagination.page >= pagination.totalPages" class="text-center text-gray-500 py-4">No hay más productos.</div>
+
+        <!-- Centinela para IntersectionObserver -->
+        <div ref="sentinel" class="h-1"></div>
       </section>
     </div>
 
@@ -364,11 +367,14 @@
 import ProductCard from '@/components/ProductCard.vue'
 import PriceSlider from '@/components/PriceSlider.vue'
 import CategoryTreeRadio from '@/components/CategoryTreeRadio.vue'
-import { ref, reactive, onMounted, onUnmounted, computed, watch } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
+import { useRoute } from 'vue-router'
 import { obtenerProductos, obtenerMarcas, obtenerRangoPrecios, obtenerPromoBanners } from '@/services/api.js'
 import api from '@/axios'
 import { useCarritoStore } from '@/stores/carrito'
 defineOptions({ name: 'ProductosView' })
+
+const route = useRoute()
 
 const cartStore = useCarritoStore()
 const handleAddToCart = (producto) => {
@@ -648,14 +654,18 @@ const expandCategoryPath = (categoriaId) => {
   expandedCategoryIds.value = Array.from(nextExpanded)
 }
 
-const handleScroll = () => {
-  // window.scrollY es confiable en iOS Safari; document.documentElement.scrollTop no lo es en móvil
-  const scrollTop = window.scrollY ?? document.documentElement.scrollTop
-  const scrollHeight = document.documentElement.scrollHeight
-  const clientHeight = window.innerHeight
-  if (scrollTop + clientHeight >= scrollHeight - 300) {
-    loadMore()
-  }
+const sentinel = ref(null)
+let observer = null
+
+const setupObserver = () => {
+  if (observer) observer.disconnect()
+  observer = new IntersectionObserver(
+    (entries) => {
+      if (entries[0].isIntersecting) loadMore()
+    },
+    { rootMargin: '300px' }  // empieza a cargar 300px antes de llegar al centinela
+  )
+  if (sentinel.value) observer.observe(sentinel.value)
 }
 
 const openFilters = () => {
@@ -695,11 +705,17 @@ onMounted(async () => {
     shopBanner.value = raw.find(b => b.imagen_url) ?? null
   }).catch(() => {})
   await Promise.all([fetchCategorias(), fetchMarcas(), fetchPriceRange()])
+
+  // Aplicar filtros desde query params de la URL (ej. /productos?categoria=5)
+  if (route.query.categoria) filtros.categoria = String(route.query.categoria)
+  if (route.query.search) filtros.search = String(route.query.search)
+
   await fetchProductos()
-  window.addEventListener('scroll', handleScroll)
+  await nextTick()
+  setupObserver()
 })
 
 onUnmounted(() => {
-  window.removeEventListener('scroll', handleScroll)
+  if (observer) observer.disconnect()
 })
 </script>

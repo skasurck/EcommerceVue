@@ -3,6 +3,7 @@ import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
 import ProductRow from '@/components/ProductRow.vue'
 import ProductCard from '@/components/ProductCard.vue'
 import { obtenerProductos, obtenerHomeSlider, obtenerPromoBanners, obtenerProductosDestacados } from '@/services/api.js'
+import api from '@/axios'
 import { useCarritoStore } from '@/stores/carrito'
 
 const nuevos = ref([])
@@ -13,11 +14,28 @@ const promoBanners = ref([])
 const currentSlide = ref(0)
 let autoplayTimer = null
 
+// ── Secciones por categoría ──────────────────────────────────────────────────
+// Cada entrada define el label visible, el slug de la categoría en la DB,
+// y el ref que recibirá los productos.
+const CATEGORY_SECTIONS = [
+  { label: 'CPU (Procesadores)',        slug: 'procesadores',       icon: '🖥️',  productos: ref([]), catId: ref(null) },
+  { label: 'GPU (Tarjetas de Video)',   slug: 'tarjetas-de-video',  icon: '🎮',  productos: ref([]), catId: ref(null) },
+  { label: 'Memoria RAM',               slug: 'memorias-ram-flash', icon: '💾',  productos: ref([]), catId: ref(null) },
+  { label: 'SSD / NVMe',               slug: 'ssd',                icon: '⚡',  productos: ref([]), catId: ref(null) },
+  { label: 'Tarjetas Madre',            slug: 'tarjetas-madre',     icon: '🔧',  productos: ref([]), catId: ref(null) },
+  { label: 'Fuentes de Poder',          slug: 'fuentes-poder-pc',   icon: '🔌',  productos: ref([]), catId: ref(null) },
+]
+
 const cartStore = useCarritoStore()
+const allProductsForCart = computed(() => [
+  ...nuevos.value, ...ofertas.value, ...destacados.value,
+  ...CATEGORY_SECTIONS.flatMap(s => s.productos.value),
+])
 
 const handleAddToCart = (product) => {
   const snapshot = { ...product }
-  for (const list of [nuevos, ofertas, destacados]) {
+  // Actualizar stock en cualquier lista que contenga el producto
+  for (const list of [nuevos, ofertas, destacados, ...CATEGORY_SECTIONS.map(s => s.productos)]) {
     const idx = list.value.findIndex(p => p.id === product.id)
     if (idx !== -1) {
       const newStock = Math.max(0, Number(list.value[idx].stock) - 1)
@@ -30,6 +48,29 @@ const handleAddToCart = (product) => {
     }
   }
   cartStore.agregar(snapshot)
+}
+
+const fetchCategorySections = async () => {
+  try {
+    // Traer categorías planas para mapear slug → id
+    const { data } = await api.get('categorias/?page_size=500')
+    const catList = Array.isArray(data) ? data : (data?.results ?? [])
+    const slugToId = {}
+    catList.forEach(c => { if (c.slug) slugToId[c.slug] = c.id })
+
+    // Cargar las 6 secciones en paralelo
+    await Promise.all(
+      CATEGORY_SECTIONS.map(async (section) => {
+        const catId = slugToId[section.slug]
+        if (!catId) return
+        section.catId.value = catId
+        try {
+          const res = await obtenerProductos({ categoria: catId, page_size: 12, ordering: '-id' })
+          section.productos.value = res.data?.results ?? []
+        } catch { /* silencioso */ }
+      })
+    )
+  } catch { /* silencioso */ }
 }
 
 const defaultSlides = [
@@ -127,8 +168,10 @@ onMounted(async () => {
   const all = allProductsResponse
 
   nuevos.value = [...all].sort((a, b) => b.id - a.id).slice(0, 12)
-  // Usar destacados del endpoint dedicado; si está vacío, usar fallback del listado general
   destacados.value = destacadosResponse.length > 0 ? destacadosResponse : all.slice(0, 12)
+
+  // Cargar secciones de componentes (no bloquea el render inicial)
+  fetchCategorySections()
 })
 
 onBeforeUnmount(() => {
@@ -326,6 +369,17 @@ onBeforeUnmount(() => {
           <ProductCard v-for="p in destacados" :key="p.id" :producto="p" @add-to-cart="handleAddToCart" />
         </div>
       </section>
+
+      <!-- ── Secciones por categoría de componentes ── -->
+      <template v-for="section in CATEGORY_SECTIONS" :key="section.slug">
+        <ProductRow
+          v-if="section.productos.value.length"
+          :title="`${section.icon} ${section.label}`"
+          :productos="section.productos.value"
+          :to="section.catId.value ? `/productos?categoria=${section.catId.value}` : '/productos'"
+          @add-to-cart="handleAddToCart"
+        />
+      </template>
     </div>
     
   </main>
