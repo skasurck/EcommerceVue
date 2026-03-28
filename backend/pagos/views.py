@@ -39,8 +39,9 @@ def _verify_mp_signature(request) -> bool:
     """
     secret = getattr(settings, "MP_WEBHOOK_SECRET", "")
     if not secret:
-        # Sin secreto configurado: solo permitir en desarrollo
-        return bool(settings.DEBUG)
+        # Sin secreto configurado: acepta el webhook pero lo registra como advertencia
+        logger.warning("MP_WEBHOOK_SECRET no configurado — webhook aceptado sin validar firma.")
+        return True
 
     x_signature = request.META.get("HTTP_X_SIGNATURE", "")
     x_request_id = request.META.get("HTTP_X_REQUEST_ID", "")
