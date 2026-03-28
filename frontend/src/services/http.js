@@ -106,7 +106,8 @@ export const ensureInterceptors = () => {
       if (response.status === 401 || response.status === 403) {
         const refresh = getRefreshToken()
         if (!refresh) {
-          logout()
+          // Si tampoco hay access token, es un invitado — no redirigir al login
+          if (getAccessToken()) logout()
           return Promise.reject(error)
         }
 

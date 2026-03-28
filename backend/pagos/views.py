@@ -126,6 +126,8 @@ class MercadoPagoWebhookView(APIView):
 
 
 class MercadoPagoPreferenceView(APIView):
+    permission_classes = [permissions.AllowAny]
+
     def post(self, request, *args, **kwargs):
         sdk = mercadopago.SDK(_get_mp_token())
 
