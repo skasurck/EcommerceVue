@@ -12,7 +12,73 @@
     </div>
 
     <div v-else-if="p" class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-       
+
+      <!-- ── Panel de administrador ── -->
+      <div v-if="auth.hasAnyRole(['admin', 'super_admin'])" class="mb-5 rounded-lg border border-amber-300 bg-amber-50 p-4">
+        <div class="flex items-center justify-between gap-2 cursor-pointer select-none" @click="adminPanelOpen = !adminPanelOpen">
+          <div class="flex items-center gap-2">
+            <span class="text-base">⚙️</span>
+            <span class="font-semibold text-amber-800 text-sm">Panel de administrador</span>
+            <span v-if="p.categorias_detalle?.length" class="text-xs text-amber-700">
+              — {{ p.categorias_detalle.map(c => c.nombre).join(', ') }}
+            </span>
+          </div>
+          <span class="text-amber-600 text-sm">{{ adminPanelOpen ? '▲ Cerrar' : '▼ Editar categoría' }}</span>
+        </div>
+
+        <div v-if="adminPanelOpen" class="mt-4 space-y-4">
+          <!-- Categorías actuales -->
+          <div v-if="p.categorias_detalle?.length" class="text-sm text-amber-700">
+            <span class="font-medium">Categorías actuales:</span>
+            <span v-for="(cat, i) in p.categorias_detalle" :key="cat.id" class="ml-1">
+              {{ cat.nombre }}<span v-if="i < p.categorias_detalle.length - 1">,</span>
+            </span>
+          </div>
+          <div v-else class="text-sm text-amber-700 italic">Sin categoría asignada</div>
+
+          <!-- Selectores de nivel -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-amber-800 mb-1">Categoría nivel 1</label>
+              <select v-model="adminLevel1" @change="onAdminLevel1Change"
+                class="w-full rounded border border-amber-300 bg-white px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400">
+                <option value="">— Selecciona —</option>
+                <option v-for="cat in adminCategories" :key="cat.id" :value="cat.id">{{ cat.nombre }}</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-amber-800 mb-1">Categoría nivel 2</label>
+              <select v-model="adminLevel2" @change="onAdminLevel2Change" :disabled="!adminLevel2Options.length"
+                class="w-full rounded border border-amber-300 bg-white px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:bg-amber-100 disabled:text-amber-400">
+                <option value="">— Selecciona —</option>
+                <option v-for="cat in adminLevel2Options" :key="cat.id" :value="cat.id">{{ cat.nombre }}</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-amber-800 mb-1">Categoría nivel 3</label>
+              <select v-model="adminLevel3" :disabled="!adminLevel3Options.length"
+                class="w-full rounded border border-amber-300 bg-white px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:bg-amber-100 disabled:text-amber-400">
+                <option value="">— Selecciona —</option>
+                <option v-for="cat in adminLevel3Options" :key="cat.id" :value="cat.id">{{ cat.nombre }}</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <button
+              @click="saveAdminCategory"
+              :disabled="!adminFinalCategoryId || adminSaving"
+              class="rounded bg-amber-500 hover:bg-amber-600 disabled:opacity-50 px-4 py-2 text-sm font-semibold text-white transition">
+              {{ adminSaving ? 'Guardando…' : 'Guardar categoría' }}
+            </button>
+            <RouterLink :to="`/admin/productos/editar/${p.id}`"
+              class="rounded border border-amber-400 px-4 py-2 text-sm font-medium text-amber-800 hover:bg-amber-100 transition">
+              Editar producto completo →
+            </RouterLink>
+            <span v-if="adminSaveMsg" class="text-sm" :class="adminSaveError ? 'text-red-600' : 'text-green-700'">{{ adminSaveMsg }}</span>
+          </div>
+        </div>
+      </div>
 
         <!-- Main layout -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -308,6 +374,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useBreadcrumbStore } from '@/stores/breadcrumb'
 import { useWishlistStore } from '@/stores/wishlist'
 import ProductCard from '@/components/ProductCard.vue'
+import api from '@/axios'
 
 const route = useRoute()
 const producto = ref(null)
@@ -317,6 +384,66 @@ const auth = useAuthStore()
 const wishlist = useWishlistStore()
 const loading = ref(true)
 const errorMsg = ref('')
+
+// ── Admin: editar categoría ──
+const adminPanelOpen = ref(false)
+const adminCategories = ref([])   // árbol raíz (nivel 1)
+const adminLevel1 = ref('')
+const adminLevel2 = ref('')
+const adminLevel3 = ref('')
+const adminSaving = ref(false)
+const adminSaveMsg = ref('')
+const adminSaveError = ref(false)
+
+watch(adminPanelOpen, (open) => { if (open) fetchAdminCategories() })
+
+const adminLevel2Options = computed(() => {
+  if (!adminLevel1.value) return []
+  const cat = adminCategories.value.find(c => c.id === adminLevel1.value)
+  return cat?.subcategorias ?? []
+})
+const adminLevel3Options = computed(() => {
+  if (!adminLevel2.value) return []
+  const cat = adminLevel2Options.value.find(c => c.id === adminLevel2.value)
+  return cat?.subcategorias ?? []
+})
+const adminFinalCategoryId = computed(() => adminLevel3.value || adminLevel2.value || adminLevel1.value)
+
+const onAdminLevel1Change = () => { adminLevel2.value = ''; adminLevel3.value = '' }
+const onAdminLevel2Change = () => { adminLevel3.value = '' }
+
+const fetchAdminCategories = async () => {
+  if (adminCategories.value.length) return
+  try {
+    const { data } = await api.get('all-categories/')
+    adminCategories.value = Array.isArray(data) ? data : []
+  } catch { /* silencioso */ }
+}
+
+const saveAdminCategory = async () => {
+  if (!adminFinalCategoryId.value) return
+  adminSaving.value = true
+  adminSaveMsg.value = ''
+  adminSaveError.value = false
+  try {
+    await api.post(`productos/${producto.value?.id}/apply-category/`, {
+      category_ids: [adminFinalCategoryId.value]
+    })
+    // Recargar producto para reflejar la nueva categoría
+    const { data } = await obtenerProducto(route.params.id)
+    producto.value = data
+    adminSaveMsg.value = '✓ Categoría guardada'
+    adminLevel1.value = ''
+    adminLevel2.value = ''
+    adminLevel3.value = ''
+  } catch (e) {
+    adminSaveError.value = true
+    adminSaveMsg.value = e?.response?.data?.detail || 'Error al guardar'
+  } finally {
+    adminSaving.value = false
+    setTimeout(() => { adminSaveMsg.value = '' }, 3000)
+  }
+}
 const relacionados = ref([])
 const relacionadosLoading = ref(false)
 const relacionadosCategoria = ref([])

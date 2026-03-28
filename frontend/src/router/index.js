@@ -296,4 +296,16 @@ router.beforeEach((to, from, next) => {
   next()
 })
 
+// Cuando el navegador tiene cacheado un index.html viejo y los chunks JS
+// ya no existen en el servidor (nuevo deploy), fuerza una recarga completa.
+router.onError((error, to) => {
+  const isChunkError =
+    error.message?.includes('Failed to fetch dynamically imported module') ||
+    error.message?.includes('Importing a module script failed') ||
+    error.message?.includes('Unable to preload CSS')
+  if (isChunkError) {
+    window.location.href = to.fullPath
+  }
+})
+
 export default router

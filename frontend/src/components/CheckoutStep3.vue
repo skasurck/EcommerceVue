@@ -82,13 +82,49 @@
       </div>
     </div>
 
-    <!-- Estado: preparando pago -->
-    <div v-if="metodoPago === 'mercadopago' && creatingPreference" class="rounded-xl border border-cyan-200 dark:border-cyan-800 bg-cyan-50 dark:bg-cyan-900/20 p-4 flex items-center gap-3">
+    <!-- Estado: preparando pago (primera vez) -->
+    <div v-if="metodoPago === 'mercadopago' && creatingPreference && !pendingOrder" class="rounded-xl border border-cyan-200 dark:border-cyan-800 bg-cyan-50 dark:bg-cyan-900/20 p-4 flex items-center gap-3">
       <svg class="w-5 h-5 animate-spin text-cyan-500 shrink-0" fill="none" viewBox="0 0 24 24">
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
       </svg>
       <span class="text-sm text-cyan-700 dark:text-cyan-300">Preparando tu pago seguro, serás redirigido en un momento…</span>
+    </div>
+
+    <!-- Recuperación: usuario regresó de Mercado Pago -->
+    <div v-if="pendingOrder" class="rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 p-4 space-y-3">
+      <div class="flex items-start gap-2">
+        <svg class="w-5 h-5 text-amber-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/>
+        </svg>
+        <div>
+          <p class="text-sm font-semibold text-amber-800 dark:text-amber-200">Regresaste antes de completar el pago</p>
+          <p class="text-xs text-amber-700 dark:text-amber-300 mt-0.5">Tu pedido #{{ pendingOrder.pedidoId }} fue creado. ¿Qué deseas hacer?</p>
+        </div>
+      </div>
+      <div class="flex flex-col sm:flex-row gap-2">
+        <a
+          :href="pendingOrder.initPoint"
+          class="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg bg-[#009ee3] hover:bg-[#0080bb] text-white text-sm font-semibold transition-colors"
+        >
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/>
+          </svg>
+          Continuar con Mercado Pago
+        </a>
+        <button
+          type="button"
+          :disabled="cancellingOrder"
+          @click="cancelPendingOrder"
+          class="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border border-amber-300 dark:border-amber-600 text-amber-800 dark:text-amber-200 text-sm font-medium hover:bg-amber-100 dark:hover:bg-amber-800/30 transition-colors disabled:opacity-50"
+        >
+          <svg v-if="cancellingOrder" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+          </svg>
+          {{ cancellingOrder ? 'Cancelando…' : 'Cancelar y elegir otro método' }}
+        </button>
+      </div>
     </div>
 
     <!-- Resumen del pedido -->
@@ -182,14 +218,17 @@
 </template>
 
 <script setup>
-import { computed, ref, watch, onMounted } from 'vue'
+import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useCheckoutStore } from '@/stores/checkout'
 import { useCarritoStore } from '@/stores/carrito'
 import { crearPedido } from '@/services/checkout'
 import { createMercadoPagoPreference } from '@/services/pagos'
+import { cancelarPedidoMP } from '@/services/pedidos'
 import axios from '@/axios'
+
+const MP_PENDING_KEY = 'mp_pending_order'
 
 const emit = defineEmits(['back', 'complete'])
 const router = useRouter()
@@ -199,6 +238,52 @@ const auth = useAuthStore()
 const metodoPago = ref(store.metodoPago || 'mercadopago')
 const error = ref('')
 const creatingPreference = ref(false)
+const cancellingOrder = ref(false)
+
+// Pedido pendiente detectado al regresar de MP
+const pendingOrder = ref(null)
+
+const savePendingOrder = (pedidoId, initPoint) => {
+  try { sessionStorage.setItem(MP_PENDING_KEY, JSON.stringify({ pedidoId, initPoint })) } catch { /* */ }
+}
+const clearPendingOrder = () => {
+  try { sessionStorage.removeItem(MP_PENDING_KEY) } catch { /* */ }
+  pendingOrder.value = null
+}
+const loadPendingOrder = () => {
+  try {
+    const raw = sessionStorage.getItem(MP_PENDING_KEY)
+    if (raw) pendingOrder.value = JSON.parse(raw)
+  } catch { /* */ }
+}
+
+// Restauración desde bfcache (usuario presionó Atrás en el navegador)
+const handlePageShow = (event) => {
+  if (event.persisted) {
+    creatingPreference.value = false
+    loadPendingOrder()
+  }
+}
+
+const cancelPendingOrder = async () => {
+  if (!pendingOrder.value?.pedidoId) return
+  cancellingOrder.value = true
+  try {
+    await cancelarPedidoMP(pendingOrder.value.pedidoId)
+  } catch { /* si ya estaba cancelado, ignorar */ }
+  clearPendingOrder()
+  creatingPreference.value = false
+  cancellingOrder.value = false
+  await carrito.cargar()
+}
+
+onMounted(() => {
+  window.addEventListener('pageshow', handlePageShow)
+  loadPendingOrder()
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('pageshow', handlePageShow)
+})
 
 // Datos bancarios dinámicos
 const datosBanco = ref(null)
@@ -207,6 +292,8 @@ onMounted(async () => {
     const { data } = await axios.get('/pagos/transferencia/config/')
     datosBanco.value = data
   } catch { /* silencioso */ }
+  // Si venimos de una redirección exitosa de MP, limpiar pendiente
+  if (window.location.pathname === '/gracias') clearPendingOrder()
 })
 
 const fmt = (n) => Number(n).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })
@@ -263,6 +350,7 @@ const finalizar = async () => {
       })
       const { init_point } = prefRes.data || {}
       if (init_point) {
+        savePendingOrder(pedidoId, init_point)
         window.location.href = init_point
         return
       }

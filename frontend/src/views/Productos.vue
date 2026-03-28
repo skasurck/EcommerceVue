@@ -649,8 +649,11 @@ const expandCategoryPath = (categoriaId) => {
 }
 
 const handleScroll = () => {
-  const { scrollTop, scrollHeight, clientHeight } = document.documentElement
-  if (scrollTop + clientHeight >= scrollHeight - 5) {
+  // window.scrollY es confiable en iOS Safari; document.documentElement.scrollTop no lo es en móvil
+  const scrollTop = window.scrollY ?? document.documentElement.scrollTop
+  const scrollHeight = document.documentElement.scrollHeight
+  const clientHeight = window.innerHeight
+  if (scrollTop + clientHeight >= scrollHeight - 300) {
     loadMore()
   }
 }
