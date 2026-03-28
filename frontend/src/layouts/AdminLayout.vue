@@ -1,14 +1,25 @@
 <template>
   <div class="min-h-screen bg-slate-100">
+
+    <!-- Overlay oscuro (mobile) -->
+    <div
+      v-if="sidebarOpen"
+      class="fixed inset-0 bg-black/50 z-40 lg:hidden"
+      @click="sidebarOpen = false"
+    />
+
     <!-- Sidebar -->
-    <aside class="fixed inset-y-0 left-0 w-64 bg-slate-900 text-slate-200 z-50">
+    <aside
+      class="fixed inset-y-0 left-0 w-64 bg-slate-900 text-slate-200 z-50 transition-transform duration-300 lg:translate-x-0"
+      :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'"
+    >
       <!-- Brand -->
       <div class="h-14 flex items-center px-4 border-b border-slate-800">
         <span class="font-semibold tracking-wide">Mi Tienda Admin</span>
       </div>
 
       <!-- Nav -->
-      <nav class="p-3 space-y-6 text-sm">
+      <nav class="p-3 space-y-6 text-sm overflow-y-auto h-[calc(100vh-3.5rem)]">
         <!-- Sección: navegación -->
         <div>
           <div class="px-3 mb-2 text-[11px] uppercase tracking-wide text-slate-400">Navegación</div>
@@ -172,9 +183,20 @@
     </aside>
 
     <!-- Contenido -->
-    <div class="pl-64">
+    <div class="lg:pl-64">
       <!-- Topbar -->
       <header class="h-14 bg-white border-b sticky top-0 z-40 flex items-center justify-between px-4 shadow-sm">
+        <!-- Hamburger (solo mobile) -->
+        <button
+          class="lg:hidden flex items-center justify-center w-9 h-9 rounded-lg hover:bg-slate-100 text-slate-600 mr-2"
+          @click="sidebarOpen = true"
+          aria-label="Abrir menú"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+
         <div class="text-sm text-slate-500">
           <span class="hidden sm:inline">Dashboard / </span>
           <span class="text-slate-700 font-medium">{{ title }}</span>
@@ -185,7 +207,7 @@
         </div>
       </header>
 
-      <main class="p-6">
+      <main class="p-4 lg:p-6">
         <RouterView />
       </main>
     </div>
@@ -194,12 +216,20 @@
 
 <script setup>
 import { useRoute } from 'vue-router'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
 const auth = useAuthStore()
 const title = computed(() => route.meta?.title || 'Panel')
+
+// sidebar mobile
+const sidebarOpen = ref(false)
+
+// cerrar sidebar al navegar
+watch(() => route.path, () => {
+  sidebarOpen.value = false
+})
 
 // submenús
 const homeSection = ['/admin/home-editor', '/admin/promo-banners']

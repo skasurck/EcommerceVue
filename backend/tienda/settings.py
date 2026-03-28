@@ -108,6 +108,7 @@ INSTALLED_APPS = [
     'suppliers.apps.SuppliersConfig',
     'productos.apps.ProductosConfig',
     'promotions.apps.PromotionsConfig',
+    'pagos',
 ]
 
 MIDDLEWARE = [

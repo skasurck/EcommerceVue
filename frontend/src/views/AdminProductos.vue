@@ -65,6 +65,7 @@
     </section>
 
     <!-- Tabla -->
+    <div class="hidden lg:block">
     <section class="bg-white border rounded-xl shadow-sm overflow-hidden">
       <div class="overflow-x-auto">
         <table class="min-w-full text-sm">
@@ -244,6 +245,41 @@
         </table>
       </div>
     </section>
+    </div>
+
+    <!-- Vista tarjetas móvil -->
+    <div class="lg:hidden space-y-3">
+      <!-- loading/error/empty states same as table -->
+      <div v-if="loading" class="bg-white border rounded-xl p-6 text-center text-slate-500">Cargando productos...</div>
+      <div v-else-if="error" class="bg-white border rounded-xl p-6 text-center text-rose-500">{{ error }}</div>
+      <div v-else-if="!productos.length" class="bg-white border rounded-xl p-6 text-center text-slate-500">No se encontraron productos.</div>
+      <div v-else v-for="p in productos" :key="p.id" class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+        <div class="flex gap-3">
+          <!-- Imagen -->
+          <img v-if="p.imagen_principal" :src="p.imagen_principal" class="w-16 h-16 object-cover rounded-lg border border-slate-200 shrink-0" alt="" />
+          <div v-else class="w-16 h-16 rounded-lg bg-slate-100 border border-slate-200 shrink-0 flex items-center justify-center text-slate-400 text-xs">Sin img</div>
+          <!-- Info -->
+          <div class="flex-1 min-w-0">
+            <p class="font-semibold text-slate-800 text-sm leading-tight">{{ p.nombre }}</p>
+            <p class="text-xs text-slate-500 mt-0.5">SKU: {{ p.sku || '—' }}</p>
+            <div class="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 text-xs">
+              <span :class="p.stock > 0 ? 'text-emerald-700' : 'text-rose-600'" class="font-medium">Stock: {{ p.stock }}</span>
+              <span class="text-slate-700">{{ money(p.precio_normal) }}</span>
+              <span v-if="p.precio_rebajado" class="text-amber-700">Rebajado: {{ money(p.precio_rebajado) }}</span>
+            </div>
+            <div class="flex flex-wrap gap-1 mt-1.5" v-if="categoriasNombres(p.categorias).length">
+              <span v-for="(n,i) in categoriasNombres(p.categorias)" :key="i" class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] bg-slate-100 border text-slate-600">{{ n }}</span>
+            </div>
+          </div>
+        </div>
+        <!-- Acciones móvil -->
+        <div class="flex flex-wrap gap-2 mt-3 pt-3 border-t border-slate-100">
+          <RouterLink :to="`/admin/productos/editar/${p.id}`" class="flex-1 text-center px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium">Editar</RouterLink>
+          <button @click="editar(p)" class="flex-1 px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100 text-slate-700 text-xs">Edición rápida</button>
+          <button @click="eliminarProducto(p.id)" class="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs">Eliminar</button>
+        </div>
+      </div>
+    </div>
 
     <!-- Paginación -->
     <div v-if="pagination.totalPages > 0" class="flex flex-col sm:flex-row items-center justify-between gap-3 text-sm">

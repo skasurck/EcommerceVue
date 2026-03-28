@@ -1,7 +1,7 @@
 <template>
   <div class="space-y-5">
     <!-- Título + CTA -->
-    <div class="flex items-center justify-between">
+    <div class="flex items-center justify-between flex-wrap gap-2">
       <h1 class="text-2xl font-bold text-slate-800">Gestión de pedidos</h1>
       <RouterLink
         to="/admin/pedidos/nuevo"
@@ -13,7 +13,7 @@
 
     <!-- Filtros -->
     <section class="bg-white border rounded-xl p-4 shadow-sm">
-      <div class="flex flex-wrap items-center gap-4">
+      <div class="flex flex-col sm:flex-row gap-3 sm:items-end">
         <div>
           <label class="block text-xs font-medium text-slate-500 mb-1">Estado</label>
           <select
@@ -30,7 +30,7 @@
           </select>
         </div>
 
-        <div class="flex items-center gap-2 mt-6 sm:mt-7">
+        <div class="flex items-center gap-2 h-10">
           <label class="relative inline-flex items-center cursor-pointer select-none">
             <input type="checkbox" class="sr-only peer" v-model="verPapelera" @change="fetchPedidos(1)" />
             <div
@@ -97,9 +97,9 @@
       </div>
     </section>
 
-    <!-- Tabla -->
+    <!-- Tabla (desktop lg+) -->
     <section class="bg-white border rounded-xl shadow-sm overflow-hidden">
-      <div class="overflow-x-auto">
+      <div class="hidden lg:block overflow-x-auto">
         <table class="min-w-full text-sm">
           <thead class="bg-slate-50 text-slate-600 sticky top-0 z-10">
             <tr class="border-b">
@@ -185,6 +185,84 @@
           </tbody>
         </table>
       </div>
+
+      <!-- Tarjetas móvil (< lg) -->
+      <div class="lg:hidden space-y-3 p-3">
+        <div
+          v-for="pedido in pedidos"
+          :key="pedido.id"
+          class="border border-slate-200 rounded-lg p-4 bg-white shadow-sm space-y-3"
+        >
+          <!-- Fila superior: checkbox + ID + select de estado -->
+          <div class="flex items-center gap-3">
+            <input type="checkbox" v-model="seleccionados" :value="pedido.id" class="shrink-0" />
+            <span class="font-semibold text-slate-800 text-sm">#{{ pedido.id }}</span>
+            <div class="ml-auto">
+              <select
+                v-model="pedido.estado"
+                @change="cambiarEstado(pedido)"
+                class="h-8 rounded-md border px-2 font-medium text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                :class="estadoClasses(pedido.estado)"
+              >
+                <option value="pendiente">Pendiente</option>
+                <option value="pagado">Pagado</option>
+                <option value="confirmado">Confirmado</option>
+                <option value="enviado">Enviado</option>
+                <option value="cancelado">Cancelado</option>
+                <option value="en_disputa">En disputa</option>
+                <option value="contracargo">Contracargo</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Datos del pedido -->
+          <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+            <div>
+              <span class="text-xs font-medium text-slate-500 block">Cliente</span>
+              <span class="text-slate-800">{{ pedido.cliente_nombre_completo }}</span>
+            </div>
+            <div>
+              <span class="text-xs font-medium text-slate-500 block">Fecha</span>
+              <span class="text-slate-600">{{ formatFecha(pedido.creado) }}</span>
+            </div>
+            <div class="col-span-2 mt-1">
+              <span class="text-xs font-medium text-slate-500 block">Total</span>
+              <span class="text-slate-800 font-semibold">{{ money(pedido.total) }}</span>
+            </div>
+          </div>
+
+          <!-- Botones de acción -->
+          <div class="flex flex-wrap gap-2 pt-1 border-t border-slate-100">
+            <button
+              @click="verDetalle(pedido.id)"
+              class="px-3 py-1.5 rounded border border-slate-300 hover:bg-slate-100 text-sm"
+            >
+              Ver / Editar
+            </button>
+            <button
+              v-if="!pedido.papelera"
+              @click="moverPapelera(pedido.id)"
+              class="px-3 py-1.5 rounded border border-slate-300 hover:bg-slate-100 text-sm"
+            >
+              Papelera
+            </button>
+            <button
+              v-else
+              @click="restaurar(pedido.id)"
+              class="px-3 py-1.5 rounded border border-slate-300 hover:bg-slate-100 text-sm"
+            >
+              Restaurar
+            </button>
+            <button
+              v-if="pedido.papelera"
+              @click="eliminar(pedido.id)"
+              class="px-3 py-1.5 rounded bg-rose-600 hover:bg-rose-700 text-white text-sm"
+            >
+              Eliminar
+            </button>
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- Paginación -->
@@ -207,6 +285,7 @@
         </button>
       </div>
     </div>
+
     <!-- Modal número de guía -->
     <div
       v-if="modalGuia.visible"
