@@ -56,6 +56,11 @@ const routes = [
     component: () => import('@/views/GraciasView.vue'),
   },
   {
+    path: '/pedido-cancelado',
+    name: 'pedido-cancelado',
+    component: () => import('@/views/PedidoCanceladoView.vue'),
+  },
+  {
     path: '/mi-cuenta',
     name: 'mi-cuenta',
     component: () => import('@/views/MiCuenta.vue'),

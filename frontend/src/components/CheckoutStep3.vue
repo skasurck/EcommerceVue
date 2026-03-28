@@ -218,11 +218,11 @@ const finalizar = async () => {
         external_reference: pedidoId,
         back_urls: {
           success: `${origin}/gracias`,
-          failure: `${origin}/checkout?status=failure`,
+          failure: `${origin}/pedido-cancelado?pedido=${pedidoId}`,
           pending: `${origin}/checkout?status=pending`,
         },
         success_url: `${origin}/gracias`,
-        failure_url: `${origin}/checkout?status=failure`,
+        failure_url: `${origin}/pedido-cancelado?pedido=${pedidoId}`,
         pending_url: `${origin}/checkout?status=pending`,
       })
       const { init_point } = prefRes.data || {}

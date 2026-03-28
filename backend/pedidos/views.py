@@ -110,6 +110,19 @@ class PedidoViewSet(viewsets.ModelViewSet):
         user = self.request.user if self.request.user.is_authenticated else None
         serializer.save(user=user)
 
+    @action(detail=True, methods=['post'], permission_classes=[permissions.AllowAny], url_path='cancelar-mp')
+    def cancelar_mp(self, request, pk=None):
+        """Cancela un pedido de MP que sigue pendiente (pago fallido o abandono)."""
+        try:
+            pedido = Pedido.objects.get(pk=pk)
+        except Pedido.DoesNotExist:
+            return Response({'detail': 'Pedido no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        if pedido.estado != 'pendiente' or pedido.metodo_pago != 'mercadopago':
+            return Response({'detail': 'El pedido no puede cancelarse'}, status=status.HTTP_400_BAD_REQUEST)
+        pedido.estado = 'cancelado'
+        pedido.save(update_fields=['estado'])
+        return Response({'status': 'cancelado', 'id': pedido.id})
+
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         try:
