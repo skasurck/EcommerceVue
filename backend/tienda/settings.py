@@ -179,9 +179,6 @@ MP_TEST_MODE = os.getenv("MP_TEST_MODE", "")  # "true" para forzar modo prueba e
 # Secreto para verificar la firma de webhooks entrantes de Mercado Pago
 MP_WEBHOOK_SECRET = os.getenv("MP_WEBHOOK_SECRET", "")
 
-# Google Places API (proxy para autocompletar direcciones en checkout)
-GOOGLE_PLACES_KEY = os.getenv("GOOGLE_PLACES_KEY", "")
-
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 

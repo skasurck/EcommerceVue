@@ -3,14 +3,11 @@ import mercadopago
 import hashlib
 import hmac
 from django.conf import settings
-from django.core.cache import cache
-from django.http import JsonResponse
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
 from pedidos.models import Pedido
 import json
-import requests as http_requests
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 
@@ -282,121 +279,3 @@ class MercadoPagoPreferenceView(APIView):
         except Exception as e:
             logger.exception("Error al crear preferencia de Mercado Pago: %s", e)
             return Response({"error": "Hubo un problema al comunicarse con Mercado Pago."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-# ── Google Places Proxy ────────────────────────────────────────────────────
-
-def _get_client_ip(request):
-    forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
-    if forwarded:
-        return forwarded.split(',')[0].strip()
-    return request.META.get('REMOTE_ADDR', 'unknown')
-
-
-def _check_rate_limit(key, limit, window):
-    """Devuelve True si la petición está dentro del límite, False si lo supera."""
-    count = cache.get(key, 0)
-    if count >= limit:
-        return False
-    cache.set(key, count + 1, window)
-    return True
-
-
-class PlacesAutocompleteView(APIView):
-    """
-    Proxy seguro para Google Places Autocomplete.
-    El API key nunca sale del servidor.
-    Rate limit: 20 peticiones/minuto por IP.
-    """
-    permission_classes = [permissions.AllowAny]
-
-    def get(self, request):
-        if not settings.GOOGLE_PLACES_KEY:
-            return JsonResponse({'predictions': []})
-
-        ip = _get_client_ip(request)
-        if not _check_rate_limit(f'places_ac_{ip}', limit=20, window=60):
-            return JsonResponse({'error': 'Demasiadas solicitudes, espera un momento.'}, status=429)
-
-        q = request.GET.get('q', '').strip()
-        session = request.GET.get('session', '')
-        if len(q) < 3:
-            return JsonResponse({'predictions': []})
-
-        try:
-            resp = http_requests.get(
-                'https://maps.googleapis.com/maps/api/place/autocomplete/json',
-                params={
-                    'input': q,
-                    'key': settings.GOOGLE_PLACES_KEY,
-                    'components': 'country:mx',
-                    'language': 'es',
-                    'types': 'address',
-                    'sessiontoken': session,
-                },
-                timeout=5,
-            )
-            data = resp.json()
-            predictions = [
-                {'place_id': p['place_id'], 'description': p['description']}
-                for p in data.get('predictions', [])
-            ]
-            return JsonResponse({'predictions': predictions})
-        except Exception:
-            logger.exception('Error en Places Autocomplete proxy')
-            return JsonResponse({'predictions': []})
-
-
-class PlacesDetailsView(APIView):
-    """
-    Proxy seguro para Google Places Details.
-    Devuelve los componentes de dirección parseados para el formulario.
-    Rate limit: 10 peticiones/minuto por IP.
-    """
-    permission_classes = [permissions.AllowAny]
-
-    def get(self, request):
-        if not settings.GOOGLE_PLACES_KEY:
-            return JsonResponse({'error': 'Servicio no configurado'}, status=503)
-
-        ip = _get_client_ip(request)
-        if not _check_rate_limit(f'places_det_{ip}', limit=10, window=60):
-            return JsonResponse({'error': 'Demasiadas solicitudes, espera un momento.'}, status=429)
-
-        place_id = request.GET.get('place_id', '').strip()
-        session = request.GET.get('session', '')
-        if not place_id:
-            return JsonResponse({'error': 'place_id requerido'}, status=400)
-
-        try:
-            resp = http_requests.get(
-                'https://maps.googleapis.com/maps/api/place/details/json',
-                params={
-                    'place_id': place_id,
-                    'key': settings.GOOGLE_PLACES_KEY,
-                    'fields': 'address_components',
-                    'language': 'es',
-                    'sessiontoken': session,
-                },
-                timeout=5,
-            )
-            components = resp.json().get('result', {}).get('address_components', [])
-
-            def get_comp(*types):
-                for c in components:
-                    if any(t in c['types'] for t in types):
-                        return c['long_name']
-                return ''
-
-            return JsonResponse({
-                'calle':           get_comp('route'),
-                'numero_exterior': get_comp('street_number'),
-                'colonia':         get_comp('sublocality_level_1', 'neighborhood', 'sublocality'),
-                'ciudad':          get_comp('locality', 'administrative_area_level_3', 'administrative_area_level_2'),
-                'estado':          get_comp('administrative_area_level_1'),
-                'codigo_postal':   get_comp('postal_code'),
-                'pais':            'México',
-            })
-        except Exception:
-            logger.exception('Error en Places Details proxy')
-            return JsonResponse({'error': 'Error al obtener detalles'}, status=500)

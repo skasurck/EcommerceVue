@@ -54,63 +54,6 @@
     <!-- ── Formulario ── -->
     <form v-if="mostrarFormulario" @submit.prevent="onSubmit" class="space-y-4">
 
-      <!-- Buscador Google Places -->
-      <div class="space-y-1">
-        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300">
-          Buscar dirección
-          <span class="text-xs font-normal text-slate-400 ml-1">(escribe tu calle y número)</span>
-        </label>
-        <div class="relative" ref="placesWrapperRef">
-          <div class="relative">
-            <input
-              v-model="placesQuery"
-              type="text"
-              autocomplete="off"
-              placeholder="Ej. Insurgentes Sur 1234, CDMX"
-              class="w-full rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400 transition-colors"
-              @input="onPlacesInput"
-              @keydown.down.prevent="moverSugerencia(1)"
-              @keydown.up.prevent="moverSugerencia(-1)"
-              @keydown.enter.prevent="seleccionarSugerenciaActiva"
-              @keydown.esc="cerrarSugerencias"
-            />
-            <!-- Ícono lupa -->
-            <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"/>
-            </svg>
-            <!-- Spinner -->
-            <svg v-if="placesLoading" class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-cyan-500" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-            </svg>
-          </div>
-
-          <!-- Dropdown de sugerencias -->
-          <ul
-            v-if="sugerencias.length"
-            class="absolute z-50 mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg overflow-hidden"
-          >
-            <li
-              v-for="(s, i) in sugerencias"
-              :key="s.place_id"
-              @mousedown.prevent="elegirSugerencia(s)"
-              :class="[
-                'px-4 py-2.5 text-sm cursor-pointer transition-colors',
-                i === sugerenciaActiva
-                  ? 'bg-cyan-50 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300'
-                  : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700'
-              ]"
-            >
-              <span class="font-medium">{{ s.description.split(',')[0] }}</span>
-              <span class="text-slate-400 dark:text-slate-500">, {{ s.description.split(',').slice(1).join(',') }}</span>
-            </li>
-          </ul>
-        </div>
-        <p class="text-xs text-slate-400 dark:text-slate-500">O llena los campos manualmente abajo</p>
-      </div>
-
-      <hr class="border-slate-100 dark:border-slate-700" />
-
       <!-- Nombre y apellidos -->
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div class="space-y-1">
@@ -271,14 +214,13 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { useForm } from 'vee-validate';
 import * as yup from 'yup';
 import { useAuthStore } from '@/stores/auth';
 import { useCheckoutStore } from '@/stores/checkout';
 import { useCarritoStore } from '@/stores/carrito';
 import { obtenerDirecciones } from '@/services/checkout';
-import axios from '@/axios';
 
 const emit = defineEmits(['next']);
 const store = useCheckoutStore();
@@ -319,88 +261,6 @@ const [codigo_postal]   = defineField('codigo_postal');
 const [telefono]        = defineField('telefono');
 const [referencias]     = defineField('referencias');
 const [save]            = defineField('save');
-
-// ── Google Places autocomplete ─────────────────────────────────────────────
-const placesQuery     = ref('');
-const sugerencias     = ref([]);
-const sugerenciaActiva = ref(-1);
-const placesLoading   = ref(false);
-const placesWrapperRef = ref(null);
-// Session token: agrupa las requests de una sesión para reducir costo
-const sessionToken    = ref(crypto.randomUUID());
-
-let placesTimer = null;
-
-const onPlacesInput = () => {
-  sugerenciaActiva.value = -1;
-  clearTimeout(placesTimer);
-  if (placesQuery.value.length < 3) { sugerencias.value = []; return; }
-  placesTimer = setTimeout(buscarSugerencias, 350);
-};
-
-const buscarSugerencias = async () => {
-  placesLoading.value = true;
-  try {
-    const { data } = await axios.get('/pagos/places/autocomplete/', {
-      params: { q: placesQuery.value, session: sessionToken.value },
-    });
-    sugerencias.value = data.predictions ?? [];
-  } catch {
-    sugerencias.value = [];
-  } finally {
-    placesLoading.value = false;
-  }
-};
-
-const elegirSugerencia = async (s) => {
-  placesQuery.value = s.description;
-  sugerencias.value = [];
-  placesLoading.value = true;
-  try {
-    const { data } = await axios.get('/pagos/places/details/', {
-      params: { place_id: s.place_id, session: sessionToken.value },
-    });
-    // Nuevo token para la siguiente sesión
-    sessionToken.value = crypto.randomUUID();
-
-    setValues({
-      calle:           data.calle           || calle.value,
-      numero_exterior: data.numero_exterior || numero_exterior.value,
-      colonia:         data.colonia         || colonia.value,
-      ciudad:          data.ciudad          || ciudad.value,
-      estado:          data.estado          || estado.value,
-      codigo_postal:   data.codigo_postal   || codigo_postal.value,
-      pais:            'México',
-    });
-
-    // Lanzar búsqueda por CP si vino uno
-    if (data.codigo_postal?.length === 5) buscarCP(data.codigo_postal);
-  } catch {
-    // silencioso — el usuario puede corregir manualmente
-  } finally {
-    placesLoading.value = false;
-  }
-};
-
-const moverSugerencia = (dir) => {
-  sugerenciaActiva.value = Math.max(-1,
-    Math.min(sugerencias.value.length - 1, sugerenciaActiva.value + dir));
-};
-
-const seleccionarSugerenciaActiva = () => {
-  if (sugerenciaActiva.value >= 0) elegirSugerencia(sugerencias.value[sugerenciaActiva.value]);
-};
-
-const cerrarSugerencias = () => { sugerencias.value = []; };
-
-// Cerrar dropdown al hacer click fuera
-const onClickFuera = (e) => {
-  if (placesWrapperRef.value && !placesWrapperRef.value.contains(e.target)) {
-    sugerencias.value = [];
-  }
-};
-onMounted(() => document.addEventListener('mousedown', onClickFuera));
-onBeforeUnmount(() => document.removeEventListener('mousedown', onClickFuera));
 
 // ── Código postal (SEPOMEX) ────────────────────────────────────────────────
 const colonias   = ref([]);
@@ -488,8 +348,6 @@ const elegirNueva = () => {
   colonias.value = [];
   cpOk.value = false;
   cpError.value = '';
-  placesQuery.value = '';
-  sugerencias.value = [];
 };
 
 const confirmarSeleccionada = () => {
