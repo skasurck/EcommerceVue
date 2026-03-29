@@ -384,8 +384,12 @@ async function fetchResultados() {
     if (filtros.promociones) params.en_oferta = 'true'
 
     const res = await obtenerProductos(params)
-    const list = unwrapList(res.data)
-    productos.value = list.filter(p => p?.id != null)
+    const list = unwrapList(res.data).filter(p => p?.id != null)
+    if (pagination.page === 1) {
+      productos.value = list
+    } else {
+      productos.value = [...productos.value, ...list]
+    }
     total.value = res.data?.count ?? list.length
     pagination.totalPages = Math.max(1, Math.ceil(total.value / pagination.pageSize))
   } catch {
@@ -447,7 +451,7 @@ const handleAddToCart = (producto) => {
 }
 
 // ── Watchers ──────────────────────────────────────────────
-watch(query, (val) => { inputQ.value = val; fetchResultados() })
+watch(query, (val) => { inputQ.value = val; pagination.page = 1; fetchResultados() })
 
 watch(() => filtros.categoria, (id) => {
   if (!id) return
