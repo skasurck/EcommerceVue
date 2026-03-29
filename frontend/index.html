@@ -6,10 +6,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mktska Digital — Tecnología y cómputo en México</title>
     <meta name="description" content="Tienda de tecnología en México. Encuentra computadoras, componentes, periféricos, impresoras y más. Envíos a todo el país.">
+    <!-- Preconexión al servidor para reducir latencia en las primeras peticiones API -->
+    <link rel="preconnect" href="/" crossorigin="use-credentials">
+    <!-- Preload del slider: el navegador inicia el fetch en paralelo con la descarga de JS -->
+    <link rel="preload" href="/api/home-slider/?ordering=orden" as="fetch" crossorigin="use-credentials">
   </head>
   <body>
     <div id="app"></div>
-    <script src="https://sdk.mercadopago.com/js/v2" async></script>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
