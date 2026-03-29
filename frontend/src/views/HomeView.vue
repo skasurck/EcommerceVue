@@ -182,7 +182,7 @@ onBeforeUnmount(() => {
 <template>
   <main class="bg-gray-100 dark:bg-slate-950 min-h-screen">
     <!-- Slider mobile -->
-    <section class="lg:hidden bg-slate-100 dark:bg-slate-900">
+    <section class="lg:hidden bg-slate-100 dark:bg-slate-900 min-h-[390px]">
       <div class="px-2 py-3 overflow-x-auto mobile-no-scrollbar">
         <div class="flex gap-3 snap-x snap-mandatory">
           <article
@@ -194,6 +194,8 @@ onBeforeUnmount(() => {
               :src="slide.mobileSrc || slide.src"
               :alt="slide.mobileDescription || slide.description || slide.alt"
               class="absolute inset-0 h-full w-full object-cover"
+              :fetchpriority="index === 0 ? 'high' : 'low'"
+              :loading="index === 0 ? 'eager' : 'lazy'"
             />
             <div class="absolute inset-0 bg-gradient-to-t from-black/20 via-black/10 to-white/65" />
             <div class="relative z-10 p-4">

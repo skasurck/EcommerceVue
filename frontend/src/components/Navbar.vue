@@ -562,7 +562,6 @@ const moreResults = () => {
 const fmt = (n) => Number(n).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })
 
 onMounted(() => {
-  carrito.cargar()
   if (auth.isAuthenticated) wishlist.cargar()
   detectLocationByIP()
 })
