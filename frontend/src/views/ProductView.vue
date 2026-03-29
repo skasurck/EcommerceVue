@@ -109,9 +109,9 @@
           <!-- Middle: info -->
           <div class="lg:col-span-4">
              <!-- Title -->
-            <h1 class="text-2xl font-semibold text-gray-900 mb-3 flex items-center gap-2">
-              <span class="leading-snug">{{ p.nombre }}</span>
-              <span v-if="agotado" class="bg-red-600 text-white text-xs px-2 py-1 rounded">Agotado</span>
+            <h1 class="text-2xl font-semibold text-gray-900 mb-3 leading-snug break-words">
+              {{ p.nombre }}
+              <span v-if="agotado" class="inline-block align-middle bg-red-600 text-white text-xs px-2 py-1 rounded ml-1">Agotado</span>
             </h1>
 
             <div
