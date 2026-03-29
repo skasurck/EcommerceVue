@@ -53,6 +53,14 @@ const activityHandler = () => {
   }
 }
 
+// Sincronizar sesión entre pestañas: cuando otra pestaña hace login/logout
+// el navegador dispara 'storage' con los cambios de localStorage
+const syncAuthAcrossTabs = (e) => {
+  if (e.key === 'accessToken' || e.key === 'user') {
+    auth.checkLogin()
+  }
+}
+
 onMounted(async () => {
   initTheme()
   auth.checkLogin()
@@ -63,6 +71,7 @@ onMounted(async () => {
   window.addEventListener('keydown', activityHandler)
   window.addEventListener('scroll', activityHandler)
   window.addEventListener('click', activityHandler)
+  window.addEventListener('storage', syncAuthAcrossTabs)
 })
 
 onUnmounted(() => {
@@ -70,6 +79,7 @@ onUnmounted(() => {
   window.removeEventListener('keydown', activityHandler)
   window.removeEventListener('scroll', activityHandler)
   window.removeEventListener('click', activityHandler)
+  window.removeEventListener('storage', syncAuthAcrossTabs)
   auth.clearInactivityTimer()
 })
 
