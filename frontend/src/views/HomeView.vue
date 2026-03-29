@@ -307,7 +307,9 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <div class="max-w-7xl mx-auto px-4 py-6 space-y-8">
+    <!-- min-h-[1200px] reserva espacio para que el footer empiece fuera del viewport
+         mientras los productos cargan, evitando CLS de 0.7+ -->
+    <div class="max-w-7xl mx-auto px-4 py-6 space-y-8 min-h-[1200px]">
       <ProductRow title="Ofertas del día" :productos="ofertas" to="/productos?ofertas=1" @add-to-cart="handleAddToCart" />
           <section class=" border-y border-gray-200">
       <div class="max-w-7xl mx-auto px-4 py-4">
