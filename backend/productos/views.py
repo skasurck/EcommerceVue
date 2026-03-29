@@ -492,7 +492,17 @@ class ProductoViewSet(viewsets.ModelViewSet):
             qs = (
                 Producto.objects
                 .select_related("marca")
-                .prefetch_related("categorias", "atributos__atributo", "galeria", "precios_escalonados")
+                .prefetch_related(
+                    Prefetch(
+                        "categorias",
+                        queryset=Categoria.objects.select_related(
+                            "parent__parent__parent"
+                        ),
+                    ),
+                    "atributos__atributo",
+                    "galeria",
+                    "precios_escalonados",
+                )
             )
         
         qs = qs.order_by("-fecha_creacion")

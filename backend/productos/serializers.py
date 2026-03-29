@@ -561,35 +561,38 @@ class ProductoSerializer(serializers.ModelSerializer):
     def _get_supplierproduct(self, obj: Producto):
         """
         Busca el SupplierProduct asociado por medio del mapeo ProductSupplierMap.
-        Tomamos el primero si hay varios.
+        Resultado cacheado en el objeto para evitar queries repetidas.
         """
-        # 1) Trae todos los SKUs proveedor vinculados a este producto
+        _MISS = object.__new__(object)  # sentinel único por llamada
+        cached = obj.__dict__.get("_supplier_cache", _MISS)
+        if cached is not _MISS:
+            return cached
         skus = list(
             ProductSupplierMap.objects
             .filter(product=obj)
             .values_list("supplier_sku", flat=True)
         )
-        if not skus:
-            return None
-        # 2) Busca el SupplierProduct correspondiente
-        return SupplierProduct.objects.filter(supplier_sku__in=skus).first()
+        result = SupplierProduct.objects.filter(supplier_sku__in=skus).first() if skus else None
+        obj.__dict__["_supplier_cache"] = result
+        return result
 
     def get_effective_qty(self, obj: Producto) -> int:
-        sp = getattr(obj, "_supplier_cache", None) or self._get_supplierproduct(obj)
+        sp = self._get_supplierproduct(obj)
         if not sp:
-            # Sin proveedor → usa tu stock local
             return obj.stock
         return effective_qty(sp.available_qty, sp.in_stock)
 
     def get_is_virtual_qty(self, obj: Producto) -> bool:
-        sp = getattr(obj, "_supplier_cache", None) or self._get_supplierproduct(obj)
+        sp = self._get_supplierproduct(obj)
         if not sp:
-            # Sin proveedor → no es virtual (estás usando tu propio stock)
             return False
         return not (sp.available_qty and sp.available_qty > 0)
 
     def _get_primary_categoria(self, obj: Producto):
-        return obj.categorias.first()
+        # Cacheado en el objeto para evitar 3 accesos separados al prefetch
+        if "_primary_cat_cache" not in obj.__dict__:
+            obj.__dict__["_primary_cat_cache"] = obj.categorias.first()
+        return obj.__dict__["_primary_cat_cache"]
 
     def get_categoria(self, obj: Producto):
         primary = self._get_primary_categoria(obj)
