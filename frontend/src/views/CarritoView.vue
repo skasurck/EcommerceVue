@@ -53,7 +53,7 @@
               <div class="flex items-start justify-between gap-2">
                 <div class="min-w-0">
                   <RouterLink :to="{ name: 'producto', params: { id: item.producto?.id } }">
-                    <p class="text-sm font-semibold text-slate-800 dark:text-slate-100 line-clamp-2 leading-snug hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors">
+                    <p class="text-sm font-semibold text-slate-800 dark:text-slate-100 line-clamp-2 break-words leading-snug hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors">
                       {{ item.producto?.nombre }}
                     </p>
                   </RouterLink>

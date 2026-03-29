@@ -44,7 +44,7 @@
             class="h-20 w-20 shrink-0 rounded-xl object-cover bg-slate-100 dark:bg-slate-800"
           />
           <div class="flex-1 min-w-0">
-            <p class="text-sm font-medium text-slate-800 dark:text-slate-100 line-clamp-2 leading-snug">
+            <p class="text-sm font-medium text-slate-800 dark:text-slate-100 line-clamp-2 break-words leading-snug">
               {{ carrito.lastAdded.nombre }}
             </p>
             <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">

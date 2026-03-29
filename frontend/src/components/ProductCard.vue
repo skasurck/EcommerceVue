@@ -1,5 +1,5 @@
 <template>
-  <div class="relative bg-white rounded-lg border shadow-sm group">
+  <div class="relative bg-white rounded-lg border shadow-sm group overflow-hidden">
     <!-- Wishlist heart button -->
     <button
       type="button"
@@ -54,12 +54,12 @@
         </div>
 
         <!-- Title / name -->
-        <h3 class="mt-1 text-sm text-gray-800 leading-snug">
+        <h3 class="mt-1 text-sm text-gray-800 leading-snug line-clamp-3 break-words">
           {{ p.nombre }}
         </h3>
 
         <!-- Short description (muted) -->
-        <p v-if="p.descripcion_corta" class="mt-0.5 text-xs text-gray-500">
+        <p v-if="p.descripcion_corta" class="mt-0.5 text-xs text-gray-500 line-clamp-2">
           {{ p.descripcion_corta }}
         </p>
 
