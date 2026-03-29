@@ -1,4 +1,5 @@
 import os
+import re
 import time
 
 from celery import shared_task
@@ -11,6 +12,68 @@ from .learning import get_feedback_model, predict_with_feedback
 from .models import Categoria, Producto
 
 logger = get_task_logger(__name__)
+
+
+@shared_task(bind=True, name='productos.generate_keywords', max_retries=2, default_retry_delay=60)
+def generate_keywords_task(self, product_id):
+    """
+    Genera palabras clave de búsqueda automáticamente con Claude Haiku.
+    Se ejecuta en background al guardar un producto nuevo o editado.
+    """
+    try:
+        product = Producto.objects.get(pk=product_id)
+    except Producto.DoesNotExist:
+        logger.warning("generate_keywords_task: producto %s no encontrado.", product_id)
+        return
+
+    # Construir texto de entrada
+    parts = [p for p in [product.nombre, product.descripcion_corta, product.sku] if p]
+    text = ' | '.join(parts).strip()
+    if not text:
+        return
+
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        logger.warning("generate_keywords_task: OPENAI_API_KEY no configurada.")
+        return
+
+    try:
+        from openai import OpenAI
+        client = OpenAI(api_key=api_key)
+
+        prompt = (
+            "Eres un experto en búsqueda de productos de tecnología y cómputo en México.\n"
+            "Para el siguiente producto, genera una lista de palabras clave en ESPAÑOL que un cliente "
+            "podría escribir en un buscador para encontrarlo.\n"
+            "Incluye: sinónimos comunes, abreviaciones (cpu, gpu, ram, hdd, ssd...), términos alternativos "
+            "en lenguaje coloquial, características técnicas relevantes, y traducciones al español de términos en inglés.\n"
+            "NO repitas palabras que ya están en el nombre del producto.\n"
+            "Devuelve SOLO las palabras/frases cortas separadas por espacios, sin puntuación ni explicaciones.\n\n"
+            f"Producto: {text[:300]}\n\n"
+            "Keywords:"
+        )
+
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            max_tokens=150,
+            temperature=0.2,
+            messages=[{"role": "user", "content": prompt}],
+        )
+
+        raw = response.choices[0].message.content.strip().lower()
+        # Limpiar: solo letras, números, espacios y algunos caracteres especiales
+        clean = re.sub(r'[^\w\s]', ' ', raw, flags=re.UNICODE)
+        clean = re.sub(r'\s+', ' ', clean).strip()
+
+        Producto.objects.filter(pk=product_id).update(search_keywords=clean)
+        logger.info(
+            "Keywords generadas para producto %s (%s): %s",
+            product_id, product.nombre[:40], clean[:120]
+        )
+
+    except Exception as exc:
+        logger.error("Error generando keywords para producto %s: %s", product_id, exc)
+        raise self.retry(exc=exc)
 
 # Confianza mínima (0-1) para auto-aplicar sin revisión manual.
 # Claude devuelve 1-10, que se convierte a 0.0-1.0 dividiéndolo entre 10.

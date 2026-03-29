@@ -252,6 +252,7 @@ class ProductSearchAPIView(APIView):
                 Q(nombre__icontains=q)
                 | Q(sku__icontains=q)
                 | Q(descripcion_larga__icontains=q)
+                | Q(search_keywords__icontains=q)
             )
             .order_by("-fecha_creacion")[:limit]
         )
@@ -503,7 +504,11 @@ class ProductoViewSet(viewsets.ModelViewSet):
         marca = params.get('marca') or params.get('marcas')
 
         if search:
-            qs = qs.filter(Q(nombre__icontains=search) | Q(sku__icontains=search))
+            qs = qs.filter(
+                Q(nombre__icontains=search)
+                | Q(sku__icontains=search)
+                | Q(search_keywords__icontains=search)
+            )
         if categoria:
             try:
                 categoria_id = int(categoria)

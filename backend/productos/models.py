@@ -97,6 +97,11 @@ class Producto(models.Model):
     category_ai_conf_sub = models.FloatField(null=True, blank=True)
     fecha_clasificacion_ai = models.DateTimeField(null=True, blank=True, help_text="Fecha de la última clasificación por IA.")
     fecha_creacion = models.DateTimeField(auto_now_add=True, db_index=True)
+    search_keywords = models.TextField(
+        blank=True,
+        default='',
+        help_text='Palabras clave generadas automáticamente por IA para mejorar la búsqueda (sinónimos, abreviaciones, términos alternativos).',
+    )
 
     def save(self, *args, **kwargs):
         reprocess_image = kwargs.pop('reprocess_image', False)
