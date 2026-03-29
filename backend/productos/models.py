@@ -161,7 +161,7 @@ class Producto(models.Model):
                         thumb_img = background
 
                     buffer_thumb = BytesIO()
-                    thumb_img.save(buffer_thumb, format='WEBP', quality=80)
+                    thumb_img.save(buffer_thumb, format='WEBP', quality=65)
                     thumb_file = ContentFile(buffer_thumb.getvalue())
                     filename_thumb = f"{slugify(base_name)}_thumbnail.webp"
 
@@ -311,8 +311,8 @@ class HomeSliderImage(models.Model):
     def __str__(self):
         return self.titulo or f"Slide #{self.pk}"
 
-    def _convert_to_webp(self, field, upload_to):
-        """Convierte el campo de imagen a WebP y lo guarda en el campo."""
+    def _convert_to_webp(self, field, upload_to, max_size=None):
+        """Convierte el campo de imagen a WebP, opcionalmente redimensionando."""
         try:
             field.open()
             with Image.open(field) as img:
@@ -325,8 +325,10 @@ class HomeSliderImage(models.Model):
                 else:
                     background.paste(img)
                 img = background
+            if max_size:
+                img.thumbnail(max_size, Image.Resampling.LANCZOS)
             buffer = BytesIO()
-            img.save(buffer, format='WEBP', quality=85)
+            img.save(buffer, format='WEBP', quality=82)
             filename = f"{slugify(base_name)}_{get_random_string(7)}.webp"
             field.save(filename, ContentFile(buffer.getvalue()), save=False)
         except Exception as e:
@@ -346,7 +348,7 @@ class HomeSliderImage(models.Model):
             if imagen_changed and old_instance.imagen:
                 old_instance.imagen.delete(save=False)
             if not self.imagen.name.lower().endswith('.webp'):
-                self._convert_to_webp(self.imagen, 'home_slider/')
+                self._convert_to_webp(self.imagen, 'home_slider/', max_size=(1440, 900))
 
         # Procesar imagen mobile
         imagen_mobile_changed = old_instance and old_instance.imagen_mobile != self.imagen_mobile
@@ -354,7 +356,7 @@ class HomeSliderImage(models.Model):
             if imagen_mobile_changed and old_instance.imagen_mobile:
                 old_instance.imagen_mobile.delete(save=False)
             if self.imagen_mobile and not self.imagen_mobile.name.lower().endswith('.webp'):
-                self._convert_to_webp(self.imagen_mobile, 'home_slider/mobile/')
+                self._convert_to_webp(self.imagen_mobile, 'home_slider/mobile/', max_size=(640, 960))
 
         super().save(*args, **kwargs)
 
