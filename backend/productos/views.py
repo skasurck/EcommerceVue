@@ -1,4 +1,5 @@
 import logging
+import re
 from rest_framework import viewsets, permissions, status, generics
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.filters import OrderingFilter
@@ -218,6 +219,57 @@ class LearningStatsAPIView(APIView):
 
 
 @method_decorator(cache_page(60), name="dispatch")
+_TECH_CORRECTIONS = [
+    # Memoria RAM: dd4/dd5/dd3 → ddr4/ddr5/ddr3
+    (r'\bdd(\d)\b', r'ddr\1'),
+    # Sin espacio: ddr4 8gb escrito junto como "8gbddr4" → poco frecuente, ignorar
+    # GPU abreviaciones
+    (r'\brtx(\d)', r'rtx \1'),
+    (r'\bgtx(\d)', r'gtx \1'),
+    (r'\brx(\d)', r'rx \1'),
+    # Procesador
+    (r'\bproc\b', 'procesador'),
+    (r'\bcpu\b', 'procesador cpu'),
+    # Almacenamiento
+    (r'\bnvme\b', 'nvme ssd'),
+    (r'\bm\.?2\b', 'm2 nvme ssd'),
+    # Tarjeta madre
+    (r'\bmb\b', 'motherboard tarjeta madre'),
+    (r'\bmobo\b', 'motherboard tarjeta madre'),
+    # Fuente de poder
+    (r'\bpsu\b', 'fuente poder'),
+    # Disipador
+    (r'\bcooler\b', 'disipador enfriamiento cooler'),
+]
+
+def _build_search_q(raw: str) -> Q:
+    """
+    Divide la query en tokens, aplica correcciones tech comunes y devuelve
+    un Q donde CADA token debe coincidir en al menos uno de los campos indexados.
+    Esto permite "memoria ram dd5" → encuentra productos con ddr5.
+    """
+    q = raw.lower().strip()
+
+    # Aplicar correcciones antes de tokenizar
+    for pattern, replacement in _TECH_CORRECTIONS:
+        q = re.sub(pattern, replacement, q, flags=re.IGNORECASE)
+
+    # Tokenizar — cada palabra de ≥2 caracteres es un término independiente
+    tokens = [t for t in q.split() if len(t) >= 2]
+    if not tokens:
+        return Q(pk__in=[])  # nada
+
+    combined = Q()
+    for token in tokens:
+        combined &= (
+            Q(nombre__icontains=token)
+            | Q(sku__icontains=token)
+            | Q(descripcion_larga__icontains=token)
+            | Q(search_keywords__icontains=token)
+        )
+    return combined
+
+
 class ProductSearchAPIView(APIView):
     permission_classes = [permissions.AllowAny]
 
@@ -248,12 +300,7 @@ class ProductSearchAPIView(APIView):
         
         queryset = (
             Producto.objects.filter(visibilidad=True, estado="publicado")
-            .filter(
-                Q(nombre__icontains=q)
-                | Q(sku__icontains=q)
-                | Q(descripcion_larga__icontains=q)
-                | Q(search_keywords__icontains=q)
-            )
+            .filter(_build_search_q(q))
             .order_by("-fecha_creacion")[:limit]
         )
         serializer = ProductSearchSerializer(
@@ -504,11 +551,7 @@ class ProductoViewSet(viewsets.ModelViewSet):
         marca = params.get('marca') or params.get('marcas')
 
         if search:
-            qs = qs.filter(
-                Q(nombre__icontains=search)
-                | Q(sku__icontains=search)
-                | Q(search_keywords__icontains=search)
-            )
+            qs = qs.filter(_build_search_q(search))
         if categoria:
             try:
                 categoria_id = int(categoria)
