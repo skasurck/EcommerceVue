@@ -12,7 +12,7 @@
 
           <!-- Logo -->
           <RouterLink to="/" class="flex items-center shrink-0">
-            <img src="/logo-mktska.png" alt="Mktska Digital" class="h-9 w-auto object-contain [filter:brightness(0)] dark:[filter:brightness(0)_invert(1)] transition-[filter]" />
+            <img src="/logo-mktska.png" alt="Mktska Digital" width="120" height="36" class="h-9 w-auto object-contain [filter:brightness(0)] dark:[filter:brightness(0)_invert(1)] transition-[filter]" />
           </RouterLink>
 
           <!-- Ubicación -->
@@ -177,7 +177,7 @@
           </button>
 
           <RouterLink to="/" class="flex items-center shrink-0">
-            <img src="/logo-mktska.png" alt="Mktska Digital" class="h-8 w-auto object-contain [filter:brightness(0)] dark:[filter:brightness(0)_invert(1)] transition-[filter]" />
+            <img src="/logo-mktska.png" alt="Mktska Digital" width="120" height="32" class="h-8 w-auto object-contain [filter:brightness(0)] dark:[filter:brightness(0)_invert(1)] transition-[filter]" />
           </RouterLink>
 
           <!-- User greeting -->
