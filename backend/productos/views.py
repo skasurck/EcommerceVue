@@ -218,7 +218,6 @@ class LearningStatsAPIView(APIView):
         )
 
 
-@method_decorator(cache_page(60), name="dispatch")
 _TECH_CORRECTIONS = [
     # Memoria RAM: dd4/dd5/dd3 → ddr4/ddr5/ddr3
     (r'\bdd(\d)\b', r'ddr\1'),
@@ -270,6 +269,7 @@ def _build_search_q(raw: str) -> Q:
     return combined
 
 
+@method_decorator(cache_page(60), name="dispatch")
 class ProductSearchAPIView(APIView):
     permission_classes = [permissions.AllowAny]
 
