@@ -672,8 +672,11 @@ const fetchRelatedProducts = async (categoriaId, currentProductId) => {
   const seen = new Set([currentProductId])
   const collected = []
   try {
-    for (const cat of categoryOrder) {
-      const { data } = await obtenerProductos({ categoria: cat, page_size: RELACIONADOS_LIMIT })
+    // Fetch todas las categorías en paralelo en vez de secuencial
+    const results = await Promise.all(
+      categoryOrder.map(cat => obtenerProductos({ categoria: cat, page_size: RELACIONADOS_LIMIT }))
+    )
+    for (const { data } of results) {
       const items = Array.isArray(data) ? data : data?.results || []
       for (const item of items) {
         if (seen.has(item.id)) continue
@@ -728,28 +731,33 @@ const fetchCategoriasIndex = async () => {
 
 // Cargar producto
 onMounted(async () => {
-  const categoriasPromise = fetchCategoriasIndex()
   try {
-    const { data } = await obtenerProducto(route.params.id)
+    // Producto y categorías en paralelo
+    const [{ data }] = await Promise.all([
+      obtenerProducto(route.params.id),
+      fetchCategoriasIndex(),
+    ])
     producto.value = data
+    loading.value = false  // mostrar producto inmediatamente
     registerProductVisit(data)
     useBreadcrumbStore().setLabel(data.nombre)
 
-    // Meta-tags dinamicos
     useHead({
       title: data.nombre,
       meta: [
         { name: 'description', content: (data.descripcion_larga || '').slice(0, 155) }
       ]
     })
+
+    // Relacionados y categoría en paralelo, sin bloquear el render
     const primaryCat = getPrimaryCategoryId(data)
-    await categoriasPromise
-    await fetchRelatedProducts(primaryCat, data.id)
-    await fetchCategoryProducts(primaryCat, data.id)
+    Promise.all([
+      fetchRelatedProducts(primaryCat, data.id),
+      fetchCategoryProducts(primaryCat, data.id),
+    ])
   } catch (e) {
     console.error(e)
     errorMsg.value = 'No se pudo cargar el producto.'
-  } finally {
     loading.value = false
   }
 })
