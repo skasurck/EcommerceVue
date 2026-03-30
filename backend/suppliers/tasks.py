@@ -2,7 +2,7 @@
 import logging
 from celery import shared_task
 from django.utils import timezone
-from suppliers.models import SupplierProduct, ProductSupplierMap
+from suppliers.models import SupplierProduct, ProductSupplierMap, SupplierStockHistory
 from productos.models import Producto
 from suppliers.utils import effective_qty
 from decimal import Decimal
@@ -121,6 +121,7 @@ def run_supermex_stock_sync(self, http2: bool = True, sleep_s: float = 0.3):
                 })
                 result = sync_stock_for_product(sp, client)
 
+                prev_qty = sp.available_qty
                 update_fields = ["last_seen"]
                 if result["in_stock"] != sp.in_stock:
                     sp.in_stock = result["in_stock"]
@@ -133,9 +134,18 @@ def run_supermex_stock_sync(self, http2: bool = True, sleep_s: float = 0.3):
                     update_fields.append("price_supplier")
                 sp.last_seen = timezone.now()
                 sp.save(update_fields=update_fields)
+
+                # Guardar snapshot de stock si el qty cambió (para estadísticas de ventas)
+                if "available_qty" in update_fields:
+                    SupplierStockHistory.objects.create(
+                        supplier_product=sp,
+                        available_qty=result["qty"],
+                        in_stock=result["in_stock"],
+                    )
+
                 if len(update_fields) > 1:
                     updated += 1
-                    logger.info("Actualizado %s: %s", sp.supplier_sku, update_fields)
+                    logger.info("Actualizado %s: %s (qty %s→%s)", sp.supplier_sku, update_fields, prev_qty, result["qty"])
                 else:
                     unchanged += 1
                     logger.debug("Sin cambios %s", sp.supplier_sku)

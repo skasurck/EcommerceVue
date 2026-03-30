@@ -241,6 +241,102 @@
       </div>
     </section>
 
+    <!-- Sección de estadísticas de ventas estimadas -->
+    <section class="bg-white border border-slate-200 rounded-xl shadow-sm p-6 space-y-5">
+      <header class="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h2 class="text-lg font-medium text-slate-800">Ventas estimadas por descenso de stock</h2>
+          <p class="text-sm text-slate-500">
+            Cada vez que el stock baja entre dos sincronizaciones se contabiliza como venta.
+          </p>
+        </div>
+        <div class="flex items-center gap-3">
+          <select
+            v-model.number="statsDays"
+            class="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+            @change="fetchStats"
+          >
+            <option :value="7">Últimos 7 días</option>
+            <option :value="14">Últimos 14 días</option>
+            <option :value="30">Últimos 30 días</option>
+            <option :value="90">Últimos 90 días</option>
+          </select>
+          <button
+            type="button"
+            class="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            @click="fetchStats"
+            :disabled="statsLoading"
+          >
+            <span v-if="statsLoading" class="animate-spin">⏳</span>
+            <span v-else>🔄</span>
+            Actualizar
+          </button>
+        </div>
+      </header>
+
+      <p v-if="statsError" class="text-sm text-red-600">{{ statsError }}</p>
+
+      <template v-else-if="statsRanking.length">
+        <!-- Gráfica de barras top productos -->
+        <div class="h-72">
+          <Bar :data="chartData" :options="chartOptions" />
+        </div>
+
+        <!-- Ranking tabla -->
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-slate-200 text-sm">
+            <thead class="bg-slate-50">
+              <tr>
+                <th class="px-4 py-2 text-left font-semibold text-slate-600">#</th>
+                <th class="px-4 py-2 text-left font-semibold text-slate-600">SKU</th>
+                <th class="px-4 py-2 text-left font-semibold text-slate-600">Nombre</th>
+                <th class="px-4 py-2 text-left font-semibold text-slate-600">Uds. vendidas est.</th>
+                <th class="px-4 py-2 text-left font-semibold text-slate-600">Detalle</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <tr v-for="(item, idx) in statsRanking" :key="item.sku">
+                <td class="px-4 py-2 text-slate-500">{{ idx + 1 }}</td>
+                <td class="px-4 py-2 font-medium text-slate-700">{{ item.sku }}</td>
+                <td class="px-4 py-2 text-slate-700">
+                  <div class="max-w-xs truncate" :title="item.name">{{ item.name }}</div>
+                </td>
+                <td class="px-4 py-2">
+                  <span class="font-semibold text-emerald-700">{{ item.total_sold }}</span>
+                </td>
+                <td class="px-4 py-2">
+                  <button
+                    class="text-xs text-blue-600 hover:underline"
+                    @click="loadSkuDetail(item.sku, item.name)"
+                  >
+                    Ver historial
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Detalle de SKU seleccionado -->
+        <div v-if="skuDetail" class="space-y-3 border-t border-slate-100 pt-5">
+          <div class="flex items-center justify-between">
+            <h3 class="font-medium text-slate-800">
+              Historial: <span class="text-blue-700">{{ skuDetail.name }}</span>
+            </h3>
+            <button class="text-xs text-slate-400 hover:text-slate-600" @click="skuDetail = null">✕ Cerrar</button>
+          </div>
+          <p class="text-sm text-slate-500">Total estimado vendido: <strong>{{ skuDetail.total_sold }}</strong> uds.</p>
+          <div class="h-56">
+            <Line :data="skuChartData" :options="skuChartOptions" />
+          </div>
+        </div>
+      </template>
+
+      <p v-else-if="!statsLoading" class="text-sm text-slate-400">
+        Aún no hay datos de historial. Los snapshots se generan automáticamente cada vez que el stock cambia durante una sincronización.
+      </p>
+    </section>
+
     <section class="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
       <header class="mb-4 flex items-center justify-between flex-wrap gap-3">
         <div>
@@ -315,6 +411,14 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import api, { ensureInterceptors } from '@/axios'
+import { Bar, Line } from 'vue-chartjs'
+import {
+  Chart as ChartJS,
+  CategoryScale, LinearScale, BarElement, LineElement,
+  PointElement, Title, Tooltip, Legend, Filler,
+} from 'chart.js'
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title, Tooltip, Legend, Filler)
 
 defineOptions({ name: 'SupermexImporter' })
 
@@ -406,6 +510,124 @@ const valueOrDash = (value) => {
   if (value === undefined || value === null || value === '') return '—'
   return value
 }
+
+// ── Estadísticas de ventas ──────────────────────────────────────────────────
+const statsDays = ref(30)
+const statsLoading = ref(false)
+const statsError = ref('')
+const statsRanking = ref([])
+const skuDetail = ref(null)
+
+const CHART_COLORS = [
+  '#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6',
+  '#06b6d4','#f97316','#84cc16','#ec4899','#6366f1',
+  '#14b8a6','#fb923c','#a3e635','#f43f5e','#818cf8',
+  '#22d3ee','#fbbf24','#34d399','#c084fc','#4ade80',
+]
+
+const chartData = computed(() => ({
+  labels: statsRanking.value.map((p) => p.sku),
+  datasets: [{
+    label: 'Uds. vendidas estimadas',
+    data: statsRanking.value.map((p) => p.total_sold),
+    backgroundColor: statsRanking.value.map((_, i) => CHART_COLORS[i % CHART_COLORS.length] + 'cc'),
+    borderColor: statsRanking.value.map((_, i) => CHART_COLORS[i % CHART_COLORS.length]),
+    borderWidth: 1,
+    borderRadius: 4,
+  }],
+}))
+
+const chartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: { display: false },
+    tooltip: {
+      callbacks: {
+        title: (items) => {
+          const idx = items[0].dataIndex
+          return statsRanking.value[idx]?.name || items[0].label
+        },
+        label: (item) => ` ${item.raw} uds. vendidas est.`,
+      },
+    },
+  },
+  scales: {
+    x: { ticks: { maxRotation: 45, font: { size: 11 } } },
+    y: { beginAtZero: true, ticks: { stepSize: 1 } },
+  },
+}
+
+const skuChartData = computed(() => {
+  if (!skuDetail.value) return { labels: [], datasets: [] }
+  const series = skuDetail.value.series
+  return {
+    labels: series.map((s) => s.date.slice(0, 16).replace('T', ' ')),
+    datasets: [
+      {
+        label: 'Stock disponible',
+        data: series.map((s) => s.qty),
+        borderColor: '#3b82f6',
+        backgroundColor: '#3b82f620',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 3,
+        yAxisID: 'yStock',
+      },
+      {
+        label: 'Vendidos estimados',
+        data: series.map((s) => s.sold),
+        borderColor: '#10b981',
+        backgroundColor: '#10b98120',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 3,
+        yAxisID: 'ySold',
+      },
+    ],
+  }
+})
+
+const skuChartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: { position: 'top' },
+  },
+  scales: {
+    yStock: { type: 'linear', position: 'left', beginAtZero: true, title: { display: true, text: 'Stock' } },
+    ySold:  { type: 'linear', position: 'right', beginAtZero: true, grid: { drawOnChartArea: false }, title: { display: true, text: 'Vendidos' } },
+  },
+}
+
+const fetchStats = async () => {
+  statsLoading.value = true
+  statsError.value = ''
+  try {
+    ensureInterceptors()
+    const { data } = await api.get('suppliers/supermex/sales-stats/', {
+      params: { days: statsDays.value, top: 20 },
+    })
+    statsRanking.value = data.ranking || []
+  } catch (err) {
+    statsError.value = err.response?.data?.error || 'No se pudieron cargar las estadísticas.'
+  } finally {
+    statsLoading.value = false
+  }
+}
+
+const loadSkuDetail = async (sku, name) => {
+  try {
+    ensureInterceptors()
+    const { data } = await api.get('suppliers/supermex/sales-stats/', {
+      params: { sku, days: statsDays.value },
+    })
+    skuDetail.value = { ...data, name }
+  } catch {
+    // silencioso — el ranking ya está visible
+  }
+}
+// ────────────────────────────────────────────────────────────────────────────
 
 const filteredProducts = computed(() => {
   const term = search.value.trim().toLowerCase()
@@ -536,7 +758,7 @@ const fetchLatest = async () => {
 }
 
 onMounted(async () => {
-  await fetchLatest()
+  await Promise.all([fetchLatest(), fetchStats()])
 
   // Retomar scraper de importación si estaba en progreso
   const scraperTaskId = localStorage.getItem(LS_SCRAPER_KEY)

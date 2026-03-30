@@ -18,6 +18,27 @@ class SupplierProduct(models.Model):
     odoo_product_id = models.IntegerField(null=True, blank=True)
     odoo_template_id = models.IntegerField(null=True, blank=True)
 
+class SupplierStockHistory(models.Model):
+    """Snapshot diario de stock por producto. Permite estimar ventas como descensos de inventario."""
+    supplier_product = models.ForeignKey(
+        SupplierProduct,
+        on_delete=models.CASCADE,
+        related_name='stock_history',
+    )
+    recorded_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    available_qty = models.IntegerField()
+    in_stock = models.BooleanField()
+
+    class Meta:
+        ordering = ['-recorded_at']
+        indexes = [
+            models.Index(fields=['supplier_product', 'recorded_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.supplier_product.supplier_sku} @ {self.recorded_at:%Y-%m-%d %H:%M} qty={self.available_qty}"
+
+
 class ProductSupplierMap(models.Model):
     product = models.ForeignKey(
         'productos.Producto',     # usa el app label y nombre real de tu modelo
