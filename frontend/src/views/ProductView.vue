@@ -742,51 +742,6 @@ onMounted(async () => {
     registerProductVisit(data)
     useBreadcrumbStore().setLabel(data.nombre)
 
-    const productUrl = `${window.location.origin}/producto/${data.id}`
-    const productImage = toMedia(data.imagen_principal) || `${window.location.origin}/logo-mktska.png`
-    const productDesc = (data.descripcion_larga || data.descripcion_corta || '').slice(0, 155)
-    const productPrice = data.precio_rebajado || data.precio_normal || data.precio || null
-
-    const jsonLd = {
-      '@context': 'https://schema.org',
-      '@type': 'Product',
-      name: data.nombre,
-      description: productDesc || undefined,
-      image: productImage,
-      url: productUrl,
-      sku: data.sku || String(data.id),
-      brand: data.marca ? { '@type': 'Brand', name: data.marca } : undefined,
-      offers: {
-        '@type': 'Offer',
-        url: productUrl,
-        priceCurrency: 'MXN',
-        price: productPrice != null ? String(productPrice) : undefined,
-        availability: (data.stock > 0) ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
-        itemCondition: 'https://schema.org/NewCondition',
-      },
-    }
-
-    useHead({
-      title: data.nombre,
-      meta: [
-        { name: 'description', content: productDesc },
-        { property: 'og:type', content: 'product' },
-        { property: 'og:url', content: productUrl },
-        { property: 'og:title', content: data.nombre },
-        { property: 'og:description', content: productDesc },
-        { property: 'og:image', content: productImage },
-        { name: 'twitter:card', content: 'summary_large_image' },
-        { name: 'twitter:title', content: data.nombre },
-        { name: 'twitter:description', content: productDesc },
-        { name: 'twitter:image', content: productImage },
-      ],
-      link: [
-        { rel: 'canonical', href: productUrl },
-      ],
-      script: [
-        { type: 'application/ld+json', children: JSON.stringify(jsonLd) },
-      ],
-    })
 
     // Relacionados y categoría en paralelo, sin bloquear el render
     const primaryCat = getPrimaryCategoryId(data)
@@ -905,6 +860,52 @@ const num = (v) => {
   }
   return null
 }
+
+// ── SEO: título, meta y JSON-LD reactivos al producto cargado ────────────────
+useHead(computed(() => {
+  const pr = p.value
+  if (!pr.nombre) return { title: 'Mktska Digital — Tecnología y cómputo en México' }
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://mktska.net'
+  const productUrl = `${origin}/producto/${pr.id}`
+  const productImage = toMedia(pr.imagen_principal) || `${origin}/logo-mktska.png`
+  const productDesc = (pr.descripcion_larga || pr.descripcion_corta || '').slice(0, 155)
+  const productPrice = num(pr.precio_rebajado) ?? num(pr.precio_normal) ?? num(pr.precio)
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: pr.nombre,
+    description: productDesc || undefined,
+    image: productImage,
+    url: productUrl,
+    sku: pr.sku || String(pr.id),
+    brand: pr.marca ? { '@type': 'Brand', name: pr.marca } : undefined,
+    offers: {
+      '@type': 'Offer',
+      url: productUrl,
+      priceCurrency: 'MXN',
+      price: productPrice != null ? String(productPrice) : undefined,
+      availability: pr.stock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+      itemCondition: 'https://schema.org/NewCondition',
+    },
+  }
+  return {
+    title: pr.nombre,
+    meta: [
+      { name: 'description', content: productDesc },
+      { property: 'og:type', content: 'product' },
+      { property: 'og:url', content: productUrl },
+      { property: 'og:title', content: pr.nombre },
+      { property: 'og:description', content: productDesc },
+      { property: 'og:image', content: productImage },
+      { name: 'twitter:card', content: 'summary_large_image' },
+      { name: 'twitter:title', content: pr.nombre },
+      { name: 'twitter:description', content: productDesc },
+      { name: 'twitter:image', content: productImage },
+    ],
+    link: [{ rel: 'canonical', href: productUrl }],
+    script: [{ type: 'application/ld+json', children: JSON.stringify(jsonLd) }],
+  }
+}))
 
 const listPrice = computed(() => num(p.value.precio_normal))
 const salePrice = computed(() => num(p.value.precio_rebajado))
