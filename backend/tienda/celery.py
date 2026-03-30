@@ -21,11 +21,10 @@ app.config_from_object('django.conf:settings', namespace='CELERY')
 app.autodiscover_tasks()                          # busca tasks.py en cada app
 app.autodiscover_tasks(related_name='emails')     # busca emails.py en cada app
 
-# cada 15 min: sync completo
 app.conf.beat_schedule = {
-    "sync-supermex-15min": {
+    "sync-supermex-diario-3am": {
         "task": "suppliers.tasks.sync_supermex_full",
-        "schedule": crontab(minute="*/15"),
+        "schedule": crontab(hour=3, minute=0),
     },
     "recalcular-destacados-cada-hora": {
         "task": "productos.recalcular_destacados",
