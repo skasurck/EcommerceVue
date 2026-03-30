@@ -876,7 +876,13 @@ def sync_stock_for_product(sp, client: httpx.Client) -> dict:
             print(f"[STOCK] AJAX cacheado falló para {url}: {exc} — recargando HTML")
 
     # --- Fallback: cargar HTML, extraer IDs y precio/stock ---
-    html = get_with(client, url)
+    try:
+        html = get_with(client, url)
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code == 404:
+            print(f"[STOCK] 404 en {url} → agotado/qty=0")
+            return {"price": None, "in_stock": False, "qty": 0, "method": "404"}
+        raise
     sku_parsed, name, price, in_stock, _, _, qty, _ = parse_pdp(html, url)
     product_id, template_id, _ = extract_ids_and_csrf(html, url)
 
