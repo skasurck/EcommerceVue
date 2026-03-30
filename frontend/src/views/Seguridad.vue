@@ -248,7 +248,7 @@ const confirmar2FA = async () => {
   twofa.value.error = ''
   twofa.value.okMsg = ''
   try {
-    await api.post('auth/2fa/setup/', { otp: twofa.value.otpConfirm })
+    await api.post('auth/2fa/setup/', { otp_code: twofa.value.otpConfirm })
     twofa.value.activo = true
     twofa.value.qrCode = ''
     twofa.value.otpConfirm = ''

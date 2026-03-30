@@ -84,7 +84,7 @@ export const useAuthStore = defineStore('auth', {
      * @param {{challenge:string, otp:string}} payload
      */
     async loginWith2FA({ challenge, otp }) {
-      const { data } = await api.post('auth/login/2fa/', { challenge, otp })
+      const { data } = await api.post('auth/login/2fa/', { challenge, otp_code: otp })
       if (import.meta.env.DEV) console.debug('login 2fa response', data)
       const access = data.access || data.access_token || null
       const refresh = data.refresh || data.refresh_token || null
