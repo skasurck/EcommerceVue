@@ -1,86 +1,86 @@
 <template>
   <main class="min-h-screen bg-slate-50 dark:bg-slate-900 px-4 py-8">
-    <div class="mx-auto max-w-4xl space-y-6">
+    <div class="mx-auto max-w-5xl space-y-6">
 
-      <!-- Encabezado -->
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <RouterLink to="/mi-cuenta" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
-            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
-            </svg>
-          </RouterLink>
-          <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100">Direcciones</h1>
-        </div>
-        <button @click="nueva" class="inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors">
-          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-          </svg>
-          Agregar dirección
-        </button>
-      </div>
+      <!-- Breadcrumb -->
+      <nav class="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+        <RouterLink to="/mi-cuenta" class="hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors">Mi cuenta</RouterLink>
+        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+        </svg>
+        <span class="text-slate-700 dark:text-slate-300 font-medium">Mis direcciones</span>
+      </nav>
+
+      <h1 class="text-3xl font-bold text-slate-900 dark:text-slate-100">Mis direcciones</h1>
 
       <!-- Cargando -->
-      <div v-if="cargando" class="grid sm:grid-cols-2 gap-4">
-        <div v-for="n in 2" :key="n" class="h-40 rounded-2xl bg-slate-200 dark:bg-slate-700 animate-pulse" />
+      <div v-if="cargando" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div v-for="n in 3" :key="n" class="h-52 rounded-2xl bg-slate-200 dark:bg-slate-700 animate-pulse" />
       </div>
 
-      <!-- Sin direcciones -->
-      <div
-        v-else-if="direcciones.length === 0"
-        class="rounded-2xl border border-dashed border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 p-12 text-center"
-      >
-        <div class="inline-flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-700 mb-3">
-          <svg class="h-7 w-7 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-            <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
-        </div>
-        <p class="text-slate-600 dark:text-slate-400 font-medium">No tienes direcciones guardadas</p>
-        <button @click="nueva" class="mt-3 text-sm text-emerald-600 dark:text-emerald-400 hover:underline font-medium">
-          Agregar una dirección →
+      <!-- Grid de tarjetas -->
+      <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
+
+        <!-- Tarjeta: Agregar dirección -->
+        <button
+          @click="nueva"
+          class="flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 p-10 text-slate-500 dark:text-slate-400 hover:border-emerald-400 hover:text-emerald-600 dark:hover:border-emerald-500 dark:hover:text-emerald-400 transition-colors group min-h-[180px] w-full"
+        >
+          <span class="text-4xl font-light leading-none group-hover:scale-110 transition-transform">+</span>
+          <span class="text-base font-medium">Agregar dirección</span>
         </button>
-      </div>
 
-      <!-- Tarjetas -->
-      <div v-else class="grid sm:grid-cols-2 gap-4">
+        <!-- Tarjetas de direcciones -->
         <div
           v-for="dir in direcciones"
           :key="dir.id"
-          class="relative rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-sm flex flex-col gap-3"
-          :class="dir.predeterminada ? 'ring-2 ring-emerald-500' : ''"
+          class="relative rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-sm flex flex-col gap-3 min-h-[180px]"
         >
           <!-- Badge predeterminada -->
-          <div v-if="dir.predeterminada" class="absolute top-4 right-4">
-            <span class="inline-flex items-center gap-1 rounded-full bg-emerald-100 dark:bg-emerald-900/40 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
-              <svg class="h-3 w-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-              Predeterminada
-            </span>
+          <div v-if="dir.predeterminada" class="text-xs text-slate-500 dark:text-slate-400">
+            <span class="font-semibold">Predeterminado:</span>
+            <span class="ml-1 text-slate-700 dark:text-slate-300">{{ dir.nombre }} {{ dir.apellidos }}</span>
           </div>
 
-          <!-- Contenido -->
-          <div class="pr-24">
-            <p class="font-semibold text-slate-900 dark:text-slate-100 text-sm">{{ dir.nombre }} {{ dir.apellidos }}</p>
-            <p class="text-sm text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
-              {{ dir.calle }} {{ dir.numero_exterior }}
-              <template v-if="dir.numero_interior"> Int. {{ dir.numero_interior }}</template><br />
-              {{ dir.colonia }}, {{ dir.ciudad }}<br />
-              {{ dir.estado }}, CP {{ dir.codigo_postal }}
+          <!-- Contenido dirección -->
+          <div class="flex-1 text-sm text-slate-700 dark:text-slate-300 leading-relaxed space-y-0.5">
+            <p class="font-bold text-slate-900 dark:text-slate-100">{{ dir.nombre }} {{ dir.apellidos }}</p>
+            <p>{{ dir.calle }} {{ dir.numero_exterior }}<template v-if="dir.numero_interior"> Int. {{ dir.numero_interior }}</template></p>
+            <p v-if="dir.colonia" class="uppercase text-xs font-medium tracking-wide text-slate-500 dark:text-slate-400">{{ dir.colonia }}</p>
+            <p>{{ dir.ciudad }}, {{ dir.estado }}</p>
+            <p>{{ dir.codigo_postal }}</p>
+            <p>{{ dir.pais }}</p>
+            <p v-if="dir.telefono" class="pt-1 text-slate-600 dark:text-slate-400">
+              Número de teléfono: {{ dir.telefono }}
             </p>
-            <p v-if="dir.telefono" class="text-xs text-slate-500 dark:text-slate-400 mt-1.5">📞 {{ dir.telefono }}</p>
+            <p v-if="dir.referencias" class="text-xs text-slate-500 dark:text-slate-500 pt-1 italic">
+              {{ dir.referencias }}
+            </p>
           </div>
 
           <!-- Acciones -->
-          <div class="flex items-center gap-3 pt-2 border-t border-slate-100 dark:border-slate-700">
+          <div class="pt-2 border-t border-slate-100 dark:border-slate-700 text-sm flex flex-col gap-1">
+            <div class="flex items-center gap-2">
+              <button
+                class="text-emerald-600 dark:text-emerald-400 hover:underline font-medium"
+                @click="editar(dir)"
+              >Editar</button>
+              <span class="text-slate-300 dark:text-slate-600">|</span>
+              <button
+                class="text-emerald-600 dark:text-emerald-400 hover:underline font-medium"
+                @click="confirmarBorrar(dir)"
+              >Descartar</button>
+            </div>
             <button
-              class="text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
-              @click="editar(dir)"
-            >Editar</button>
-            <span class="text-slate-200 dark:text-slate-600">|</span>
-            <button
-              class="text-sm font-medium text-red-500 hover:text-red-700 dark:hover:text-red-400 transition-colors"
-              @click="confirmarBorrar(dir)"
-            >Eliminar</button>
+              v-if="!dir.predeterminada"
+              class="text-left text-emerald-600 dark:text-emerald-400 hover:underline font-medium flex items-center gap-1"
+              @click="establecerPredeterminada(dir)"
+            >
+              <svg class="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+              Establecer como predeterminado
+            </button>
           </div>
         </div>
       </div>
@@ -92,6 +92,7 @@
         <div v-if="show" class="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="show = false" />
           <div class="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white dark:bg-slate-800 shadow-xl">
+
             <div class="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 px-6 py-4">
               <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">
                 {{ editingId ? 'Editar dirección' : 'Nueva dirección' }}
@@ -105,7 +106,6 @@
 
             <form @submit.prevent="guardar" class="p-6 space-y-5" :key="formKey">
 
-              <!-- Datos personales -->
               <fieldset class="space-y-3">
                 <legend class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Datos de contacto</legend>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -132,12 +132,11 @@
                 </div>
               </fieldset>
 
-              <!-- Dirección -->
               <fieldset class="space-y-3">
                 <legend class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Dirección</legend>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
 
-                  <!-- Código postal con búsqueda -->
+                  <!-- Código postal -->
                   <div>
                     <label :class="labelClass">Código postal *</label>
                     <div class="relative">
@@ -165,26 +164,14 @@
                     <p v-else-if="cpOk" class="mt-1 text-xs text-emerald-600 dark:text-emerald-400">Datos autocompletados ✓</p>
                   </div>
 
-                  <!-- Colonia (select si hay opciones, input si no) -->
+                  <!-- Colonia -->
                   <div>
                     <label :class="labelClass">Colonia *</label>
-                    <select
-                      v-if="colonias.length > 0"
-                      v-model="form.colonia"
-                      required
-                      :class="inputClass"
-                    >
+                    <select v-if="colonias.length > 0" v-model="form.colonia" required :class="inputClass">
                       <option value="" disabled>Selecciona una colonia</option>
                       <option v-for="c in colonias" :key="c" :value="c">{{ c }}</option>
                     </select>
-                    <input
-                      v-else
-                      v-model="form.colonia"
-                      type="text"
-                      placeholder="Colonia"
-                      required
-                      :class="inputClass"
-                    />
+                    <input v-else v-model="form.colonia" type="text" placeholder="Colonia" required :class="inputClass" />
                   </div>
 
                   <div>
@@ -223,7 +210,6 @@
                 <span class="text-sm font-medium text-slate-700 dark:text-slate-300">Usar como dirección predeterminada</span>
               </label>
 
-              <!-- Error de guardado -->
               <div v-if="guardadoError" class="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 px-4 py-3 text-sm text-red-700 dark:text-red-400">
                 {{ guardadoError }}
               </div>
@@ -244,9 +230,7 @@
                   type="button"
                   class="rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-5 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors"
                   @click="show = false"
-                >
-                  Cancelar
-                </button>
+                >Cancelar</button>
               </div>
             </form>
           </div>
@@ -260,7 +244,7 @@
         <div v-if="confirmDir" class="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="confirmDir = null" />
           <div class="relative w-full max-w-sm rounded-2xl bg-white dark:bg-slate-800 p-6 shadow-xl space-y-4">
-            <h3 class="text-base font-semibold text-slate-900 dark:text-slate-100">¿Eliminar esta dirección?</h3>
+            <h3 class="text-base font-semibold text-slate-900 dark:text-slate-100">¿Descartar esta dirección?</h3>
             <p class="text-sm text-slate-600 dark:text-slate-400">
               {{ confirmDir.calle }} {{ confirmDir.numero_exterior }}, {{ confirmDir.ciudad }}
             </p>
@@ -268,7 +252,7 @@
               <button
                 class="flex-1 rounded-xl bg-red-600 hover:bg-red-700 px-4 py-2.5 text-sm font-semibold text-white transition-colors"
                 @click="borrar(confirmDir.id)"
-              >Eliminar</button>
+              >Descartar</button>
               <button
                 class="flex-1 rounded-xl border border-slate-200 dark:border-slate-600 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
                 @click="confirmDir = null"
@@ -289,22 +273,22 @@ import { obtenerDirecciones, crearDireccion, actualizarDireccion, eliminarDirecc
 const labelClass = 'block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-1.5'
 const inputClass = 'w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition'
 
-const direcciones = ref([])
-const form        = ref({})
-const editingId   = ref(null)
-const show        = ref(false)
-const formKey     = ref(0)
-const cargando    = ref(false)
-const guardando   = ref(false)
+const direcciones   = ref([])
+const form          = ref({})
+const editingId     = ref(null)
+const show          = ref(false)
+const formKey       = ref(0)
+const cargando      = ref(false)
+const guardando     = ref(false)
 const guardadoError = ref('')
-const confirmDir  = ref(null)
+const confirmDir    = ref(null)
 
 // Código postal
-const colonias    = ref([])
-const cpCargando  = ref(false)
-const cpOk        = ref(false)
-const cpError     = ref('')
-let   cpTimer     = null
+const colonias   = ref([])
+const cpCargando = ref(false)
+const cpOk       = ref(false)
+const cpError    = ref('')
+let   cpTimer    = null
 
 const blank = () => ({
   nombre: '', apellidos: '', email: '', nombre_empresa: '',
@@ -361,14 +345,17 @@ const guardar = async () => {
     await cargar()
   } catch (e) {
     const data = e?.response?.data
-    if (data && typeof data === 'object') {
-      guardadoError.value = Object.values(data).flat().join(' ')
-    } else {
-      guardadoError.value = 'Error al guardar la dirección.'
-    }
+    guardadoError.value = data && typeof data === 'object'
+      ? Object.values(data).flat().join(' ')
+      : 'Error al guardar la dirección.'
   } finally {
     guardando.value = false
   }
+}
+
+const establecerPredeterminada = async (dir) => {
+  await actualizarDireccion(dir.id, { ...dir, predeterminada: true })
+  await cargar()
 }
 
 const confirmarBorrar = (dir) => { confirmDir.value = dir }
@@ -379,7 +366,7 @@ const borrar = async (id) => {
   await cargar()
 }
 
-// ─── Autocompletado por Código Postal (copomex) ───
+// ─── Autocompletado por Código Postal ───
 const onCpInput = () => {
   cpOk.value = false
   cpError.value = ''
@@ -398,16 +385,13 @@ const buscarCp = async (cp) => {
   try {
     const res = await fetch(`https://api.copomex.com/query/info_cp/${cp}?type=simplified&token=pruebas`)
     const data = await res.json()
-    // La API devuelve array de asentamientos o un objeto con error
     const registros = Array.isArray(data) ? data : (data.error ? [] : [data])
     if (registros.length === 0 || registros[0]?.error) {
       cpError.value = 'Código postal no encontrado'
       return
     }
-    // Autocompletar estado y ciudad del primer registro
     form.value.estado = registros[0].estado ?? form.value.estado
     form.value.ciudad = registros[0].municipio ?? form.value.ciudad
-    // Recolectar todas las colonias únicas
     colonias.value = [...new Set(registros.map(r => r.asentamiento).filter(Boolean))]
     if (colonias.value.length === 1) form.value.colonia = colonias.value[0]
     cpOk.value = true
