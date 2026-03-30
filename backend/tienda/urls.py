@@ -25,10 +25,11 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
 from productos.views import editar_producto
+from two_factor.urls import urlpatterns as tf_urls
 
 urlpatterns = [
     # Login 2FA para el panel de Django Admin
-    path('mktska-panel-x7k2/', include(('two_factor.urls', 'two_factor'))),
+    path('mktska-panel-x7k2/', include((tf_urls, 'two_factor'))),
     path('mktska-panel-x7k2/admin/', admin.site.urls),
     path('productos/editar/<int:pk>/', editar_producto, name='editar_producto'),
     path('api/', include('productos.urls')),
