@@ -60,7 +60,7 @@
 
         <div v-if="!hasItems" class="text-center py-10">
           <p class="text-slate-500 dark:text-slate-400 mb-4">Tu carrito está vacío.</p>
-          <a href="/tienda" class="text-cyan-600 dark:text-cyan-400 font-medium hover:underline">Ir a la tienda →</a>
+          <RouterLink to="/" class="text-cyan-600 dark:text-cyan-400 font-medium hover:underline">Ir a la tienda →</RouterLink>
         </div>
         <template v-else>
           <CheckoutStep1 v-if="store.step === 1" />

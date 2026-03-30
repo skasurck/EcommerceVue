@@ -265,7 +265,10 @@ class PedidoSerializer(serializers.ModelSerializer):
             pedido.total = subtotal - descuento + metodo_envio.costo
             pedido.save(update_fields=['cupon', 'subtotal', 'descuento', 'costo_envio', 'total'])
 
-            if cart:
+            # Para MercadoPago no limpiamos el carrito aún:
+            # el usuario puede regresar si el pago falla.
+            # El carrito se limpia en GraciasView al confirmar el pago.
+            if cart and pedido.metodo_pago != 'mercadopago':
                 clear_cart(cart)
 
             return pedido

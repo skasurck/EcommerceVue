@@ -167,9 +167,11 @@ import { useRoute, useRouter } from 'vue-router'
 import { useHead } from '@vueuse/head'
 import { getOrderByPreferenceId } from '@/services/pedidos'
 import api from '@/axios'
+import { useCarritoStore } from '@/stores/carrito'
 
 const route = useRoute()
 const router = useRouter()
+const carrito = useCarritoStore()
 const summary = ref(null)
 const trackerSent = ref(false)
 const datosBanco = ref(null)
@@ -235,6 +237,8 @@ onMounted(async () => {
   if (status && preference_id) {
     mpStatus.value = status;
     if (status === 'approved') {
+      // Pago confirmado: limpiar carrito ahora que el pedido está pagado
+      carrito.limpiar()
       try {
         const response = await getOrderByPreferenceId(preference_id);
         const orderData = response.data;

@@ -1,9 +1,11 @@
 from django.utils import timezone
 from rest_framework import permissions, serializers, viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
 
 from .models import CartItem, CartReservation
 from .serializers import CartItemSerializer
-from .services import ensure_cart_for_request
+from .services import clear_cart, ensure_cart_for_request
 
 
 class CartItemViewSet(viewsets.ModelViewSet):
@@ -70,6 +72,13 @@ class CartItemViewSet(viewsets.ModelViewSet):
             self._update_reservation(cart)
         else:
             CartReservation.objects.filter(cart=cart).delete()
+
+    @action(detail=False, methods=['delete'], url_path='clear')
+    def clear_all(self, request):
+        """Vacía el carrito completo (llamado tras confirmar pago con MP)."""
+        cart = self._get_cart()
+        clear_cart(cart)
+        return Response(status=204)
 
     def _get_cart(self):
         if not hasattr(self, '_cart'):

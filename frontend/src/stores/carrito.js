@@ -125,5 +125,15 @@ export const useCarritoStore = defineStore('carrito', {
         console.error('[carrito] Error al eliminar:', err)
       }
     },
+
+    async limpiar() {
+      try {
+        await api.delete('carrito/clear/')
+      } catch (err) {
+        console.error('[carrito] Error al limpiar:', err)
+      }
+      this.items = []
+      this.reservaExpira = null
+    },
   },
 })
