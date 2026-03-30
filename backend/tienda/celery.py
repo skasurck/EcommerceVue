@@ -26,6 +26,10 @@ app.conf.beat_schedule = {
         "task": "suppliers.tasks.sync_supermex_full",
         "schedule": crontab(hour=3, minute=0),
     },
+    "recheck-inactivos-supermex-lunes": {
+        "task": "suppliers.tasks.recheck_inactive_products",
+        "schedule": crontab(hour=4, minute=0, day_of_week=1),  # lunes 4 AM
+    },
     "recalcular-destacados-cada-hora": {
         "task": "productos.recalcular_destacados",
         "schedule": crontab(minute=0),  # cada hora en punto

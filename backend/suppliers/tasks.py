@@ -243,5 +243,57 @@ def apply_rules():
 
 @shared_task(name="suppliers.tasks.sync_supermex_full")
 def sync_supermex_full():
-    """Tarea programada por beat cada 15 min: actualiza stock y precios de todos los productos existentes."""
+    """Tarea programada por beat cada día a las 3 AM: actualiza stock y precios de todos los productos activos."""
     return run_supermex_stock_sync.apply(kwargs={"http2": True, "sleep_s": 0.3}).get()
+
+
+@shared_task(name="suppliers.tasks.recheck_inactive_products")
+def recheck_inactive_products():
+    """
+    Revisión semanal de productos desactivados por 404.
+    Si el producto vuelve a responder con 200, lo reactiva automáticamente.
+    """
+    from suppliers.scraper_supermex import get_client, sync_stock_for_product
+
+    inactive = list(
+        SupplierProduct.objects.filter(supplier="supermex", is_active=False)
+        .values_list("id", flat=True)
+    )
+    total = len(inactive)
+    reactivated = 0
+    still_dead = 0
+
+    logger.info("[RECHECK] Revisando %d productos inactivos...", total)
+
+    with get_client(http2=True) as client:
+        for sp_id in inactive:
+            import time
+            try:
+                sp = SupplierProduct.objects.get(pk=sp_id)
+                result = sync_stock_for_product(sp, client)
+
+                if result.get("method") == "404":
+                    still_dead += 1
+                    logger.debug("[RECHECK] Sigue inactivo: %s", sp.supplier_sku)
+                else:
+                    # Volvió a responder — reactivar
+                    sp.is_active = True
+                    sp.consecutive_404s = 0
+                    sp.in_stock = result["in_stock"]
+                    sp.available_qty = result["qty"]
+                    sp.last_seen = timezone.now()
+                    save_fields = ["is_active", "consecutive_404s", "in_stock", "available_qty", "last_seen"]
+                    if result["price"] is not None:
+                        sp.price_supplier = result["price"]
+                        save_fields.append("price_supplier")
+                    sp.save(update_fields=save_fields)
+                    reactivated += 1
+                    logger.info("[RECHECK] Reactivado: %s", sp.supplier_sku)
+
+            except Exception as exc:
+                logger.warning("[RECHECK] Error en %s: %s", sp_id, exc)
+
+            time.sleep(0.5)
+
+    logger.info("[RECHECK] Completado: %d reactivados, %d siguen sin responder de %d revisados", reactivated, still_dead, total)
+    return {"total": total, "reactivated": reactivated, "still_dead": still_dead}
