@@ -4,7 +4,8 @@
 
       <!-- Marca -->
       <div class="space-y-3">
-        <img src="/logo-mktska.png" alt="Mktska Digital" class="h-8 w-auto brightness-0 invert" />
+        <img src="/logo-mktska.webp" alt="Mktska Digital" width="120" height="32" class="h-8 w-auto dark:hidden" />
+        <img src="/logo-mktska-white.webp" alt="Mktska Digital" width="120" height="32" class="h-8 w-auto hidden dark:block" />
         <p class="text-sm text-slate-400 leading-relaxed">
           Tu tienda de tecnología y electrónica de confianza.
         </p>
