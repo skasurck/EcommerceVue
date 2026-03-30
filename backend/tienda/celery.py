@@ -35,4 +35,8 @@ app.conf.beat_schedule = {
         "task": "pedidos.cancelar_pedidos_mp_abandonados",
         "schedule": crontab(minute=0, hour="*/2"),  # cada 2 horas
     },
+    "rotar-ofertas-diarias": {
+        "task": "promotions.create_daily_offers",
+        "schedule": crontab(minute=0, hour=0),  # cada día a medianoche
+    },
 }

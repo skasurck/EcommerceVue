@@ -19,9 +19,8 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS('Daily offers are enabled. Starting to create offers...'))
 
-        # Deactivate yesterday's offers
-        yesterday = timezone.now() - timedelta(days=1)
-        deactivated_offers = DailyOffer.objects.filter(is_active=True, start_date__lte=yesterday)
+        # Deactivate all currently active offers
+        deactivated_offers = DailyOffer.objects.filter(is_active=True)
         
         for offer in deactivated_offers:
             offer.is_active = False
