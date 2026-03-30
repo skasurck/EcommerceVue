@@ -133,23 +133,34 @@
             <span>{{ stockSyncing ? 'Sincronizando...' : 'Sincronizar stock y precios' }}</span>
           </button>
           <p v-if="runError" class="text-sm text-red-600">{{ runError }}</p>
-          <p v-else-if="stockSyncResult" class="text-sm text-emerald-600">
-            Sync completado: {{ stockSyncResult.updated }} actualizados, {{ stockSyncResult.errors }} errores.
-          </p>
+          <div v-else-if="stockSyncResult" class="flex flex-wrap items-center gap-2">
+            <span class="text-sm font-medium text-slate-700">Sync completado:</span>
+            <span class="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+              ✅ {{ stockSyncResult.updated ?? 0 }} actualizados
+            </span>
+            <span class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">
+              ➖ {{ stockSyncResult.unchanged ?? 0 }} sin cambios
+            </span>
+            <span class="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-700">
+              ❌ {{ stockSyncResult.errors ?? 0 }} errores
+            </span>
+            <span class="text-xs text-slate-400">de {{ stockSyncResult.total ?? 0 }} productos</span>
+          </div>
           <p v-else-if="runSummary" class="text-sm text-slate-500">
             {{ runSummary.processed_count }} nuevos importados, {{ runSummary.skipped_existing || 0 }} ya existían (omitidos), de {{ runSummary.collected_count }} URLs encontradas.
           </p>
         </div>
 
-        <!-- Barra de progreso -->
-        <div v-if="running" class="space-y-2">
+        <!-- Barra de progreso (importar o sync) -->
+        <div v-if="running || stockSyncing" class="space-y-2">
           <div class="flex justify-between text-sm text-slate-600">
             <span>{{ progressStatus }}</span>
             <span v-if="progressTotal > 0">{{ progressCurrent }}/{{ progressTotal }}</span>
           </div>
           <div class="w-full bg-slate-200 rounded-full h-2">
             <div
-              class="bg-blue-600 h-2 rounded-full transition-all duration-300"
+              class="h-2 rounded-full transition-all duration-300"
+              :class="stockSyncing ? 'bg-emerald-500' : 'bg-blue-600'"
               :style="{ width: progressPercent + '%' }"
             ></div>
           </div>
