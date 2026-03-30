@@ -27,8 +27,6 @@ from rest_framework_simplejwt.views import (
 from productos.views import editar_producto
 
 urlpatterns = [
-    # Login 2FA para el panel de Django Admin
-    path('mktska-panel-x7k2/', include('two_factor.urls')),
     path('mktska-panel-x7k2/admin/', admin.site.urls),
     path('productos/editar/<int:pk>/', editar_producto, name='editar_producto'),
     path('api/', include('productos.urls')),

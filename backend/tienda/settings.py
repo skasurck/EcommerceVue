@@ -112,11 +112,10 @@ INSTALLED_APPS = [
     'productos.apps.ProductosConfig',
     'promotions.apps.PromotionsConfig',
     'pagos',
-    # 2FA
+    # 2FA (TOTP para API de administradores)
     'django_otp',
     'django_otp.plugins.otp_totp',
     'django_otp.plugins.otp_static',
-    'two_factor',
 ]
 
 MIDDLEWARE = [
@@ -131,10 +130,6 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-# 2FA — obliga OTP en el Django Admin
-LOGIN_URL = 'two_factor:login'
-TWO_FACTOR_FORCE_OTP_ADMIN = True
-TWO_FACTOR_LOGIN_TIMEOUT = 600  # segundos (10 min)
 
 # CORS settings
 _CORS_EXTRA = [o.strip() for o in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",") if o.strip()]
