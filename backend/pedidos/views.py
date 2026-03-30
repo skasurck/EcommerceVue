@@ -10,16 +10,19 @@ from django.utils import timezone
 from .models import Direccion, MetodoEnvio, Pedido, PedidoHistorial
 from .serializers import DireccionSerializer, MetodoEnvioSerializer, PedidoSerializer
 from usuarios.permissions import IsAdminOrSuperAdmin
+from tienda.throttles import PedidoCreateRateThrottle
 
 
 class PedidoByPreferenceView(APIView):
+    """Solo devuelve el estado y el ID — nunca datos personales."""
     permission_classes = [permissions.AllowAny]
 
     def get(self, request, preference_id, *args, **kwargs):
         try:
-            pedido = Pedido.objects.get(mercadopago_preference_id=preference_id)
-            serializer = PedidoSerializer(pedido, context={'request': request})
-            return Response(serializer.data)
+            pedido = Pedido.objects.only('id', 'estado', 'total').get(
+                mercadopago_preference_id=preference_id
+            )
+            return Response({'id': pedido.id, 'estado': pedido.estado, 'total': str(pedido.total)})
         except Pedido.DoesNotExist:
             return Response({"detail": "Pedido no encontrado"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -75,6 +78,11 @@ class PedidoViewSet(viewsets.ModelViewSet):
         if self.action in ["update", "partial_update", "destroy"]:
             return [IsAdminOrSuperAdmin()]
         return [permissions.IsAuthenticated()]
+
+    def get_throttles(self):
+        if self.action == "create":
+            return [PedidoCreateRateThrottle()]
+        return super().get_throttles()
 
     def _user_can_view_all(self, user):
         perfil = getattr(user, "perfil", None)

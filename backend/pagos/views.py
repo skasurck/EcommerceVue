@@ -216,11 +216,15 @@ class MercadoPagoPreferenceView(APIView):
         if not items:
             return Response({"error": "No hay items válidos en el carrito"}, status=status.HTTP_400_BAD_REQUEST)
 
-        request_back_urls = request.data.get('back_urls') or {}
         frontend_base_url = getattr(settings, "FRONTEND_BASE_URL", "http://localhost:5173")
-        success_url = request.data.get('success_url') or request_back_urls.get('success') or f"{frontend_base_url}/gracias"
-        failure_url = request.data.get('failure_url') or request_back_urls.get('failure') or f"{frontend_base_url}/checkout/fallo"
-        pending_url = request.data.get('pending_url') or request_back_urls.get('pending') or f"{frontend_base_url}/checkout/pendiente"
+
+        def _safe_url(path):
+            """Construye una URL segura ignorando cualquier URL del cliente."""
+            return f"{frontend_base_url}{path}"
+
+        success_url = _safe_url("/gracias")
+        failure_url = _safe_url("/checkout/fallo")
+        pending_url = _safe_url("/checkout/pendiente")
 
         back_urls = {
             "success": success_url,

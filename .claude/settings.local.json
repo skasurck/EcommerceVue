@@ -21,7 +21,8 @@
       "Bash(python manage.py makemigrations pedidos --name=\"add_estados_disputa_contracargo\")",
       "Bash(find c:/Users/skasu/Documents/Proyectos/EcommerceVue/EcommerceVue -path *icon* -o -path *categor*icon*)",
       "Bash(python -c \"import ast; ast.parse\\(open\\(''productos/views.py'', encoding=''utf-8''\\).read\\(\\)\\); print\\(''OK - sin errores de sintaxis''\\)\")",
-      "Bash(python -c \":*)"
+      "Bash(python -c \":*)",
+      "Bash(xargs grep:*)"
     ]
   }
 }

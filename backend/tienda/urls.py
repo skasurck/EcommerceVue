@@ -27,7 +27,7 @@ from rest_framework_simplejwt.views import (
 from productos.views import editar_producto
 
 urlpatterns = [
-    path('django-admin/', admin.site.urls),
+    path('mktska-panel-x7k2/', admin.site.urls),
     path('productos/editar/<int:pk>/', editar_producto, name='editar_producto'),
     path('api/', include('productos.urls')),
     path('api/', include('usuarios.urls')),

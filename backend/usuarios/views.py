@@ -24,6 +24,7 @@ from .serializers import (
 from .models import Perfil
 from pedidos.models import Direccion, Pedido
 from carrito.services import sync_session_cart_with_user
+from tienda.throttles import LoginRateThrottle, RegistroRateThrottle
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -54,6 +55,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
 class LoginView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
+    throttle_classes = [LoginRateThrottle]
 
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -70,6 +72,7 @@ class LoginView(TokenObtainPairView):
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [RegistroRateThrottle]
 
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)

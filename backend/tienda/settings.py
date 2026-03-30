@@ -71,6 +71,9 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "anon": "200/hour",
         "user": "2000/hour",
+        "login": "10/minute",       # máx 10 intentos de login por minuto por IP
+        "registro": "5/hour",       # máx 5 registros por hora por IP
+        "pedido_create": "30/hour", # máx 30 pedidos por hora por IP (evita DoS de stock)
     },
 
     # (Opcional) Paginación por defecto
@@ -123,13 +126,16 @@ MIDDLEWARE = [
 ]
 
 # CORS settings
+_CORS_EXTRA = [o.strip() for o in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",") if o.strip()]
+
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
     "http://localhost:5174",
     "http://127.0.0.1:5174",
-
-]
+    "https://mktska.net",
+    "https://www.mktska.net",
+] + _CORS_EXTRA
 
 CORS_ALLOW_CREDENTIALS = True
 
@@ -138,7 +144,9 @@ CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:5173",
     "http://localhost:5174",
     "http://127.0.0.1:5174",
-]
+    "https://mktska.net",
+    "https://www.mktska.net",
+] + _CORS_EXTRA
 ROOT_URLCONF = 'tienda.urls'
 
 TEMPLATES = [
