@@ -291,7 +291,12 @@ def _parse_price_text(price_txt: str) -> Optional[Decimal]:
             txt = "".join(parts)
         # de lo contrario, punto decimal
     try:
-        return Decimal(txt)
+        value = Decimal(txt)
+        # Sanity check: ningún producto de Supermex cuesta más de 500,000 MXN
+        # Si supera ese límite es un error de parseo (ej: nombre del producto tomado como precio)
+        if value <= 0 or value > Decimal("500000"):
+            return None
+        return value
     except Exception:
         return None
 

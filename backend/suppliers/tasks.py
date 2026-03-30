@@ -230,10 +230,10 @@ def apply_rules():
             p.stock = new_stock
             changed_fields.append("stock")
 
-        # 2) Precios (aplicar +15% sobre price_supplier, si viene > 0)
-        if sp.price_supplier and sp.price_supplier > 0:
+        # 2) Precios (aplicar +15% sobre price_supplier, si viene > 0 y es razonable)
+        if sp.price_supplier and 0 < sp.price_supplier <= Decimal("500000"):
             precio_nuevo = (sp.price_supplier * MARKUP).quantize(Decimal("0.01"))
-            if p.precio_normal != precio_nuevo:
+            if precio_nuevo < Decimal("99999999.99") and p.precio_normal != precio_nuevo:
                 p.precio_normal = precio_nuevo
                 changed_fields.append("precio_normal")
 
