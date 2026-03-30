@@ -418,6 +418,7 @@ class Setup2FAView(APIView):
             user=request.user,
             name=f'Autenticador {request.user.username}',
             confirmed=False,
+            tolerance=2,
         )
 
         # Genera QR como PNG en base64
