@@ -148,7 +148,7 @@ class Producto(models.Model):
 
                     # --- Generar miniatura WebP ---
                     thumb_img = img.copy()
-                    thumb_img.thumbnail((400, 400), Image.Resampling.LANCZOS)
+                    thumb_img.thumbnail((250, 250), Image.Resampling.LANCZOS)
                     
                     # Corregir manejo de transparencia para la miniatura
                     if thumb_img.mode in ('RGBA', 'LA', 'P'):
