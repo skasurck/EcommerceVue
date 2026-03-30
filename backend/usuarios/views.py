@@ -112,7 +112,7 @@ class LoginView(TokenObtainPairView):
 
         # Si es admin/super_admin y tiene 2FA configurado → paso 2
         if _is_admin_user(user) and TOTPDevice.objects.filter(user=user, confirmed=True).exists():
-            challenge = signing.dumps({'user_id': user.id}, salt=_2FA_SALT, max_age=_2FA_MAX_AGE)
+            challenge = signing.dumps({'user_id': user.id}, salt=_2FA_SALT)
             return Response({'requires_2fa': True, 'challenge': challenge}, status=status.HTTP_200_OK)
 
         if request.session is not None:
