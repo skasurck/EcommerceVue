@@ -1,7 +1,8 @@
 <template>
   <main class="min-h-screen bg-slate-50 dark:bg-slate-900 px-4 py-8">
-    <div class="mx-auto max-w-3xl space-y-5">
+    <div class="mx-auto max-w-4xl space-y-5">
 
+      <!-- Encabezado -->
       <div class="flex items-center gap-3">
         <RouterLink to="/mi-cuenta" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
           <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -9,11 +10,23 @@
           </svg>
         </RouterLink>
         <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100">Mis pedidos</h1>
+        <span v-if="total > 0" class="text-sm text-slate-500 dark:text-slate-400">
+          ({{ total }} pedido{{ total !== 1 ? 's' : '' }})
+        </span>
       </div>
 
-      <!-- Cargando -->
-      <div v-if="cargando" class="space-y-3">
-        <div v-for="n in 3" :key="n" class="h-24 rounded-2xl bg-slate-200 dark:bg-slate-700 animate-pulse" />
+      <!-- Cargando (skeletons) -->
+      <div v-if="cargando" class="space-y-4">
+        <div v-for="n in 3" :key="n" class="rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+          <div class="h-12 bg-slate-100 dark:bg-slate-700 animate-pulse" />
+          <div class="p-5 flex gap-4">
+            <div class="h-16 w-16 rounded-lg bg-slate-200 dark:bg-slate-600 animate-pulse shrink-0" />
+            <div class="flex-1 space-y-2">
+              <div class="h-4 bg-slate-200 dark:bg-slate-600 rounded animate-pulse w-3/4" />
+              <div class="h-3 bg-slate-200 dark:bg-slate-600 rounded animate-pulse w-1/2" />
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Error -->
@@ -23,48 +36,127 @@
 
       <template v-else>
         <!-- Sin pedidos -->
-        <div v-if="pedidos.length === 0" class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-12 text-center shadow-sm">
+        <div v-if="pedidos.length === 0" class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-14 text-center shadow-sm">
           <div class="inline-flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-700 mb-4">
             <svg class="h-8 w-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
               <path stroke-linecap="round" stroke-linejoin="round" d="M20 7H4a2 2 0 00-2 2v9a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2zM16 3H8a2 2 0 00-2 2v2h12V5a2 2 0 00-2-2z" />
             </svg>
           </div>
-          <p class="text-slate-600 dark:text-slate-400 font-medium">No tienes pedidos todavía</p>
-          <RouterLink to="/" class="mt-3 inline-block text-sm text-emerald-600 dark:text-emerald-400 hover:underline font-medium">
+          <p class="text-slate-600 dark:text-slate-400 font-medium text-lg mb-1">No tienes pedidos todavía</p>
+          <p class="text-slate-500 dark:text-slate-500 text-sm mb-4">Cuando realices una compra aparecerá aquí.</p>
+          <RouterLink to="/" class="inline-flex items-center gap-1.5 text-sm text-emerald-600 dark:text-emerald-400 hover:underline font-semibold">
             Ir a la tienda →
           </RouterLink>
         </div>
 
-        <!-- Lista de pedidos -->
-        <ul v-else class="space-y-3">
+        <!-- Lista estilo Amazon -->
+        <ul v-else class="space-y-4">
           <li
             v-for="(p, i) in pedidos"
             :key="p?.id ?? `row-${i}`"
+            class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm overflow-hidden"
           >
-            <RouterLink
-              :to="`/mis-pedidos/${p.id}`"
-              class="group block rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-sm hover:shadow-md hover:border-slate-300 dark:hover:border-slate-600 transition-all"
-            >
-              <div class="flex items-start justify-between gap-4">
-                <div class="space-y-1 min-w-0">
-                  <div class="flex items-center gap-2 flex-wrap">
-                    <span class="text-sm font-bold text-slate-900 dark:text-slate-100">Pedido #{{ p.id }}</span>
-                    <span class="rounded-full px-2.5 py-0.5 text-xs font-semibold" :class="estadoClase(p.estado)">
-                      {{ estadoTexto(p.estado) }}
-                    </span>
+            <!-- ── Cabecera del pedido ── -->
+            <div class="bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700 px-5 py-3">
+              <div class="flex flex-wrap items-start justify-between gap-x-6 gap-y-1 text-xs">
+                <!-- Izquierda: meta -->
+                <div class="flex flex-wrap gap-x-6 gap-y-1">
+                  <div>
+                    <p class="uppercase font-semibold tracking-wide text-slate-500 dark:text-slate-400">Pedido realizado</p>
+                    <p class="text-slate-800 dark:text-slate-200 font-medium mt-0.5">{{ formatFecha(p.creado) }}</p>
                   </div>
-                  <p class="text-xs text-slate-500 dark:text-slate-400">{{ formatFecha(p.creado) }}</p>
+                  <div>
+                    <p class="uppercase font-semibold tracking-wide text-slate-500 dark:text-slate-400">Total</p>
+                    <p class="text-slate-800 dark:text-slate-200 font-medium mt-0.5">{{ formatMoney(p.total) }}</p>
+                  </div>
+                  <div v-if="p.direccion?.nombre || p.cliente_nombre_completo">
+                    <p class="uppercase font-semibold tracking-wide text-slate-500 dark:text-slate-400">Enviar a</p>
+                    <p class="text-slate-800 dark:text-slate-200 font-medium mt-0.5">
+                      {{ p.cliente_nombre_completo || `${p.direccion?.nombre} ${p.direccion?.apellidos}` }}
+                    </p>
+                  </div>
                 </div>
-                <div class="flex items-center gap-3 shrink-0">
-                  <span class="text-base font-bold text-slate-900 dark:text-slate-100">
-                    {{ formatMoney(p.total) }}
-                  </span>
-                  <svg class="h-4 w-4 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
-                  </svg>
+
+                <!-- Derecha: número + link -->
+                <div class="text-right shrink-0">
+                  <p class="uppercase font-semibold tracking-wide text-slate-500 dark:text-slate-400">Pedido N.º {{ p.id }}</p>
+                  <RouterLink
+                    :to="`/mis-pedidos/${p.id}`"
+                    class="mt-0.5 inline-block text-emerald-600 dark:text-emerald-400 hover:underline font-medium"
+                  >
+                    Ver detalles del pedido
+                  </RouterLink>
                 </div>
               </div>
-            </RouterLink>
+            </div>
+
+            <!-- ── Cuerpo: estado + items + acciones ── -->
+            <div class="flex flex-col sm:flex-row">
+              <!-- Items -->
+              <div class="flex-1 p-5 space-y-4 min-w-0">
+                <!-- Estado -->
+                <div>
+                  <p class="text-base font-semibold" :class="estadoColor(p.estado)">
+                    {{ estadoTitulo(p.estado, p.numero_guia) }}
+                  </p>
+                  <p v-if="p.estado === 'enviado' && p.numero_guia" class="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-mono">
+                    Guía: {{ p.numero_guia }}
+                  </p>
+                </div>
+
+                <!-- Lista de productos -->
+                <div class="space-y-3">
+                  <div
+                    v-for="(it, j) in (p.detalles ?? []).slice(0, 3)"
+                    :key="it.producto ?? `it-${j}`"
+                    class="flex items-start gap-3"
+                  >
+                    <img
+                      v-if="it.producto_imagen"
+                      :src="it.producto_imagen"
+                      :alt="it.producto_nombre"
+                      class="h-16 w-16 rounded-lg object-cover border border-slate-100 dark:border-slate-600 shrink-0"
+                    />
+                    <div v-else class="h-16 w-16 rounded-lg bg-slate-100 dark:bg-slate-700 shrink-0 border border-slate-200 dark:border-slate-600" />
+                    <div class="min-w-0">
+                      <RouterLink
+                        :to="`/mis-pedidos/${p.id}`"
+                        class="text-sm font-medium text-slate-900 dark:text-slate-100 hover:text-emerald-600 dark:hover:text-emerald-400 leading-snug line-clamp-2 transition-colors"
+                      >
+                        {{ it.producto_nombre }}
+                      </RouterLink>
+                      <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        Cantidad: {{ it.cantidad }}
+                      </p>
+                    </div>
+                  </div>
+
+                  <!-- Indicador si hay más de 3 productos -->
+                  <p v-if="(p.detalles ?? []).length > 3" class="text-xs text-slate-500 dark:text-slate-400 pl-0.5">
+                    y {{ (p.detalles ?? []).length - 3 }} producto{{ (p.detalles ?? []).length - 3 !== 1 ? 's' : '' }} más en este pedido.
+                  </p>
+                </div>
+              </div>
+
+              <!-- Acciones -->
+              <div class="sm:w-52 shrink-0 border-t sm:border-t-0 sm:border-l border-slate-100 dark:border-slate-700 p-5 flex sm:flex-col gap-2">
+                <RouterLink
+                  :to="`/mis-pedidos/${p.id}`"
+                  class="w-full text-center rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm font-medium text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors"
+                >
+                  Ver detalle del pedido
+                </RouterLink>
+                <a
+                  v-if="p.estado === 'enviado' && p.numero_guia"
+                  :href="`https://www.fedex.com/fedextrack/?tracknumbers=${p.numero_guia}`"
+                  target="_blank"
+                  rel="noopener"
+                  class="w-full text-center rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm font-medium text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors"
+                >
+                  Rastrear paquete
+                </a>
+              </div>
+            </div>
           </li>
         </ul>
 
@@ -94,10 +186,6 @@
             @click="cambiarPagina(page + 1)"
           >›</button>
         </div>
-
-        <p v-if="total > 0" class="text-center text-xs text-slate-400 dark:text-slate-500">
-          {{ total }} pedido{{ total !== 1 ? 's' : '' }} en total
-        </p>
       </template>
 
     </div>
@@ -131,22 +219,22 @@ const paginas = computed(() => {
   return result
 })
 
-const estadoClase = (estado) => ({
-  pendiente:  'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300',
-  pagado:     'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300',
-  confirmado: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300',
-  enviado:    'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300',
-  entregado:  'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300',
-  cancelado:  'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300',
-}[estado] ?? 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300')
+const estadoColor = (estado) => ({
+  pendiente:  'text-yellow-600 dark:text-yellow-400',
+  pagado:     'text-blue-600 dark:text-blue-400',
+  confirmado: 'text-blue-700 dark:text-blue-400',
+  enviado:    'text-purple-600 dark:text-purple-400',
+  entregado:  'text-emerald-600 dark:text-emerald-400',
+  cancelado:  'text-red-600 dark:text-red-400',
+}[estado] ?? 'text-slate-600 dark:text-slate-400')
 
-const estadoTexto = (estado) => ({
-  pendiente: 'Pendiente',
-  pagado: 'Pagado',
-  confirmado: 'Confirmado',
-  enviado: 'Enviado',
-  entregado: 'Entregado',
-  cancelado: 'Cancelado',
+const estadoTitulo = (estado, guia) => ({
+  pendiente:  'Pendiente de confirmación',
+  pagado:     'Pago recibido',
+  confirmado: 'Pedido confirmado',
+  enviado:    guia ? 'En camino' : 'Enviado',
+  entregado:  'Entregado',
+  cancelado:  'Pedido cancelado',
 }[estado] ?? estado)
 
 const formatFecha = (iso) =>
