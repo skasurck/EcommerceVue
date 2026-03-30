@@ -25,10 +25,12 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
 from productos.views import editar_producto
+from productos.seo import producto_seo_view
 
 urlpatterns = [
     path('mktska-panel-x7k2/admin/', admin.site.urls),
     path('productos/editar/<int:pk>/', editar_producto, name='editar_producto'),
+    path('producto/<int:pk>/', producto_seo_view, name='producto_seo'),
     path('api/', include('productos.urls')),
     path('api/', include('usuarios.urls')),
     path('api/', include('carrito.urls')),
