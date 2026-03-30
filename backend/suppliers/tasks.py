@@ -103,11 +103,12 @@ def run_supermex_stock_sync(self, http2: bool = True, sleep_s: float = 0.3):
     from suppliers.scraper_supermex import get_client, sync_stock_for_product
     from suppliers.models import SupplierProduct
 
-    products = list(SupplierProduct.objects.filter(supplier="supermex").values_list("id", flat=True))
+    products = list(SupplierProduct.objects.filter(supplier="supermex", is_active=True).values_list("id", flat=True))
     total = len(products)
     updated = 0
     unchanged = 0
     errors = 0
+    deactivated = 0
 
     self.update_state(state="PROGRESS", meta={"current": 0, "total": total, "status": f"Iniciando sync de {total} productos..."})
 
@@ -121,8 +122,28 @@ def run_supermex_stock_sync(self, http2: bool = True, sleep_s: float = 0.3):
                 })
                 result = sync_stock_for_product(sp, client)
 
+                # --- 404: incrementar contador y desactivar si supera el límite ---
+                if result.get("method") == "404":
+                    sp.consecutive_404s = (sp.consecutive_404s or 0) + 1
+                    sp.in_stock = False
+                    sp.available_qty = 0
+                    sp.last_seen = timezone.now()
+                    save_fields = ["consecutive_404s", "in_stock", "available_qty", "last_seen"]
+                    if sp.consecutive_404s >= 3:
+                        sp.is_active = False
+                        save_fields.append("is_active")
+                        deactivated += 1
+                        logger.warning("Desactivado %s tras %d 404s consecutivos", sp.supplier_sku, sp.consecutive_404s)
+                    sp.save(update_fields=save_fields)
+                    updated += 1
+                    continue
+
+                # --- Respuesta normal: resetear contador 404 si venía con fallos ---
                 prev_qty = sp.available_qty
                 update_fields = ["last_seen"]
+                if sp.consecutive_404s > 0:
+                    sp.consecutive_404s = 0
+                    update_fields.append("consecutive_404s")
                 if result["in_stock"] != sp.in_stock:
                     sp.in_stock = result["in_stock"]
                     update_fields.append("in_stock")
@@ -165,6 +186,7 @@ def run_supermex_stock_sync(self, http2: bool = True, sleep_s: float = 0.3):
         "updated": updated,
         "unchanged": unchanged,
         "errors": errors,
+        "deactivated": deactivated,
     }
 
 

@@ -17,6 +17,9 @@ class SupplierProduct(models.Model):
     # Caché de IDs de Odoo para llamadas AJAX directas (evita cargar HTML en sync de stock)
     odoo_product_id = models.IntegerField(null=True, blank=True)
     odoo_template_id = models.IntegerField(null=True, blank=True)
+    # Control de productos discontinuados
+    is_active = models.BooleanField(default=True, db_index=True)
+    consecutive_404s = models.IntegerField(default=0)
 
 class SupplierStockHistory(models.Model):
     """Snapshot diario de stock por producto. Permite estimar ventas como descensos de inventario."""

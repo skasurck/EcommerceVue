@@ -141,6 +141,9 @@
             <span class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">
               ➖ {{ stockSyncResult.unchanged ?? 0 }} sin cambios
             </span>
+            <span v-if="stockSyncResult.deactivated" class="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
+              🚫 {{ stockSyncResult.deactivated }} desactivados (404)
+            </span>
             <span class="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-700">
               ❌ {{ stockSyncResult.errors ?? 0 }} errores
             </span>
