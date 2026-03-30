@@ -1,10 +1,33 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
+import { useHead } from '@vueuse/head'
 import ProductRow from '@/components/ProductRow.vue'
 import ProductCard from '@/components/ProductCard.vue'
 import { obtenerProductos, obtenerHomeSlider, obtenerPromoBanners, obtenerProductosDestacados } from '@/services/api.js'
 import api from '@/axios'
 import { useCarritoStore } from '@/stores/carrito'
+
+const SITE_URL = typeof window !== 'undefined' ? window.location.origin : 'https://mktska.net'
+const OG_IMAGE = `${SITE_URL}/logo-mktska.png`
+
+useHead({
+  title: 'Mktska Digital — Tecnología y cómputo en México',
+  meta: [
+    { name: 'description', content: 'Tienda de tecnología en México. Encuentra computadoras, componentes, periféricos, impresoras y más. Envíos a todo el país.' },
+    { property: 'og:type', content: 'website' },
+    { property: 'og:url', content: SITE_URL },
+    { property: 'og:title', content: 'Mktska Digital — Tecnología y cómputo en México' },
+    { property: 'og:description', content: 'Tienda de tecnología en México. Encuentra computadoras, componentes, periféricos, impresoras y más. Envíos a todo el país.' },
+    { property: 'og:image', content: OG_IMAGE },
+    { name: 'twitter:card', content: 'summary_large_image' },
+    { name: 'twitter:title', content: 'Mktska Digital — Tecnología y cómputo en México' },
+    { name: 'twitter:description', content: 'Tienda de tecnología en México. Encuentra computadoras, componentes, periféricos, impresoras y más.' },
+    { name: 'twitter:image', content: OG_IMAGE },
+  ],
+  link: [
+    { rel: 'canonical', href: SITE_URL },
+  ],
+})
 
 const nuevos = ref([])
 const ofertas = ref([])
@@ -181,6 +204,7 @@ onBeforeUnmount(() => {
 
 <template>
   <main class="bg-gray-100 dark:bg-slate-950 min-h-screen">
+    <h1 class="sr-only">Mktska Digital — Tienda de tecnología y cómputo en México</h1>
     <!-- Slider mobile -->
     <section class="lg:hidden bg-slate-100 dark:bg-slate-900 min-h-[390px]">
       <div class="px-2 py-3 overflow-x-auto mobile-no-scrollbar">

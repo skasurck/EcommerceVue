@@ -156,9 +156,32 @@ const visibleSubs = computed(() =>
   )
 )
 
-useHead(computed(() => ({
-  title: currentCategory.value ? `${currentCategory.value.nombre} — Productos` : 'Categoría',
-})))
+useHead(computed(() => {
+  const cat = currentCategory.value
+  const title = cat ? `${cat.nombre} — Productos | Mktska Digital` : 'Categoría | Mktska Digital'
+  const desc = cat
+    ? `Compra ${cat.nombre} en Mktska Digital. Amplio catálogo con los mejores precios. Envíos a todo México.`
+    : 'Explora nuestro catálogo de tecnología en Mktska Digital.'
+  const url = typeof window !== 'undefined' ? window.location.href : ''
+  const ogImage = `${typeof window !== 'undefined' ? window.location.origin : 'https://mktska.net'}/logo-mktska.png`
+  return {
+    title,
+    meta: [
+      { name: 'description', content: desc },
+      { property: 'og:type', content: 'website' },
+      { property: 'og:url', content: url },
+      { property: 'og:title', content: title },
+      { property: 'og:description', content: desc },
+      { property: 'og:image', content: ogImage },
+      { name: 'twitter:card', content: 'summary_large_image' },
+      { name: 'twitter:title', content: title },
+      { name: 'twitter:description', content: desc },
+    ],
+    link: [
+      { rel: 'canonical', href: url },
+    ],
+  }
+}))
 
 // ─── Data fetching ────────────────────────────────────────────────────────────
 const fetchMeta = async () => {

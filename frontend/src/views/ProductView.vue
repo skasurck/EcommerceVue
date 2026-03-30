@@ -742,11 +742,50 @@ onMounted(async () => {
     registerProductVisit(data)
     useBreadcrumbStore().setLabel(data.nombre)
 
+    const productUrl = `${window.location.origin}/producto/${data.id}`
+    const productImage = toMedia(data.imagen_principal) || `${window.location.origin}/logo-mktska.png`
+    const productDesc = (data.descripcion_larga || data.descripcion_corta || '').slice(0, 155)
+    const productPrice = data.precio_rebajado || data.precio_normal || data.precio || null
+
+    const jsonLd = {
+      '@context': 'https://schema.org',
+      '@type': 'Product',
+      name: data.nombre,
+      description: productDesc || undefined,
+      image: productImage,
+      url: productUrl,
+      sku: data.sku || String(data.id),
+      brand: data.marca ? { '@type': 'Brand', name: data.marca } : undefined,
+      offers: {
+        '@type': 'Offer',
+        url: productUrl,
+        priceCurrency: 'MXN',
+        price: productPrice != null ? String(productPrice) : undefined,
+        availability: (data.stock > 0) ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+        itemCondition: 'https://schema.org/NewCondition',
+      },
+    }
+
     useHead({
       title: data.nombre,
       meta: [
-        { name: 'description', content: (data.descripcion_larga || '').slice(0, 155) }
-      ]
+        { name: 'description', content: productDesc },
+        { property: 'og:type', content: 'product' },
+        { property: 'og:url', content: productUrl },
+        { property: 'og:title', content: data.nombre },
+        { property: 'og:description', content: productDesc },
+        { property: 'og:image', content: productImage },
+        { name: 'twitter:card', content: 'summary_large_image' },
+        { name: 'twitter:title', content: data.nombre },
+        { name: 'twitter:description', content: productDesc },
+        { name: 'twitter:image', content: productImage },
+      ],
+      link: [
+        { rel: 'canonical', href: productUrl },
+      ],
+      script: [
+        { type: 'application/ld+json', children: JSON.stringify(jsonLd) },
+      ],
     })
 
     // Relacionados y categoría en paralelo, sin bloquear el render
