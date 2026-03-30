@@ -106,6 +106,7 @@ def run_supermex_stock_sync(self, http2: bool = True, sleep_s: float = 0.3):
     products = list(SupplierProduct.objects.filter(supplier="supermex").values_list("id", flat=True))
     total = len(products)
     updated = 0
+    unchanged = 0
     errors = 0
 
     self.update_state(state="PROGRESS", meta={"current": 0, "total": total, "status": f"Iniciando sync de {total} productos..."})
@@ -120,14 +121,24 @@ def run_supermex_stock_sync(self, http2: bool = True, sleep_s: float = 0.3):
                 })
                 result = sync_stock_for_product(sp, client)
 
-                update_fields = ["in_stock", "available_qty", "last_seen"]
-                sp.in_stock = result["in_stock"]
-                sp.available_qty = result["qty"]
-                if result["price"] is not None:
+                update_fields = ["last_seen"]
+                if result["in_stock"] != sp.in_stock:
+                    sp.in_stock = result["in_stock"]
+                    update_fields.append("in_stock")
+                if result["qty"] != sp.available_qty:
+                    sp.available_qty = result["qty"]
+                    update_fields.append("available_qty")
+                if result["price"] is not None and result["price"] != sp.price_supplier:
                     sp.price_supplier = result["price"]
                     update_fields.append("price_supplier")
+                sp.last_seen = timezone.now()
                 sp.save(update_fields=update_fields)
-                updated += 1
+                if len(update_fields) > 1:
+                    updated += 1
+                    logger.info("Actualizado %s: %s", sp.supplier_sku, update_fields)
+                else:
+                    unchanged += 1
+                    logger.debug("Sin cambios %s", sp.supplier_sku)
             except Exception as exc:
                 logger.warning("Error sync stock %s: %s", sp_id, exc)
                 errors += 1
@@ -142,6 +153,7 @@ def run_supermex_stock_sync(self, http2: bool = True, sleep_s: float = 0.3):
         "current": total, "total": total,
         "status": "Completado",
         "updated": updated,
+        "unchanged": unchanged,
         "errors": errors,
     }
 
@@ -159,33 +171,40 @@ def apply_rules():
 
         qty_eff = effective_qty(sp.available_qty, sp.in_stock)
 
+        changed_fields = []
+
         # 1) Stock / estado inventario / visibilidad
         if qty_eff > 0:
-            # En existencia
-            p.estado_inventario = "en_existencia"
-            p.disponible = True
-            p.visibilidad = True
-            # solo sube stock si lo tienes en 0 o menor que el mínimo virtual (evita inflar si ya tienes real)
-            if p.stock == 0 or p.stock < qty_eff:
-                p.stock = qty_eff
+            new_estado = "en_existencia"
+            new_disponible = True
+            new_visibilidad = True
+            new_stock = qty_eff if (p.stock == 0 or p.stock < qty_eff) else p.stock
         else:
-            # Agotado
-            p.estado_inventario = "agotado"
-            # Si quisieras ocultar al quedar agotado:
-            if getattr(link, "auto_hide_when_oos", True):
-                p.visibilidad = False
-            p.disponible = False
-            # opcional: no toques p.stock para conservar histórico
+            new_estado = "agotado"
+            new_disponible = False
+            new_visibilidad = False if getattr(link, "auto_hide_when_oos", True) else p.visibilidad
+            new_stock = p.stock  # conservar histórico
+
+        if p.estado_inventario != new_estado:
+            p.estado_inventario = new_estado
+            changed_fields.append("estado_inventario")
+        if p.disponible != new_disponible:
+            p.disponible = new_disponible
+            changed_fields.append("disponible")
+        if p.visibilidad != new_visibilidad:
+            p.visibilidad = new_visibilidad
+            changed_fields.append("visibilidad")
+        if p.stock != new_stock:
+            p.stock = new_stock
+            changed_fields.append("stock")
 
         # 2) Precios (aplicar +15% sobre price_supplier, si viene > 0)
         if sp.price_supplier and sp.price_supplier > 0:
-            base = sp.price_supplier
-            precio_nuevo = (base * MARKUP).quantize(Decimal("0.01"))
-            p.precio_normal = precio_nuevo
-            # si manejas rebajado aparte, decide tu lógica aquí
+            precio_nuevo = (sp.price_supplier * MARKUP).quantize(Decimal("0.01"))
+            if p.precio_normal != precio_nuevo:
+                p.precio_normal = precio_nuevo
+                changed_fields.append("precio_normal")
 
-        p.save(update_fields=[
-            "estado_inventario", "disponible", "visibilidad",
-            "stock", "precio_normal"
-        ])
+        if changed_fields:
+            p.save(update_fields=changed_fields)
     

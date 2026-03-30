@@ -317,6 +317,7 @@ def parse_plp(html: str) -> list[str]:
             u = abs_url(u)
         if not u.startswith("http"):
             continue
+        u = _strip_query(u)
         if u not in seen:
             seen.add(u)
             out.append(u)
@@ -839,7 +840,11 @@ def sync_stock_for_product(sp, client: httpx.Client) -> dict:
     - Si no: carga HTML, extrae IDs, los cachea para la próxima vez.
     Devuelve dict con los campos actualizados o lanza excepción.
     """
-    url = sp.product_url
+    url = _strip_query(sp.product_url)
+    # Corregir URL sucia en DB si quedó con query string (ej: ?page=4)
+    if url != sp.product_url:
+        sp.product_url = url
+        sp.save(update_fields=["product_url"])
 
     # --- Intentar AJAX directo si tenemos los IDs cacheados ---
     if sp.odoo_product_id and sp.odoo_template_id:
