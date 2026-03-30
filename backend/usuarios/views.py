@@ -21,10 +21,54 @@ from .serializers import (
     UserAdminDetailSerializer,
     DireccionAdminSerializer,
 )
+from django.core import signing
+from rest_framework_simplejwt.tokens import RefreshToken
+from django_otp.plugins.otp_totp.models import TOTPDevice
+import qrcode
+from io import BytesIO
+import base64
+
 from .models import Perfil
 from pedidos.models import Direccion, Pedido
 from carrito.services import sync_session_cart_with_user
 from tienda.throttles import LoginRateThrottle, RegistroRateThrottle
+
+_2FA_SALT = '2fa-challenge'
+_2FA_MAX_AGE = 300  # 5 minutos
+
+
+def _is_admin_user(user):
+    try:
+        return user.perfil.rol in ('admin', 'super_admin')
+    except Exception:
+        return user.is_staff or user.is_superuser
+
+
+def _build_jwt_response(user, request=None):
+    """Genera el payload JWT estándar para un usuario autenticado."""
+    refresh = RefreshToken.for_user(user)
+    try:
+        rol = user.perfil.rol
+    except Exception:
+        rol = ''
+    default_address = user.direcciones.filter(predeterminada=True).first()
+    address_data = DireccionAdminSerializer(default_address).data if default_address else None
+    if request and request.session:
+        sync_session_cart_with_user(request.session, user)
+    return {
+        'token': str(refresh.access_token),
+        'refresh': str(refresh),
+        'user': {
+            'id': user.id,
+            'username': user.username,
+            'nombre': user.first_name,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'email': user.email,
+            'rol': rol,
+            'direccion_predeterminada': address_data,
+        }
+    }
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -64,10 +108,16 @@ class LoginView(TokenObtainPairView):
         except TokenError as exc:
             raise InvalidToken(exc.args[0])
 
-        response = Response(serializer.validated_data, status=status.HTTP_200_OK)
+        user = serializer.user
+
+        # Si es admin/super_admin y tiene 2FA configurado → paso 2
+        if _is_admin_user(user) and TOTPDevice.objects.filter(user=user, confirmed=True).exists():
+            challenge = signing.dumps({'user_id': user.id}, salt=_2FA_SALT, max_age=_2FA_MAX_AGE)
+            return Response({'requires_2fa': True, 'challenge': challenge}, status=status.HTTP_200_OK)
+
         if request.session is not None:
-            sync_session_cart_with_user(request.session, serializer.user)
-        return response
+            sync_session_cart_with_user(request.session, user)
+        return Response(serializer.validated_data, status=status.HTTP_200_OK)
 
 
 class RegisterView(APIView):
@@ -311,3 +361,112 @@ class AdminUserViewSet(viewsets.ModelViewSet):
                 latest.predeterminada = True
                 latest.save(update_fields=['predeterminada'])
         return Response({'importadas': importadas, 'ya_existian': ya_existian})
+
+
+# ─── Vistas de 2FA para la API JWT ────────────────────────────────────────────
+
+class Login2FAView(APIView):
+    """Paso 2 del login: valida el código TOTP y devuelve el JWT."""
+    permission_classes = [AllowAny]
+    throttle_classes = [LoginRateThrottle]
+
+    def post(self, request):
+        challenge = request.data.get('challenge', '')
+        otp_code  = str(request.data.get('otp_code', '')).strip()
+
+        if not challenge or not otp_code:
+            return Response({'detail': 'challenge y otp_code son requeridos.'}, status=400)
+
+        try:
+            data = signing.loads(challenge, salt=_2FA_SALT, max_age=_2FA_MAX_AGE)
+        except signing.SignatureExpired:
+            return Response({'detail': 'El desafío expiró. Inicia sesión nuevamente.'}, status=400)
+        except signing.BadSignature:
+            return Response({'detail': 'Token inválido.'}, status=400)
+
+        try:
+            user = User.objects.get(id=data['user_id'])
+        except User.DoesNotExist:
+            return Response({'detail': 'Usuario no encontrado.'}, status=404)
+
+        device = TOTPDevice.objects.filter(user=user, confirmed=True).first()
+        if not device or not device.verify_token(otp_code):
+            return Response({'detail': 'Código incorrecto.'}, status=400)
+
+        return Response(_build_jwt_response(user, request), status=200)
+
+
+class Setup2FAView(APIView):
+    """
+    GET  → genera QR code para configurar la app de autenticador.
+    POST → activa el dispositivo con el primer código.
+    DELETE → desactiva 2FA.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not _is_admin_user(request.user):
+            return Response({'detail': 'Solo administradores pueden usar 2FA.'}, status=403)
+
+        if TOTPDevice.objects.filter(user=request.user, confirmed=True).exists():
+            return Response({'detail': 'El 2FA ya está activado.', 'activo': True})
+
+        # Elimina dispositivos pendientes anteriores
+        TOTPDevice.objects.filter(user=request.user, confirmed=False).delete()
+
+        device = TOTPDevice.objects.create(
+            user=request.user,
+            name=f'Autenticador {request.user.username}',
+            confirmed=False,
+        )
+
+        # Genera QR como PNG en base64
+        qr = qrcode.QRCode(version=1, box_size=6, border=4)
+        qr.add_data(device.config_url)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color='black', back_color='white')
+        buf = BytesIO()
+        img.save(buf, format='PNG')
+        qr_b64 = base64.b64encode(buf.getvalue()).decode()
+
+        return Response({
+            'activo': False,
+            'qr_code': f'data:image/png;base64,{qr_b64}',
+            'clave_manual': device.config_url,
+        })
+
+    def post(self, request):
+        """Confirma el dispositivo con el primer código."""
+        otp_code = str(request.data.get('otp_code', '')).strip()
+        if not otp_code:
+            return Response({'detail': 'otp_code es requerido.'}, status=400)
+
+        device = TOTPDevice.objects.filter(user=request.user, confirmed=False).first()
+        if not device:
+            return Response({'detail': 'No hay dispositivo pendiente. Solicita el QR primero.'}, status=400)
+
+        if device.verify_token(otp_code):
+            device.confirmed = True
+            device.save()
+            return Response({'detail': '2FA activado correctamente. ✓'})
+        return Response({'detail': 'Código incorrecto. Verifica tu app.'}, status=400)
+
+    def delete(self, request):
+        """Desactiva 2FA del usuario."""
+        otp_code = str(request.data.get('otp_code', '')).strip()
+        device = TOTPDevice.objects.filter(user=request.user, confirmed=True).first()
+        if not device:
+            return Response({'detail': 'No tienes 2FA activo.'}, status=400)
+        if not device.verify_token(otp_code):
+            return Response({'detail': 'Código incorrecto.'}, status=400)
+        TOTPDevice.objects.filter(user=request.user).delete()
+        return Response({'detail': '2FA desactivado.'})
+
+
+class Status2FAView(APIView):
+    """Devuelve si el usuario actual tiene 2FA activo."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        activo = TOTPDevice.objects.filter(user=request.user, confirmed=True).exists()
+        return Response({'activo': activo, 'es_admin': _is_admin_user(request.user)})

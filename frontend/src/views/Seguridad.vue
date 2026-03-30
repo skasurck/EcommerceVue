@@ -11,6 +11,76 @@
         <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100">Seguridad</h1>
       </div>
 
+      <!-- ── Sección 2FA (solo admin/super_admin) ───────────────────── -->
+      <section v-if="esAdmin" class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm">
+        <div class="flex items-center gap-3 mb-5">
+          <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-700">
+            <svg class="h-5 w-5 text-slate-600 dark:text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 8.25h3m-3 3h3m-3 3h3"/>
+            </svg>
+          </div>
+          <div>
+            <h2 class="text-base font-semibold text-slate-900 dark:text-slate-100">Autenticación en 2 pasos (2FA)</h2>
+            <p class="text-sm text-slate-500 dark:text-slate-400">Protege tu cuenta de administrador con un código TOTP</p>
+          </div>
+        </div>
+
+        <!-- Loading -->
+        <div v-if="twofa.cargando" class="flex justify-center py-6">
+          <svg class="h-6 w-6 animate-spin text-slate-400" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+        </div>
+
+        <!-- Estado: ACTIVO -->
+        <template v-else-if="twofa.activo">
+          <div class="flex items-center gap-2 mb-4">
+            <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+              <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.955 11.955 0 003 11.25c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.249-8.25-3.286z"/>
+              </svg>
+              2FA Activo
+            </span>
+          </div>
+          <p class="text-sm text-slate-600 dark:text-slate-400 mb-4">Tu cuenta está protegida. Cada inicio de sesión requerirá un código de tu aplicación autenticadora.</p>
+          <button @click="deshabilitar2FA" :disabled="twofa.enviando"
+            class="inline-flex items-center gap-2 rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 px-4 py-2 text-sm font-medium text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 disabled:opacity-60 transition-colors">
+            <svg v-if="twofa.enviando" class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+            {{ twofa.enviando ? 'Deshabilitando…' : 'Deshabilitar 2FA' }}
+          </button>
+        </template>
+
+        <!-- Estado: INACTIVO — Setup -->
+        <template v-else>
+          <p class="text-sm text-slate-600 dark:text-slate-400 mb-4">La autenticación en 2 pasos no está activa. Escanea el código QR con Google Authenticator, Authy u otra app compatible.</p>
+
+          <!-- Botón cargar QR -->
+          <button v-if="!twofa.qrCode" @click="cargarQR" :disabled="twofa.enviando"
+            class="inline-flex items-center gap-2 rounded-xl bg-slate-900 dark:bg-cyan-500 px-4 py-2 text-sm font-semibold text-white dark:text-slate-900 hover:bg-slate-700 dark:hover:bg-cyan-400 disabled:opacity-60 transition-colors mb-4">
+            <svg v-if="twofa.enviando" class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+            Configurar 2FA
+          </button>
+
+          <!-- QR + formulario de confirmación -->
+          <div v-if="twofa.qrCode" class="space-y-4">
+            <div class="flex justify-center">
+              <img :src="twofa.qrCode" alt="QR para 2FA" class="w-44 h-44 rounded-xl border border-slate-200 dark:border-slate-700" />
+            </div>
+            <p class="text-xs text-center text-slate-500 dark:text-slate-400">Escanea con tu app y luego ingresa el código para confirmar</p>
+            <div>
+              <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-1.5">Código de confirmación</label>
+              <input v-model="twofa.otpConfirm" type="text" inputmode="numeric" maxlength="6" placeholder="000000"
+                class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-4 py-2.5 text-center text-xl tracking-widest font-mono text-slate-900 dark:text-slate-100 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition" />
+            </div>
+            <div v-if="twofa.error" class="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 px-4 py-2 text-sm text-red-700 dark:text-red-400">{{ twofa.error }}</div>
+            <div v-if="twofa.okMsg" class="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/30 px-4 py-2 text-sm text-emerald-700 dark:text-emerald-400">{{ twofa.okMsg }}</div>
+            <button @click="confirmar2FA" :disabled="twofa.enviando || twofa.otpConfirm.length < 6"
+              class="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors">
+              <svg v-if="twofa.enviando" class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+              {{ twofa.enviando ? 'Verificando…' : 'Activar 2FA' }}
+            </button>
+          </div>
+        </template>
+      </section>
+
       <section class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm">
         <div class="flex items-center gap-3 mb-6">
           <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-700">
@@ -141,8 +211,68 @@
 
 <script setup>
 defineOptions({ name: 'SeguridadView' })
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { cambiarPassword } from '@/services/account'
+import { useAuthStore } from '@/stores/auth'
+import api from '@/services/http'
+
+const authStore = useAuthStore()
+const esAdmin = computed(() => ['admin', 'super_admin'].includes(authStore.user?.rol))
+
+// ── Estado 2FA ──────────────────────────────────────────────────────────────
+const twofa = ref({ activo: false, cargando: false, enviando: false, qrCode: '', otpConfirm: '', error: '', okMsg: '' })
+
+const cargarEstado2FA = async () => {
+  if (!esAdmin.value) return
+  twofa.value.cargando = true
+  try {
+    const { data } = await api.get('auth/2fa/status/')
+    twofa.value.activo = data.activo
+  } catch { /* silencioso */ }
+  finally { twofa.value.cargando = false }
+}
+
+const cargarQR = async () => {
+  twofa.value.enviando = true
+  twofa.value.error = ''
+  try {
+    const { data } = await api.get('auth/2fa/setup/')
+    twofa.value.qrCode = data.qr_code
+  } catch (e) {
+    twofa.value.error = e?.response?.data?.detail || 'Error al cargar el QR'
+  } finally { twofa.value.enviando = false }
+}
+
+const confirmar2FA = async () => {
+  twofa.value.enviando = true
+  twofa.value.error = ''
+  twofa.value.okMsg = ''
+  try {
+    await api.post('auth/2fa/setup/', { otp: twofa.value.otpConfirm })
+    twofa.value.activo = true
+    twofa.value.qrCode = ''
+    twofa.value.otpConfirm = ''
+    twofa.value.okMsg = '2FA activado correctamente.'
+    setTimeout(() => { twofa.value.okMsg = '' }, 4000)
+  } catch (e) {
+    twofa.value.error = e?.response?.data?.detail || 'Código incorrecto'
+    twofa.value.otpConfirm = ''
+  } finally { twofa.value.enviando = false }
+}
+
+const deshabilitar2FA = async () => {
+  if (!confirm('¿Seguro que deseas deshabilitar la autenticación en 2 pasos?')) return
+  twofa.value.enviando = true
+  try {
+    await api.delete('auth/2fa/setup/')
+    twofa.value.activo = false
+    twofa.value.qrCode = ''
+  } catch (e) {
+    twofa.value.error = e?.response?.data?.detail || 'Error al deshabilitar 2FA'
+  } finally { twofa.value.enviando = false }
+}
+
+onMounted(cargarEstado2FA)
 
 const form = ref({ old_password: '', new_password: '', confirmar: '' })
 const showOld = ref(false)

@@ -56,6 +56,10 @@ export const useAuthStore = defineStore('auth', {
         null
 
       if (!access) {
+        // El servidor requiere 2FA: devolver data sin lanzar error
+        if (data.requires_2fa) {
+          return data
+        }
         const detail = data.detail || (Array.isArray(data.non_field_errors) ? data.non_field_errors[0] : null)
         if (detail) {
           if (import.meta.env.DEV) console.debug('login rejected', detail)
@@ -67,6 +71,29 @@ export const useAuthStore = defineStore('auth', {
         throw new Error('Respuesta inválida del servidor')
       }
 
+      this.setTokens(access, refresh)
+      if (data.user) {
+        this.user = data.user
+        localStorage.setItem('user', JSON.stringify(data.user))
+      }
+      this.resetInactivityTimer()
+      return data
+    },
+    /**
+     * Segundo paso de login con 2FA: valida challenge + código OTP
+     * @param {{challenge:string, otp:string}} payload
+     */
+    async loginWith2FA({ challenge, otp }) {
+      const { data } = await api.post('auth/login/2fa/', { challenge, otp })
+      if (import.meta.env.DEV) console.debug('login 2fa response', data)
+      const access = data.access || data.access_token || null
+      const refresh = data.refresh || data.refresh_token || null
+      if (!access) {
+        const detail = data.detail || data.error || 'Código inválido'
+        const err = new Error(detail)
+        err.response = { status: 401 }
+        throw err
+      }
       this.setTokens(access, refresh)
       if (data.user) {
         this.user = data.user
