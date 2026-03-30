@@ -56,6 +56,13 @@ def get_with(client: httpx.Client, url: str, retries: int = 3) -> str:
             r = client.get(url)
             r.raise_for_status()
             return r.text
+        except httpx.HTTPStatusError as exc:
+            # 404 y 410 son definitivos, no tiene sentido reintentar
+            if exc.response.status_code in (404, 410):
+                raise
+            if attempt == retries - 1:
+                raise
+            time.sleep(1 * (2 ** attempt))
         except httpx.HTTPError:
             if attempt == retries - 1:
                 raise

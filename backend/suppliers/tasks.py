@@ -207,4 +207,9 @@ def apply_rules():
 
         if changed_fields:
             p.save(update_fields=changed_fields)
-    
+
+
+@shared_task(name="suppliers.tasks.sync_supermex_full")
+def sync_supermex_full():
+    """Tarea programada por beat cada 15 min: actualiza stock y precios de todos los productos existentes."""
+    return run_supermex_stock_sync.apply(kwargs={"http2": True, "sleep_s": 0.3}).get()
