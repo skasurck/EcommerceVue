@@ -7,6 +7,19 @@ export default defineConfig({
   plugins: [
     vue(),
     vueDevTools(),
+    // Convierte el <link rel="stylesheet"> bloqueante en carga asíncrona.
+    // Seguro para un SPA: la página está vacía hasta que JS ejecuta de todos modos.
+    {
+      name: 'defer-css',
+      transformIndexHtml(html) {
+        return html.replace(
+          /<link rel="stylesheet"([^>]*)>/g,
+          (_, attrs) =>
+            `<link rel="preload" as="style"${attrs} onload="this.onload=null;this.rel='stylesheet'">` +
+            `<noscript><link rel="stylesheet"${attrs}></noscript>`
+        )
+      },
+    },
   ],
   resolve: {
     alias: {
@@ -14,24 +27,19 @@ export default defineConfig({
     },
   },
   build: {
-    // CSS separado del JS principal para descarga paralela
     cssCodeSplit: true,
     rollupOptions: {
       output: {
         manualChunks(id) {
-          // Separar Vue en su propio chunk (se cachea entre versiones)
           if (id.includes('node_modules/vue') || id.includes('node_modules/@vue')) {
             return 'vue'
           }
-          // Separar pinia
           if (id.includes('node_modules/pinia')) {
             return 'pinia'
           }
-          // Separar vue-router
           if (id.includes('node_modules/vue-router')) {
             return 'router'
           }
-          // Separar axios
           if (id.includes('node_modules/axios')) {
             return 'axios'
           }
