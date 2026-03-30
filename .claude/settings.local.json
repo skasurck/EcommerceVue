@@ -22,7 +22,9 @@
       "Bash(find c:/Users/skasu/Documents/Proyectos/EcommerceVue/EcommerceVue -path *icon* -o -path *categor*icon*)",
       "Bash(python -c \"import ast; ast.parse\\(open\\(''productos/views.py'', encoding=''utf-8''\\).read\\(\\)\\); print\\(''OK - sin errores de sintaxis''\\)\")",
       "Bash(python -c \":*)",
-      "Bash(xargs grep:*)"
+      "Bash(xargs grep:*)",
+      "Bash(python manage.py makemigrations suppliers --name add_stock_history)",
+      "Bash(.venv/Scripts/python backend/manage.py makemigrations suppliers --name add_stock_history)"
     ]
   }
 }
