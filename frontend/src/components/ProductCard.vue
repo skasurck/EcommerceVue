@@ -55,7 +55,7 @@
 
         <!-- Title / name -->
         <h3 class="mt-1 text-sm text-gray-800 leading-snug line-clamp-3 break-words">
-          {{ p.nombre }}
+          {{ toProductTitle(p.nombre) }}
         </h3>
 
         <!-- Short description (muted) -->
@@ -121,6 +121,7 @@
 import { computed } from 'vue'
 import { useWishlistStore } from '@/stores/wishlist'
 import { useAuthStore } from '@/stores/auth'
+import { toProductTitle } from '@/utils/text'
 
 const emit = defineEmits(['add-to-cart'])
 const wishlist = useWishlistStore()

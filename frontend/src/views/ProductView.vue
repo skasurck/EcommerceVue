@@ -100,7 +100,7 @@
               </div>
               <!-- Main image -->
               <div class="flex-1">
-                <img :src="selectedImage || placeholder" :alt="p.nombre" class="w-full aspect-square object-contain bg-white rounded-lg border cursor-zoom-in" @click="openLightbox" />
+                <img :src="selectedImage || placeholder" :alt="toProductTitle(p.nombre)" class="w-full aspect-square object-contain bg-white rounded-lg border cursor-zoom-in" @click="openLightbox" />
                 <button type="button" class="mt-2 block mx-auto text-center text-xs text-sky-700 hover:underline" @click="openLightbox">Haz clic para una vista completa</button>
               </div>
             </div>
@@ -110,7 +110,7 @@
           <div class="lg:col-span-4">
              <!-- Title -->
             <h1 class="text-2xl font-semibold text-gray-900 mb-3 leading-snug break-words">
-              {{ p.nombre }}
+              {{ toProductTitle(p.nombre) }}
               <span v-if="agotado" class="inline-block align-middle bg-red-600 text-white text-xs px-2 py-1 rounded ml-1">Agotado</span>
             </h1>
 
@@ -369,6 +369,7 @@ import { useRoute } from 'vue-router'
 import { obtenerProducto, obtenerProductos } from '@/services/api'
 import { getCategorias } from '@/api/productos'
 import { useHead } from '@vueuse/head'
+import { toProductTitle } from '@/utils/text'
 import { useCarritoStore } from '@/stores/carrito'
 import { useAuthStore } from '@/stores/auth'
 import { useBreadcrumbStore } from '@/stores/breadcrumb'
@@ -870,10 +871,11 @@ useHead(computed(() => {
   const productImage = toMedia(pr.imagen_principal) || `${origin}/logo-mktska.png`
   const productDesc = (pr.descripcion_larga || pr.descripcion_corta || '').slice(0, 155)
   const productPrice = num(pr.precio_rebajado) ?? num(pr.precio_normal) ?? num(pr.precio)
+  const nombreLegible = toProductTitle(pr.nombre)
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Product',
-    name: pr.nombre,
+    name: nombreLegible,
     description: productDesc || undefined,
     image: productImage,
     url: productUrl,
@@ -889,16 +891,16 @@ useHead(computed(() => {
     },
   }
   return {
-    title: pr.nombre,
+    title: nombreLegible,
     meta: [
       { name: 'description', content: productDesc },
       { property: 'og:type', content: 'product' },
       { property: 'og:url', content: productUrl },
-      { property: 'og:title', content: pr.nombre },
+      { property: 'og:title', content: nombreLegible },
       { property: 'og:description', content: productDesc },
       { property: 'og:image', content: productImage },
       { name: 'twitter:card', content: 'summary_large_image' },
-      { name: 'twitter:title', content: pr.nombre },
+      { name: 'twitter:title', content: nombreLegible },
       { name: 'twitter:description', content: productDesc },
       { name: 'twitter:image', content: productImage },
     ],

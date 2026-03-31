@@ -12,6 +12,24 @@ import re
 import html as html_lib
 from pathlib import Path
 
+_LOWERCASE_WORDS = frozenset([
+    'de', 'del', 'la', 'las', 'los', 'el', 'un', 'una', 'unos', 'unas',
+    'con', 'para', 'por', 'sin', 'sobre', 'entre', 'y', 'o', 'a', 'en',
+])
+
+def _to_product_title(text: str) -> str:
+    """Convierte nombre en MAYÚSCULAS a Title Case manteniendo códigos técnicos."""
+    words = text.strip().lower().split()
+    result = []
+    for i, word in enumerate(words):
+        if any(c.isdigit() for c in word):
+            result.append(word.upper())
+        elif i > 0 and word in _LOWERCASE_WORDS:
+            result.append(word)
+        else:
+            result.append(word.capitalize())
+    return ' '.join(result)
+
 from django.conf import settings
 from django.http import HttpResponse, Http404
 
@@ -73,7 +91,7 @@ def producto_seo_view(request, pk: int):
     # Quitar tags HTML si la descripción los tiene
     desc_raw = re.sub(r'<[^>]+>', '', desc_raw)[:160]
 
-    nombre = _e(producto.nombre)
+    nombre = _e(_to_product_title(producto.nombre))
     desc   = _e(desc_raw)
     img    = _e(image_url)
     url    = _e(product_url)
