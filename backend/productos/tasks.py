@@ -76,9 +76,9 @@ def generate_keywords_task(self, product_id):
         raise self.retry(exc=exc)
 
 # Confianza mínima (0-1) para auto-aplicar sin revisión manual.
-# Claude devuelve 1-10, que se convierte a 0.0-1.0 dividiéndolo entre 10.
-# 0.85 = confianza 8.5/10 o superior → se aplica automáticamente.
-AUTO_APPROVE_THRESHOLD = 0.85
+# Umbral de confianza para auto-aprobar sin revisión manual.
+# GPT retorna siempre 0.90 fijo; con match_type="best_effort" queda en revisión.
+AUTO_APPROVE_THRESHOLD = 0.60
 
 
 def _find_category_by_path(path: str) -> Categoria | None:
@@ -181,14 +181,15 @@ def classify_products_task(self, product_ids, overwrite=False):
                         product.categorias.set([category])
                         product.category_ai_main = None
                         product.category_ai_sub = None
+                        product.category_ai_leaf = None
+                        product.category_ai_match_type = None
                         product.category_ai_conf_main = None
                         product.category_ai_conf_sub = None
                         product.fecha_clasificacion_ai = timezone.now()
                         product.save(update_fields=[
-                            "category_ai_main",
-                            "category_ai_sub",
-                            "category_ai_conf_main",
-                            "category_ai_conf_sub",
+                            "category_ai_main", "category_ai_sub",
+                            "category_ai_leaf", "category_ai_match_type",
+                            "category_ai_conf_main", "category_ai_conf_sub",
                             "fecha_clasificacion_ai",
                         ])
                     auto_applied += 1
@@ -205,11 +206,14 @@ def classify_products_task(self, product_ids, overwrite=False):
                     with transaction.atomic():
                         product.category_ai_main = classification.main
                         product.category_ai_sub = classification.sub
+                        product.category_ai_leaf = classification.leaf
+                        product.category_ai_match_type = classification.match_type
                         product.category_ai_conf_main = confidence
                         product.category_ai_conf_sub = classification.sub_score
                         product.fecha_clasificacion_ai = timezone.now()
                         product.save(update_fields=[
                             "category_ai_main", "category_ai_sub",
+                            "category_ai_leaf", "category_ai_match_type",
                             "category_ai_conf_main", "category_ai_conf_sub",
                             "fecha_clasificacion_ai",
                         ])
@@ -219,11 +223,14 @@ def classify_products_task(self, product_ids, overwrite=False):
                 with transaction.atomic():
                     product.category_ai_main = classification.main
                     product.category_ai_sub = classification.sub
+                    product.category_ai_leaf = classification.leaf
+                    product.category_ai_match_type = classification.match_type
                     product.category_ai_conf_main = confidence
                     product.category_ai_conf_sub = classification.sub_score
                     product.fecha_clasificacion_ai = timezone.now()
                     product.save(update_fields=[
                         "category_ai_main", "category_ai_sub",
+                        "category_ai_leaf", "category_ai_match_type",
                         "category_ai_conf_main", "category_ai_conf_sub",
                         "fecha_clasificacion_ai",
                     ])

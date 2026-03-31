@@ -852,14 +852,16 @@ def _normalize_labels(
     )
 
 
+
 def _build_full_category_prompt() -> str:
-    """Construye el árbol completo de categorías con rutas exactas para LLMs."""
+    """Árbol completo con rutas exactas — máxima precisión para LLMs."""
     lines = []
     for main in MAIN_CATEGORIES:
         lines.append(f"\n{main}:")
         for path in SUBCATEGORIES.get(main, []):
             lines.append(f"  - {path}")
     return "\n".join(lines)
+
 
 
 _FULL_CATEGORY_PROMPT_CACHE: str | None = None
