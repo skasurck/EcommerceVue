@@ -872,7 +872,7 @@ useHead(computed(() => {
   const productDesc = (pr.descripcion_larga || pr.descripcion_corta || '').slice(0, 155)
   const productPrice = num(pr.precio_rebajado) ?? num(pr.precio_normal) ?? num(pr.precio)
   const nombreLegible = toProductTitle(pr.nombre)
-  const jsonLd = {
+  const productJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Product',
     name: nombreLegible,
@@ -890,6 +890,24 @@ useHead(computed(() => {
       itemCondition: 'https://schema.org/NewCondition',
     },
   }
+
+  // BreadcrumbList: Inicio > Categoría > ... > Producto
+  const breadcrumbItems = [
+    { name: 'Inicio', href: origin },
+    ...categoryBreadcrumb.value.map((name) => ({ name, href: `${origin}/categorias` })),
+    { name: nombreLegible, href: productUrl },
+  ]
+  const breadcrumbJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: breadcrumbItems.map((item, index) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      name: item.name,
+      item: item.href,
+    })),
+  }
+
   return {
     title: nombreLegible,
     meta: [
@@ -905,7 +923,10 @@ useHead(computed(() => {
       { name: 'twitter:image', content: productImage },
     ],
     link: [{ rel: 'canonical', href: productUrl }],
-    script: [{ type: 'application/ld+json', children: JSON.stringify(jsonLd) }],
+    script: [
+      { type: 'application/ld+json', children: JSON.stringify(productJsonLd) },
+      { type: 'application/ld+json', children: JSON.stringify(breadcrumbJsonLd) },
+    ],
   }
 }))
 
