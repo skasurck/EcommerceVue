@@ -29,7 +29,13 @@
 
       <!-- Skeleton -->
       <div v-if="loading" class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-        <div v-for="i in 8" :key="i" class="h-44 rounded-2xl bg-slate-200 dark:bg-slate-800/60 animate-pulse"></div>
+        <div v-for="i in 8" :key="i" class="rounded-2xl overflow-hidden bg-slate-200 dark:bg-slate-800/60 animate-pulse">
+          <div class="h-36 sm:h-44 w-full"></div>
+          <div class="px-4 py-3 space-y-2">
+            <div class="h-3.5 w-3/4 rounded bg-slate-300 dark:bg-slate-700"></div>
+            <div class="h-2.5 w-1/2 rounded bg-slate-300/70 dark:bg-slate-700/70"></div>
+          </div>
+        </div>
       </div>
 
       <!-- Cards -->
@@ -38,64 +44,58 @@
           v-for="cat in visibleCategories"
           :key="cat.id"
           :to="{ name: 'categoria', params: { categoriaId: cat.id } }"
-          class="group relative flex flex-col overflow-hidden rounded-2xl border bg-white dark:bg-slate-900/80 p-5
+          class="group relative flex flex-col overflow-hidden rounded-2xl border bg-white dark:bg-slate-900/80
                  border-slate-200 dark:border-slate-800
                  transition-all duration-300 hover:-translate-y-1
-                 hover:shadow-lg dark:hover:shadow-[0_0_35px_-8px_var(--cat-glow)]"
+                 hover:shadow-xl dark:hover:shadow-[0_0_35px_-8px_var(--cat-glow)]"
           :style="{ '--cat-glow': getConfig(cat.nombre).color + '66' }"
         >
-          <!-- bg glow on hover (dark) -->
-          <div class="pointer-events-none absolute inset-0 rounded-2xl opacity-0 dark:group-hover:opacity-100 transition-opacity duration-300"
-               :style="{ background: `radial-gradient(ellipse at 30% 30%, ${getConfig(cat.nombre).color}18, transparent 70%)` }"></div>
-
-          <!-- light hover tint -->
-          <div class="pointer-events-none absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 dark:group-hover:opacity-0 transition-opacity duration-300"
-               :style="{ background: `linear-gradient(135deg, ${getConfig(cat.nombre).color}0d, transparent)` }"></div>
-
-          <!-- Top row: image/icon + arrow -->
-          <div class="relative mb-5 flex items-start justify-between">
-            <div class="h-14 w-14 shrink-0 overflow-hidden rounded-xl transition-transform duration-300 group-hover:scale-110"
-                 :style="cat.primera_imagen ? {} : { background: `linear-gradient(135deg, ${getConfig(cat.nombre).color}22, ${getConfig(cat.nombre).color}08)`, border: `1px solid ${getConfig(cat.nombre).color}35` }">
-              <img
-                v-if="cat.primera_imagen"
-                :src="toMedia(cat.primera_imagen)"
-                :alt="cat.nombre"
-                class="h-full w-full object-cover"
-                loading="lazy"
-                decoding="async"
-              />
-              <div v-else class="flex h-full w-full items-center justify-center">
-                <svg class="h-7 w-7 transition-colors"
-                     :style="{ color: getConfig(cat.nombre).color }"
-                     v-html="getConfig(cat.nombre).iconPath"
-                     fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true"></svg>
-              </div>
+          <!-- Image area -->
+          <div class="relative h-36 sm:h-44 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
+            <img
+              v-if="cat.primera_imagen"
+              :src="toMedia(cat.primera_imagen)"
+              :alt="cat.nombre"
+              class="h-full w-full object-contain p-3 transition-transform duration-500 group-hover:scale-105"
+              loading="lazy"
+              decoding="async"
+            />
+            <!-- Icon fallback when no image -->
+            <div v-else class="flex h-full w-full items-center justify-center"
+                 :style="{ background: `linear-gradient(135deg, ${getConfig(cat.nombre).color}18, ${getConfig(cat.nombre).color}06)` }">
+              <svg class="h-14 w-14 opacity-60"
+                   :style="{ color: getConfig(cat.nombre).color }"
+                   v-html="getConfig(cat.nombre).iconPath"
+                   fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.2" aria-hidden="true"></svg>
             </div>
-            <div class="rounded-lg border p-1.5 transition-all duration-300
-                        border-slate-200 dark:border-slate-700
-                        bg-slate-50 dark:bg-slate-800/60
-                        text-slate-400 dark:text-slate-600
-                        group-hover:border-slate-300 dark:group-hover:border-slate-600
-                        group-hover:text-slate-600 dark:group-hover:text-white">
-              <svg class="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <!-- Color accent strip at bottom of image -->
+            <div class="absolute bottom-0 left-0 right-0 h-0.5"
+                 :style="{ background: `linear-gradient(90deg, transparent, ${getConfig(cat.nombre).color}90, transparent)` }"></div>
+            <!-- Arrow badge -->
+            <div class="absolute right-2.5 top-2.5 rounded-lg border p-1.5 backdrop-blur-sm transition-all duration-300
+                        border-slate-200/80 dark:border-slate-700/80
+                        bg-white/80 dark:bg-slate-900/80
+                        text-slate-400 dark:text-slate-500
+                        group-hover:border-slate-300 dark:group-hover:border-slate-500
+                        group-hover:text-slate-700 dark:group-hover:text-white">
+              <svg class="h-3 w-3 transition-transform duration-300 group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/>
               </svg>
             </div>
           </div>
 
-          <!-- Name + meta -->
-          <div class="relative mt-auto">
-            <h2 class="font-semibold leading-snug text-slate-800 dark:text-slate-100 group-hover:text-slate-900 dark:group-hover:text-white transition-colors" style="font-size:0.92rem">
+          <!-- Info area -->
+          <div class="relative px-4 py-3">
+            <!-- bg glow on hover (dark) -->
+            <div class="pointer-events-none absolute inset-0 opacity-0 dark:group-hover:opacity-100 transition-opacity duration-300"
+                 :style="{ background: `radial-gradient(ellipse at 50% 100%, ${getConfig(cat.nombre).color}12, transparent 70%)` }"></div>
+            <h2 class="relative font-semibold leading-snug text-slate-800 dark:text-slate-100 group-hover:text-slate-900 dark:group-hover:text-white transition-colors text-sm">
               {{ cat.nombre }}
             </h2>
-            <p v-if="cat.visibleSubs > 0" class="mt-1 text-xs text-slate-400 dark:text-slate-600">
+            <p v-if="cat.visibleSubs > 0" class="mt-0.5 text-xs text-slate-400 dark:text-slate-500">
               {{ cat.visibleSubs }} subcategoría{{ cat.visibleSubs !== 1 ? 's' : '' }}
             </p>
           </div>
-
-          <!-- Bottom accent line -->
-          <div class="absolute bottom-0 left-0 right-0 h-0.5 scale-x-0 rounded-b-2xl transition-transform duration-300 group-hover:scale-x-100"
-               :style="{ background: `linear-gradient(90deg, transparent, ${getConfig(cat.nombre).color}, transparent)` }"></div>
         </RouterLink>
       </div>
 
