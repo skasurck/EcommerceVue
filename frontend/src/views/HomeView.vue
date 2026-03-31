@@ -203,16 +203,17 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <main class="bg-gray-100 dark:bg-slate-950 min-h-screen">
+  <main class="bg-slate-50 dark:bg-slate-950 min-h-screen">
     <h1 class="sr-only">Mktska Digital — Tienda de tecnología y cómputo en México</h1>
-    <!-- Slider mobile -->
-    <section class="lg:hidden bg-slate-100 dark:bg-slate-900 min-h-[390px]">
+
+    <!-- ── Slider mobile ─────────────────────────────────────────────────────── -->
+    <section class="lg:hidden bg-slate-900 min-h-[390px]">
       <div class="px-2 py-3 overflow-x-auto mobile-no-scrollbar">
         <div class="flex gap-3 snap-x snap-mandatory">
           <article
             v-for="(slide, index) in sliderImages"
             :key="`mobile-slide-${index}`"
-            class="relative snap-start shrink-0 w-[78%] h-[360px] rounded-2xl bg-white dark:bg-slate-800 text-slate-900 overflow-hidden border border-slate-200 dark:border-slate-700"
+            class="relative snap-start shrink-0 w-[78%] h-[360px] rounded-2xl overflow-hidden border border-white/10"
           >
             <img
               :src="slide.mobileSrc || slide.src"
@@ -221,10 +222,10 @@ onBeforeUnmount(() => {
               :fetchpriority="index === 0 ? 'high' : 'low'"
               :loading="index === 0 ? 'eager' : 'lazy'"
             />
-            <div class="absolute inset-0 bg-gradient-to-t from-black/20 via-black/10 to-white/65" />
+            <div class="absolute inset-0 bg-gradient-to-t from-black/55 via-black/15 to-transparent" />
             <div class="relative z-10 p-4">
               <h3
-                class="text-4xl leading-8 font-extrabold"
+                class="text-4xl leading-8 font-extrabold drop-shadow-md"
                 :style="{ color: slide.titleColor }"
               >
                 {{ slide.mobileTitle || 'Oferta especial' }}
@@ -235,10 +236,11 @@ onBeforeUnmount(() => {
       </div>
     </section>
 
-    <section class="hidden lg:block bg-slate-200  " >
-      <div class="max-w-7xl mx-auto px-4 py-4 sm:py-6">
+    <!-- ── Slider desktop ────────────────────────────────────────────────────── -->
+    <section class="hidden lg:block bg-slate-900">
+      <div class="max-w-7xl mx-auto px-4 py-5">
         <div
-          class="relative h-52 sm:h-72 md:h-80 lg:h-96 rounded-xl overflow-hidden border border-white/10"
+          class="relative h-52 sm:h-72 md:h-80 lg:h-[420px] rounded-2xl overflow-hidden ring-1 ring-white/10"
           @mouseenter="stopAutoplay"
           @mouseleave="startAutoplay"
         >
@@ -251,47 +253,43 @@ onBeforeUnmount(() => {
             :class="index === currentSlide ? 'opacity-100' : 'opacity-0'"
           />
 
-          <div class="absolute inset-0 bg-gradient-to-t from-black/45 via-black/10 to-transparent" />
+          <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-black/15 to-transparent" />
 
           <div
             v-if="activeDesktopSlide"
-            class="absolute left-20 top-20 w-[42%] max-w-2xl min-h-[42%] rounded-md p-6"
+            class="absolute left-16 top-16 w-[42%] max-w-2xl"
           >
             <h3
-              class="text-6xl leading-tight font-extrabold"
+              class="text-5xl xl:text-6xl leading-tight font-extrabold drop-shadow-lg"
               :style="{ color: activeDesktopSlide.titleColor }"
             >
               {{ activeDesktopSlide.title || activeDesktopSlide.mobileTitle || 'Oferta especial' }}
             </h3>
-            <p v-if="activeDesktopSlide.description || activeDesktopSlide.mobileDescription" class="mt-3 text-base text-slate-900/85">
+            <p v-if="activeDesktopSlide.description || activeDesktopSlide.mobileDescription" class="mt-3 text-base text-white/90 drop-shadow">
               {{ activeDesktopSlide.description || activeDesktopSlide.mobileDescription }}
             </p>
           </div>
 
           <button
-            class="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 rounded-full w-9 h-9 bg-white/85 hover:bg-white text-slate-800 font-bold"
+            class="absolute left-3 top-1/2 -translate-y-1/2 rounded-full w-10 h-10 bg-white/15 hover:bg-white/30 backdrop-blur-sm text-white font-bold text-xl transition-colors"
             type="button"
             aria-label="Imagen anterior"
             @click="prevSlide"
-          >
-            ‹
-          </button>
+          >‹</button>
           <button
-            class="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 rounded-full w-9 h-9 bg-white/85 hover:bg-white text-slate-800 font-bold"
+            class="absolute right-3 top-1/2 -translate-y-1/2 rounded-full w-10 h-10 bg-white/15 hover:bg-white/30 backdrop-blur-sm text-white font-bold text-xl transition-colors"
             type="button"
             aria-label="Imagen siguiente"
             @click="nextSlide"
-          >
-            ›
-          </button>
+          >›</button>
 
-          <div class="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2">
+          <div class="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2">
             <button
               v-for="(_, index) in sliderImages"
               :key="`dot-${index}`"
               type="button"
-              class="h-2.5 w-2.5 rounded-full transition"
-              :class="index === currentSlide ? 'bg-white scale-110' : 'bg-white/50 hover:bg-white/80'"
+              class="h-2 rounded-full transition-all duration-300"
+              :class="index === currentSlide ? 'bg-white w-6' : 'bg-white/40 hover:bg-white/70 w-2'"
               @click="goToSlide(index)"
             />
           </div>
@@ -299,6 +297,59 @@ onBeforeUnmount(() => {
       </div>
     </section>
 
+    <!-- ── Trust bar ─────────────────────────────────────────────────────────── -->
+    <section class="bg-slate-900 border-t border-white/5">
+      <div class="max-w-7xl mx-auto px-4 py-4">
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-y-4">
+          <div class="flex items-center gap-3 px-4">
+            <div class="shrink-0 text-cyan-400">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
+              </svg>
+            </div>
+            <div>
+              <p class="text-sm font-bold text-white uppercase tracking-wide">Envío Rápido</p>
+              <p class="text-xs text-slate-400">Entregas de 1 a 5 días</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-3 px-4">
+            <div class="shrink-0 text-cyan-400">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z" />
+              </svg>
+            </div>
+            <div>
+              <p class="text-sm font-bold text-white uppercase tracking-wide">Pago Seguro</p>
+              <p class="text-xs text-slate-400">100% transacciones protegidas</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-3 px-4">
+            <div class="shrink-0 text-cyan-400">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z" />
+              </svg>
+            </div>
+            <div>
+              <p class="text-sm font-bold text-white uppercase tracking-wide">Soporte 24/7</p>
+              <p class="text-xs text-slate-400">Atención dedicada siempre</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-3 px-4">
+            <div class="shrink-0 text-cyan-400">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 0 1-1.043 3.296 3.745 3.745 0 0 1-3.296 1.043A3.745 3.745 0 0 1 12 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 0 1-3.296-1.043 3.745 3.745 0 0 1-1.043-3.296A3.745 3.745 0 0 1 3 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 0 1 1.043-3.296 3.746 3.746 0 0 1 3.296-1.043A3.746 3.746 0 0 1 12 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 0 1 3.296 1.043 3.746 3.746 0 0 1 1.043 3.296A3.745 3.745 0 0 1 21 12Z" />
+              </svg>
+            </div>
+            <div>
+              <p class="text-sm font-bold text-white uppercase tracking-wide">Garantía 30 días</p>
+              <p class="text-xs text-slate-400">Satisfacción o reembolso</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Promo banners ──────────────────────────────────────────────────────── -->
     <div v-if="promoBanners.length" class="max-w-7xl mx-auto px-4 pt-6">
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <component
@@ -331,68 +382,40 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
+    <!-- ── Categorías rápidas ─────────────────────────────────────────────────── -->
+    <div class="max-w-7xl mx-auto px-4 pt-8 pb-2">
+      <h2 class="text-lg font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
+        <span class="block w-1 h-5 rounded-full bg-cyan-500"></span>
+        Componentes para PC
+      </h2>
+      <div class="grid grid-cols-3 sm:grid-cols-6 gap-3">
+        <RouterLink
+          v-for="section in CATEGORY_SECTIONS"
+          :key="section.slug"
+          :to="section.catId.value ? `/productos?categoria=${section.catId.value}` : '/productos'"
+          class="flex flex-col items-center gap-2 rounded-xl bg-white dark:bg-slate-800 px-2 py-4 text-center border border-slate-100 dark:border-slate-700 hover:border-cyan-400 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group"
+        >
+          <span class="text-3xl leading-none">{{ section.icon }}</span>
+          <span class="text-xs font-medium text-slate-600 dark:text-slate-300 group-hover:text-cyan-600 leading-tight">{{ section.label }}</span>
+        </RouterLink>
+      </div>
+    </div>
+
+    <!-- ── Productos ─────────────────────────────────────────────────────────── -->
     <!-- min-h-[1200px] reserva espacio para que el footer empiece fuera del viewport
          mientras los productos cargan, evitando CLS de 0.7+ -->
     <div class="max-w-7xl mx-auto px-4 py-6 space-y-8 min-h-[1200px]">
       <ProductRow title="Ofertas del día" :productos="ofertas" to="/productos?ofertas=1" @add-to-cart="handleAddToCart" />
-          <section class=" border-y border-gray-200">
-      <div class="max-w-7xl mx-auto px-4 py-4">
-        <div class="grid grid-cols-2 lg:grid-cols-4 divide-x divide-gray-200">
-          <!-- Envío gratis -->
-          <div class="flex items-center gap-3 px-4 py-3">
-            <div class="shrink-0 text-amber-500">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
-              </svg>
-            </div>
-            <div>
-              <p class="text-xs font-bold text-gray-800 uppercase tracking-wide">Envío Rapido</p>
-              <p class="text-xs text-gray-500">Entregas de 1 - 5 dias</p>
-            </div>
-          </div>
-          <!-- Pago seguro -->
-          <div class="flex items-center gap-3 px-4 py-3">
-            <div class="shrink-0 text-amber-500">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z" />
-              </svg>
-            </div>
-            <div>
-              <p class="text-xs font-bold text-gray-800 uppercase tracking-wide">Pago seguro</p>
-              <p class="text-xs text-gray-500">100% transacciones protegidas</p>
-            </div>
-          </div>
-          <!-- Soporte 24/7 -->
-          <div class="flex items-center gap-3 px-4 py-3">
-            <div class="shrink-0 text-amber-500">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z" />
-              </svg>
-            </div>
-            <div>
-              <p class="text-xs font-bold text-gray-800 uppercase tracking-wide">Soporte 24/7</p>
-              <p class="text-xs text-gray-500">Atención dedicada siempre</p>
-            </div>
-          </div>
-          <!-- Satisfacción garantizada -->
-          <div class="flex items-center gap-3 px-4 py-3">
-            <div class="shrink-0 text-amber-500">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 0 1-1.043 3.296 3.745 3.745 0 0 1-3.296 1.043A3.745 3.745 0 0 1 12 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 0 1-3.296-1.043 3.745 3.745 0 0 1-1.043-3.296A3.745 3.745 0 0 1 3 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 0 1 1.043-3.296 3.746 3.746 0 0 1 3.296-1.043A3.746 3.746 0 0 1 12 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 0 1 3.296 1.043 3.746 3.746 0 0 1 1.043 3.296A3.745 3.745 0 0 1 21 12Z" />
-              </svg>
-            </div>
-            <div>
-              <p class="text-xs font-bold text-gray-800 uppercase tracking-wide">Garantía 30 días</p>
-              <p class="text-xs text-gray-500">Satisfacción o reembolso</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
       <ProductRow title="Novedades" :productos="nuevos" to="/productos?orden=-id" @add-to-cart="handleAddToCart" />
 
-      <section class="mt-8">
-        <h2 class="text-xl font-semibold mb-2 px-2">Destacados</h2>
+      <section>
+        <div class="flex items-baseline justify-between mb-3 px-2">
+          <h2 class="text-xl font-semibold text-slate-800 dark:text-white flex items-center gap-2">
+            <span class="block w-1 h-5 rounded-full bg-cyan-500 shrink-0"></span>
+            Destacados
+          </h2>
+          <RouterLink to="/productos" class="text-sm text-blue-700 hover:underline">Ver más</RouterLink>
+        </div>
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
           <ProductCard v-for="p in destacados" :key="p.id" :producto="p" @add-to-cart="handleAddToCart" />
         </div>
@@ -409,7 +432,7 @@ onBeforeUnmount(() => {
         />
       </template>
     </div>
-    
+
   </main>
 </template>
 

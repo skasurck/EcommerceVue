@@ -88,7 +88,8 @@ const statusDetail = computed(() => {
 })
 
 const reintentar = () => {
-  // Si tiene external_reference (= ID del pedido) volver al checkout con ese pedido
+  // Limpiar el estado de pedido pendiente para que el checkout no muestre la advertencia
+  try { sessionStorage.removeItem('mp_pending_order') } catch { /* */ }
   if (externalRef.value) {
     router.push({ name: 'checkout', query: { pedido: externalRef.value } })
   } else {
