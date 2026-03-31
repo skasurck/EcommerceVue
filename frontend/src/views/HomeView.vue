@@ -43,6 +43,7 @@ const destacados = ref([])
 const sliderImages = ref([])
 const promoBanners = ref([])
 const currentSlide = ref(0)
+const allLoaded = ref(false)
 let autoplayTimer = null
 
 // ── Secciones por categoría ──────────────────────────────────────────────────
@@ -201,8 +202,8 @@ onMounted(async () => {
   nuevos.value = [...all].sort((a, b) => b.id - a.id).slice(0, 12)
   destacados.value = destacadosResponse.length > 0 ? destacadosResponse : all.slice(0, 12)
 
-  // Cargar secciones de componentes (no bloquea el render inicial)
-  fetchCategorySections()
+  // Cargar secciones de componentes y marcar todo como cargado al terminar
+  fetchCategorySections().finally(() => { allLoaded.value = true })
 })
 
 onBeforeUnmount(() => {
@@ -423,9 +424,9 @@ onBeforeUnmount(() => {
     </div>
 
     <!-- ── Productos ─────────────────────────────────────────────────────────── -->
-    <!-- min-h-[1200px] reserva espacio para que el footer empiece fuera del viewport
-         mientras los productos cargan, evitando CLS de 0.7+ -->
-    <div class="max-w-7xl mx-auto px-4 py-6 space-y-8 min-h-[1200px]">
+    <!-- min-h reserva espacio mientras los productos cargan para evitar CLS del footer.
+         Se elimina una vez que fetchCategorySections termina (allLoaded = true). -->
+    <div class="max-w-7xl mx-auto px-4 py-6 space-y-8" :class="allLoaded ? '' : 'min-h-[4000px]'">
       <ProductRow title="Ofertas del día" :productos="ofertas" to="/productos?ofertas=1" @add-to-cart="handleAddToCart" />
       <ProductRow title="Novedades" :productos="nuevos" to="/productos?orden=-id" @add-to-cart="handleAddToCart" />
 

@@ -12,8 +12,8 @@
 
           <!-- Logo -->
           <RouterLink to="/" class="flex items-center shrink-0">
-            <img src="/logo-mktska.webp" alt="Mktska Digital" width="68" height="36" class="h-9 w-auto object-contain dark:hidden" />
-            <img src="/logo-mktska-white.webp" alt="Mktska Digital" width="68" height="36" class="h-9 w-auto object-contain hidden dark:block" />
+            <img src="/logo-mktska.webp" alt="Mktska Digital" width="68" height="36" class="h-9 w-[68px] object-contain dark:hidden" />
+            <img src="/logo-mktska-white.webp" alt="Mktska Digital" width="68" height="36" class="h-9 w-[68px] object-contain hidden dark:block" />
           </RouterLink>
 
           <!-- Ubicación -->
@@ -178,8 +178,8 @@
           </button>
 
           <RouterLink to="/" class="flex items-center shrink-0">
-            <img src="/logo-mktska.webp" alt="Mktska Digital" width="60" height="32" class="h-8 w-auto object-contain dark:hidden" />
-            <img src="/logo-mktska-white.webp" alt="Mktska Digital" width="60" height="32" class="h-8 w-auto object-contain hidden dark:block" />
+            <img src="/logo-mktska.webp" alt="Mktska Digital" width="60" height="32" class="h-8 w-[60px] object-contain dark:hidden" />
+            <img src="/logo-mktska-white.webp" alt="Mktska Digital" width="60" height="32" class="h-8 w-[60px] object-contain hidden dark:block" />
           </RouterLink>
 
           <!-- User greeting -->
