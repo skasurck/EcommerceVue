@@ -41,7 +41,7 @@
         </div>
       </div>
 
-      <!-- ─── SUBCATEGORY PILLS ──────────────────────────────────── -->
+      <!-- ─── SUBCATEGORY PILLS (level 1) ──────────────────────── -->
       <div v-if="visibleSubs.length" class="relative border-t border-slate-100 dark:border-slate-800">
         <!-- fade edges -->
         <div class="pointer-events-none absolute left-0 top-0 bottom-0 z-10 w-8 bg-gradient-to-r from-white dark:from-slate-900 to-transparent"></div>
@@ -68,6 +68,35 @@
               : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-500 hover:text-slate-900 dark:hover:text-slate-200'"
           >
             {{ sub.nombre }}
+          </button>
+        </div>
+      </div>
+
+      <!-- ─── SUB-SUBCATEGORY PILLS (level 2) ───────────────────── -->
+      <div v-if="selectedSubId && visibleSubSubs.length" class="relative border-t border-slate-100/60 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/40">
+        <div class="pointer-events-none absolute left-0 top-0 bottom-0 z-10 w-8 bg-gradient-to-r from-slate-50 dark:from-slate-900 to-transparent"></div>
+        <div class="pointer-events-none absolute right-0 top-0 bottom-0 z-10 w-8 bg-gradient-to-l from-slate-50 dark:from-slate-900 to-transparent"></div>
+
+        <div class="scrollbar-hide flex gap-2 overflow-x-auto px-4 py-2 mx-auto max-w-7xl" style="-webkit-overflow-scrolling:touch">
+          <button
+            @click="selectSubSub(null)"
+            class="shrink-0 rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap transition-all duration-200"
+            :class="selectedSubSubId === null
+              ? 'border-violet-500 bg-violet-500 text-white shadow-sm dark:bg-violet-500/15 dark:text-violet-300 dark:border-violet-500'
+              : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/40 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-500 hover:text-slate-800 dark:hover:text-slate-200'"
+          >
+            Todos
+          </button>
+          <button
+            v-for="ss in visibleSubSubs"
+            :key="ss.id"
+            @click="selectSubSub(ss.id)"
+            class="shrink-0 rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap transition-all duration-200"
+            :class="selectedSubSubId === ss.id
+              ? 'border-violet-500 bg-violet-500 text-white shadow-sm dark:bg-violet-500/15 dark:text-violet-300 dark:border-violet-500'
+              : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/40 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-500 hover:text-slate-800 dark:hover:text-slate-200'"
+          >
+            {{ ss.nombre }}
           </button>
         </div>
       </div>
@@ -135,7 +164,8 @@ const allCategories  = ref([])
 const countMap       = ref({})      // id → productos_count
 const productos      = ref([])
 const totalProductos = ref(null)
-const selectedSubId  = ref(null)
+const selectedSubId    = ref(null)
+const selectedSubSubId = ref(null)
 const loadingInitial = ref(true)
 const loadingMore    = ref(false)
 const hasMore        = ref(true)
@@ -149,11 +179,23 @@ const currentCategory = computed(() =>
   allCategories.value.find((c) => c.id === categoriaId.value) ?? null
 )
 
-// Only show subcategories that have products
+// Recursively check if a category or any descendant has products
+const hasAnyProducts = (cat) => {
+  if ((countMap.value[cat.id] ?? 0) > 0) return true
+  return (cat.subcategorias ?? []).some(hasAnyProducts)
+}
+
+// Show subcategories that have products themselves or in any descendant
 const visibleSubs = computed(() =>
-  (currentCategory.value?.subcategorias ?? []).filter(
-    (s) => (countMap.value[s.id] ?? 0) > 0
-  )
+  (currentCategory.value?.subcategorias ?? []).filter(hasAnyProducts)
+)
+
+// Sub-subcategory pills when a first-level sub is selected
+const selectedSub = computed(() =>
+  visibleSubs.value.find((s) => s.id === selectedSubId.value) ?? null
+)
+const visibleSubSubs = computed(() =>
+  (selectedSub.value?.subcategorias ?? []).filter(hasAnyProducts)
 )
 
 useHead(computed(() => {
@@ -208,7 +250,7 @@ const fetchProducts = async ({ reset = false } = {}) => {
   }
   try {
     const { data } = await getProductos({
-      categoria: selectedSubId.value ?? categoriaId.value,
+      categoria: selectedSubSubId.value ?? selectedSubId.value ?? categoriaId.value,
       page: page.value,
       page_size: PAGE_SIZE,
     })
@@ -225,7 +267,11 @@ const fetchProducts = async ({ reset = false } = {}) => {
   }
 }
 
-const selectSub = (id) => { selectedSubId.value = id }
+const selectSub = (id) => {
+  selectedSubId.value = id
+  selectedSubSubId.value = null
+}
+const selectSubSub = (id) => { selectedSubSubId.value = id }
 
 // ─── Infinite scroll ──────────────────────────────────────────────────────────
 const setupObserver = () => {
@@ -242,8 +288,9 @@ const setupObserver = () => {
 }
 
 // ─── Watchers ─────────────────────────────────────────────────────────────────
-watch(categoriaId, () => { selectedSubId.value = null; fetchProducts({ reset: true }) })
-watch(selectedSubId, () => fetchProducts({ reset: true }))
+watch(categoriaId, () => { selectedSubId.value = null; selectedSubSubId.value = null; fetchProducts({ reset: true }) })
+watch(selectedSubId, () => { selectedSubSubId.value = null; fetchProducts({ reset: true }) })
+watch(selectedSubSubId, () => fetchProducts({ reset: true }))
 
 // ─── Lifecycle ────────────────────────────────────────────────────────────────
 onMounted(async () => {

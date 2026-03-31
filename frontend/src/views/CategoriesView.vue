@@ -52,15 +52,24 @@
           <div class="pointer-events-none absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 dark:group-hover:opacity-0 transition-opacity duration-300"
                :style="{ background: `linear-gradient(135deg, ${getConfig(cat.nombre).color}0d, transparent)` }"></div>
 
-          <!-- Top row: icon + arrow -->
+          <!-- Top row: image/icon + arrow -->
           <div class="relative mb-5 flex items-start justify-between">
-            <div class="flex h-14 w-14 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-110"
-                 :style="{ background: `linear-gradient(135deg, ${getConfig(cat.nombre).color}22, ${getConfig(cat.nombre).color}08)`,
-                           border: `1px solid ${getConfig(cat.nombre).color}35` }">
-              <svg class="h-7 w-7 transition-colors"
-                   :style="{ color: getConfig(cat.nombre).color }"
-                   v-html="getConfig(cat.nombre).iconPath"
-                   fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true"></svg>
+            <div class="h-14 w-14 shrink-0 overflow-hidden rounded-xl transition-transform duration-300 group-hover:scale-110"
+                 :style="cat.primera_imagen ? {} : { background: `linear-gradient(135deg, ${getConfig(cat.nombre).color}22, ${getConfig(cat.nombre).color}08)`, border: `1px solid ${getConfig(cat.nombre).color}35` }">
+              <img
+                v-if="cat.primera_imagen"
+                :src="toMedia(cat.primera_imagen)"
+                :alt="cat.nombre"
+                class="h-full w-full object-cover"
+                loading="lazy"
+                decoding="async"
+              />
+              <div v-else class="flex h-full w-full items-center justify-center">
+                <svg class="h-7 w-7 transition-colors"
+                     :style="{ color: getConfig(cat.nombre).color }"
+                     v-html="getConfig(cat.nombre).iconPath"
+                     fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true"></svg>
+              </div>
             </div>
             <div class="rounded-lg border p-1.5 transition-all duration-300
                         border-slate-200 dark:border-slate-700
@@ -104,6 +113,14 @@ import { getCategoriasTree } from '@/api/productos'
 import { useHead } from '@vueuse/head'
 import api from '@/axios'
 
+const MEDIA_BASE = (import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? 'http://localhost:8000' : (typeof window !== 'undefined' ? window.location.origin : ''))).replace(/\/+$/, '')
+const toMedia = (u) => {
+  if (!u) return null
+  if (/^(data:|blob:|https?:)/i.test(u)) return u
+  if (u.startsWith('/media/')) return `${MEDIA_BASE}${u}`
+  return `${MEDIA_BASE}/media/${u.replace(/^\/+/, '')}`
+}
+
 useHead({ title: 'Categorías — Explorar' })
 
 const tree = ref([])         // /all-categories/ (con subcategorias)
@@ -128,17 +145,20 @@ onMounted(async () => {
   }
 })
 
-// Filter: show parent only if it OR any of its subcategories have products
+// Recursively check if a category or any descendant has products
+const hasAnyProducts = (cat) => {
+  if ((countMap.value[cat.id] ?? 0) > 0) return true
+  return (cat.subcategorias ?? []).some(hasAnyProducts)
+}
+
+// Filter: show parent only if it OR any descendant has products
 const visibleCategories = computed(() =>
   tree.value
     .map((cat) => {
-      const visibleSubs = (cat.subcategorias ?? []).filter(
-        (s) => (countMap.value[s.id] ?? 0) > 0
-      ).length
-      const ownCount = countMap.value[cat.id] ?? 0
+      const visibleSubs = (cat.subcategorias ?? []).filter(hasAnyProducts).length
       return { ...cat, visibleSubs }
     })
-    .filter((cat) => cat.visibleSubs > 0 || (countMap.value[cat.id] ?? 0) > 0)
+    .filter(hasAnyProducts)
 )
 
 // ─── Icon/color config ───────────────────────────────────────────────────────

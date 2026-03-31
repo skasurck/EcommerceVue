@@ -1,5 +1,6 @@
 import logging
 import re
+from django.core.cache import cache
 from rest_framework import viewsets, permissions, status, generics
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.filters import OrderingFilter
@@ -278,9 +279,50 @@ class AllCategoriesAPIView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        categorias = Categoria.objects.filter(parent__isnull=True).order_by("nombre")
-        serializer = CategoryTreeSerializer(categorias, many=True)
-        return Response(serializer.data)
+        cache_key = 'all_categories_tree_v2'
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached)
+
+        categorias = (
+            Categoria.objects.filter(parent__isnull=True)
+            .prefetch_related('subcategorias__subcategorias__subcategorias')
+            .order_by("nombre")
+        )
+
+        # Collect all category IDs from the entire tree (avoids N+1 in image lookup)
+        def collect_ids(queryset, result=None):
+            if result is None:
+                result = []
+            for cat in queryset:
+                result.append(cat.id)
+                collect_ids(cat.subcategorias.all(), result)
+            return result
+
+        all_ids = collect_ids(categorias)
+
+        # Single query: first product image per category (by lowest product id)
+        image_map = {}
+        for cat_id, img in (
+            Producto.objects.filter(
+                categorias__in=all_ids,
+                imagen_principal__isnull=False,
+                visibilidad=True,
+            )
+            .values_list('categorias', 'imagen_principal')
+            .order_by('categorias', 'id')
+        ):
+            if cat_id not in image_map:
+                image_map[cat_id] = img
+
+        serializer = CategoryTreeSerializer(
+            categorias,
+            many=True,
+            context={'image_map': image_map},
+        )
+        data = serializer.data
+        cache.set(cache_key, data, timeout=60 * 15)  # 15 minutes
+        return Response(data)
 
 
 class ApplyCategoryAPIView(APIView):

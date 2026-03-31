@@ -84,10 +84,15 @@ class CategoriaSerializer(serializers.ModelSerializer):
 
 class CategoryTreeSerializer(serializers.ModelSerializer):
     subcategorias = serializers.SerializerMethodField()
+    primera_imagen = serializers.SerializerMethodField()
 
     class Meta:
         model = Categoria
-        fields = ["id", "nombre", "subcategorias"]
+        fields = ["id", "nombre", "subcategorias", "primera_imagen"]
+
+    def get_primera_imagen(self, obj):
+        image_map = self.context.get('image_map', {})
+        return image_map.get(obj.id)
 
     def get_subcategorias(self, obj):
         subcategories = obj.subcategorias.all().order_by("nombre")
