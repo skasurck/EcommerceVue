@@ -1056,4 +1056,11 @@ CATEGORY_TREE = [
             },
         ],
     },
+    {
+        "name": "Otros",
+        "slug": "otros",
+        "children": [
+            {"name": "productos varios", "slug": "productos-varios"},
+        ],
+    },
 ]

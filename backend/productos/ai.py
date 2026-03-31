@@ -142,6 +142,32 @@ def _path_by_slug(main_slug: str, leaf_slug: str) -> str | None:
 
 NODE_NAME_BY_SLUG: Dict[tuple[str, str], str] = _build_node_name_index()
 
+# Conjunto de todas las rutas válidas del árbol (para validación exacta de LLMs)
+_ALL_VALID_PATHS: set[str] = set()
+
+def _build_valid_paths_set() -> set[str]:
+    paths: set[str] = set()
+    for root in CATEGORY_TREE:
+        seen: set[str] = set()
+        acc: list[str] = []
+        for child in root.get("children", []):
+            _collect_paths(child, [root["name"]], acc, seen)
+        paths.update(acc)
+    return paths
+
+def validate_llm_path(sub_path: str) -> str | None:
+    """Devuelve sub_path si es una ruta exactamente válida en el árbol, o None."""
+    global _ALL_VALID_PATHS
+    if not _ALL_VALID_PATHS:
+        _ALL_VALID_PATHS = _build_valid_paths_set()
+    if sub_path in _ALL_VALID_PATHS:
+        return sub_path
+    sub_lower = sub_path.lower()
+    for path in _ALL_VALID_PATHS:
+        if path.lower() == sub_lower:
+            return path
+    return None
+
 
 def safe_path_from_slugs(main_slug: str, leaf_slug: str) -> str:
     main_label = MAIN_CATEGORY_BY_SLUG.get(main_slug, main_slug)
@@ -231,6 +257,8 @@ class ClassificationResult:
     sub: str | None
     main_score: float
     sub_score: float | None
+    match_type: str = "exact"   # "exact" | "best_effort" | "fallback_otros"
+    leaf: str | None = None
 
 
 class NormalizationRule:
@@ -263,9 +291,11 @@ class NormalizationRule:
 HARDWARE_SLUG = "computo-hardware"
 PRINT_SLUG = "impresion-y-copiado"
 AUDIO_VIDEO_SLUG = "audio-y-video"
+COMPUTADORAS_SLUG = "computadoras"
 HARDWARE_MAIN = MAIN_CATEGORY_BY_SLUG.get(HARDWARE_SLUG, "Computo (Hardware)")
 PRINT_MAIN = MAIN_CATEGORY_BY_SLUG.get(PRINT_SLUG, "Impresion y Copiado")
 AUDIO_VIDEO_MAIN = MAIN_CATEGORY_BY_SLUG.get(AUDIO_VIDEO_SLUG, "Audio y Video")
+COMPUTADORAS_MAIN = MAIN_CATEGORY_BY_SLUG.get(COMPUTADORAS_SLUG, "Computadoras")
 
 MAIN_IMAGE_PROMPTS_BY_SLUG = {
     "computo-hardware": "computer hardware and peripherals",
@@ -822,16 +852,6 @@ def _normalize_labels(
     )
 
 
-def _build_category_prompt() -> str:
-    """Construye una lista compacta de categorías para el prompt de OpenAI."""
-    lines = []
-    for main in MAIN_CATEGORIES:
-        subs = SUBCATEGORIES.get(main, [])
-        sub_names = [s.split(" > ")[-1] for s in subs[:20]]
-        lines.append(f"- {main}: {', '.join(sub_names)}")
-    return "\n".join(lines)
-
-
 def _build_full_category_prompt() -> str:
     """Construye el árbol completo de categorías con rutas exactas para LLMs."""
     lines = []
@@ -842,76 +862,85 @@ def _build_full_category_prompt() -> str:
     return "\n".join(lines)
 
 
-_CATEGORY_PROMPT_CACHE: str | None = None
 _FULL_CATEGORY_PROMPT_CACHE: str | None = None
 
 
-def _classify_with_anthropic(text: str) -> ClassificationResult:
-    """Clasifica usando Claude Haiku. Más preciso que BERT."""
-    global _FULL_CATEGORY_PROMPT_CACHE
-    if _FULL_CATEGORY_PROMPT_CACHE is None:
-        _FULL_CATEGORY_PROMPT_CACHE = _build_full_category_prompt()
-
-    try:
-        import anthropic
-    except ImportError:
-        raise ImportError("Instala 'anthropic': pip install anthropic")
-
-    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-
-    main_list = "\n".join(f"- {m}" for m in MAIN_CATEGORIES)
-
-    system_prompt = (
-        "Eres un clasificador experto de productos de tecnología para una tienda en México. "
-        "Tu tarea es asignar la categoría principal y subcategoría MÁS ESPECÍFICA posible. "
-        "DEBES usar los nombres EXACTAMENTE como aparecen en las listas, respetando tildes, mayúsculas y paréntesis. "
-        "También debes indicar tu nivel de confianza del 1 al 10 (10=totalmente seguro, 1=muy dudoso). "
-        'Responde ÚNICAMENTE con JSON válido: {"main": "<nombre exacto>", "sub": "<ruta exacta completa>", "confidence": <1-10>}'
-    )
-
-    user_prompt = (
-        f"Producto: {text[:600]}\n\n"
-        f"CATEGORÍAS PRINCIPALES (copia el nombre EXACTO):\n{main_list}\n\n"
-        f"ÁRBOL COMPLETO DE SUBCATEGORÍAS (usa la ruta completa 'Principal > Sub > Hoja'):\n{_FULL_CATEGORY_PROMPT_CACHE}\n\n"
-        "Elige la categoría y subcategoría más específica y apropiada. "
-        "Responde solo con JSON."
-    )
-
-    message = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=150,
-        messages=[{"role": "user", "content": f"{system_prompt}\n\n{user_prompt}"}],
-    )
-
-    raw = message.content[0].text.strip()
-    import re as _re
-    json_match = _re.search(r'\{[^}]+\}', raw, _re.DOTALL)
-    raw = json_match.group(0) if json_match else raw
-    data = json.loads(raw)
-
+def _parse_llm_response(data: Dict) -> ClassificationResult:
+    """Convierte el JSON devuelto por cualquier LLM en un ClassificationResult validado."""
     main_label = data.get("main", "").strip()
-    sub_leaf = data.get("sub", "").strip()
-    confidence_raw = data.get("confidence", 7)
-    try:
-        confidence = max(0.0, min(1.0, float(confidence_raw) / 10.0))
-    except (TypeError, ValueError):
-        confidence = 0.70
+    sub_path   = data.get("sub", "").strip()
+    leaf       = data.get("leaf", "").strip() or None
+    match_type = data.get("match_type", "exact").strip()
+
+    if match_type not in ("exact", "best_effort", "fallback_otros"):
+        match_type = "best_effort"
 
     if main_label not in MAIN_CATEGORIES:
-        logger.warning("Anthropic devolvió main desconocido '%s', usando fallback.", main_label)
+        logger.warning("LLM devolvió main desconocido '%s', usando fallback.", main_label)
         main_label = MAIN_CATEGORIES[0]
-        confidence = min(confidence, 0.50)
+        match_type = "best_effort"
 
-    sub_label = safe_path(main_label, sub_leaf) if sub_leaf else GENERIC_SUBCATEGORY_BY_MAIN.get(main_label)
+    if match_type == "fallback_otros":
+        # Producto genuinamente sin categoría: usar "Otros > productos varios"
+        otros_path = validate_llm_path("Otros > productos varios") or safe_path("Otros", "productos varios")
+        return ClassificationResult(
+            main="Otros", sub=otros_path,
+            main_score=0.50, sub_score=0.50,
+            match_type="fallback_otros", leaf="productos varios",
+        )
 
-    return ClassificationResult(main=main_label, sub=sub_label, main_score=confidence, sub_score=confidence)
+    # Validar ruta exacta primero; safe_path solo como último recurso
+    sub_label = (
+        validate_llm_path(sub_path)
+        or (safe_path(main_label, sub_path) if sub_path else None)
+        or GENERIC_SUBCATEGORY_BY_MAIN.get(main_label)
+    )
+
+    return ClassificationResult(
+        main=main_label, sub=sub_label,
+        main_score=0.90, sub_score=0.90,
+        match_type=match_type, leaf=leaf,
+    )
+
+
+# Prompt de sistema compartido por todos los motores LLM
+_LLM_SYSTEM_PROMPT = """Eres un clasificador experto de productos de tecnología para una tienda en México.
+
+Tu tarea es clasificar cada producto en la categoría MÁS ESPECÍFICA POSIBLE dentro del árbol de categorías proporcionado.
+
+REGLAS OBLIGATORIAS:
+1. Debes elegir UNA SOLA ruta válida del árbol.
+2. Debes elegir la categoría más profunda posible, preferentemente una hoja terminal.
+3. NO puedes inventar categorías, renombrarlas, resumirlas ni usar sinónimos.
+4. Debes usar los nombres EXACTAMENTE como aparecen en el árbol, respetando tildes, mayúsculas, signos y paréntesis.
+5. Si un producto parece pertenecer a varias categorías, elige la más específica según su FUNCIÓN PRINCIPAL REAL, no por palabras aisladas del título.
+6. Si el producto es un accesorio, clasifícalo como accesorio de su tipo real, no como el equipo principal.
+7. NO elijas categorías padre si existe una subcategoría hija más específica aplicable.
+8. "Tablets Gráficas" son tabletas de dibujo digital (ej. Wacom), NO tablets Android/iPad.
+9. Las tablets Android/iPad van en la ruta exacta: Computadoras > Tablets > Tablets.
+10. SOLO usa "Otros > productos varios" cuando no exista una categoría válida y razonable en ninguna parte del árbol.
+11. No uses "Otros > productos varios" por falta de atención, ambigüedad leve o coincidencias parciales; úsala únicamente cuando el producto realmente no encaje en ninguna hoja existente.
+12. Si el producto pertenece claramente a una familia existente aunque el nombre comercial sea raro, clasifícalo en esa familia antes de considerar "Otros > productos varios".
+
+PRIORIDAD DE DECISIÓN:
+1. Tipo real de producto
+2. Uso principal
+3. Compatibilidad
+4. Formato físico
+5. Marketing, adjetivos o palabras promocionales
+
+Responde ÚNICAMENTE con JSON válido:
+{"main": "<categoría raíz exacta>", "sub": "<ruta exacta completa desde la raíz hasta la hoja>", "leaf": "<nombre exacto de la hoja final>", "match_type": "exact" | "best_effort" | "fallback_otros"}
+
+Si el producto no encaja en ninguna categoría existente:
+{"main": "Otros", "sub": "Otros > productos varios", "leaf": "productos varios", "match_type": "fallback_otros"}"""
 
 
 def _classify_with_openai(text: str) -> ClassificationResult:
     """Clasifica usando OpenAI gpt-4o-mini. Más rápido y barato que BERT en CPU."""
-    global _CATEGORY_PROMPT_CACHE
-    if _CATEGORY_PROMPT_CACHE is None:
-        _CATEGORY_PROMPT_CACHE = _build_category_prompt()
+    global _FULL_CATEGORY_PROMPT_CACHE
+    if _FULL_CATEGORY_PROMPT_CACHE is None:
+        _FULL_CATEGORY_PROMPT_CACHE = _build_full_category_prompt()
 
     try:
         from openai import OpenAI
@@ -922,65 +951,52 @@ def _classify_with_openai(text: str) -> ClassificationResult:
 
     main_list = "\n".join(f"- {m}" for m in MAIN_CATEGORIES)
 
-    system_prompt = (
-        "Eres un clasificador de productos para una tienda de tecnología en México. "
-        "DEBES usar los nombres de categoría EXACTAMENTE como aparecen en la lista, "
-        "sin cambiar tildes, mayúsculas ni paréntesis. "
-        "Responde SOLO con JSON válido: "
-        '{"main": "<nombre exacto de la lista>", "sub": "<subcategoría exacta>"}'
-    )
-
     user_prompt = (
-        f"Producto: {text[:500]}\n\n"
-        f"Categorías principales (copia el nombre EXACTO):\n{main_list}\n\n"
-        f"Subcategorías por categoría principal:\n{_CATEGORY_PROMPT_CACHE}\n\n"
-        "Responde con JSON usando los nombres exactos de las listas."
+        f"Producto: {text[:600]}\n\n"
+        f"CATEGORÍAS PRINCIPALES (copia el nombre EXACTO):\n{main_list}\n\n"
+        f"ÁRBOL COMPLETO DE SUBCATEGORÍAS (usa la ruta completa 'Principal > Sub > Hoja'):\n{_FULL_CATEGORY_PROMPT_CACHE}\n\n"
+        "Elige la categoría y subcategoría más específica. Responde solo con JSON."
     )
 
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
-            {"role": "system", "content": system_prompt},
+            {"role": "system", "content": _LLM_SYSTEM_PROMPT},
             {"role": "user", "content": user_prompt},
         ],
         response_format={"type": "json_object"},
         temperature=0,
-        max_tokens=100,
+        max_tokens=400,
     )
 
     raw = response.choices[0].message.content or "{}"
     data = json.loads(raw)
 
-    main_label = data.get("main", "").strip()
-    sub_leaf = data.get("sub", "").strip()
+    return _parse_llm_response(data)
 
-    # Validar que el main existe, si no usar el primero
-    if main_label not in MAIN_CATEGORIES:
-        logger.warning("OpenAI devolvió main desconocido '%s', usando fallback.", main_label)
-        main_label = MAIN_CATEGORIES[0]
 
-    # Buscar la ruta completa para la subcategoría
-    sub_label = safe_path(main_label, sub_leaf) if sub_leaf else GENERIC_SUBCATEGORY_BY_MAIN.get(main_label)
-
-    return _normalize_labels(text, main_label, sub_label, 0.95, 0.90)
+def _is_quota_error(exc: Exception) -> bool:
+    """True solo si OpenAI rechaza por falta de crédito/cuota."""
+    if type(exc).__name__ == "RateLimitError":
+        msg = str(exc).lower()
+        return "insufficient_quota" in msg or "billing" in msg or "exceeded your current quota" in msg
+    return False
 
 
 def classify_text(text: str, image: Image.Image | None = None) -> ClassificationResult:
     """Clasifica un texto en categorías y subcategorías.
 
-    Prioridad: Anthropic Claude > OpenAI > pipeline local BERT.
+    Usa GPT-4o-mini. Solo cae a BERT si no hay crédito en OpenAI.
+    Cualquier otro error (timeout, red, etc.) se propaga.
     """
-    if os.environ.get("ANTHROPIC_API_KEY"):
-        try:
-            return _classify_with_anthropic(text)
-        except Exception as exc:
-            logger.warning("Anthropic falló (%s), intentando OpenAI.", exc)
-
     if os.environ.get("OPENAI_API_KEY"):
         try:
             return _classify_with_openai(text)
         except Exception as exc:
-            logger.warning("OpenAI falló (%s), cayendo a pipeline local.", exc)
+            if _is_quota_error(exc):
+                logger.warning("Sin crédito en OpenAI, usando pipeline local BERT.")
+            else:
+                raise
 
     classifier = get_pipeline()
     main_result = classifier(
