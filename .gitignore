@@ -54,3 +54,4 @@ backend/db.sqlite3
 frontend/.env.production
 frontend/.env.production
 frontend/.env.production
+.codex

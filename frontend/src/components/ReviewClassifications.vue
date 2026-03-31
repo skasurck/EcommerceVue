@@ -57,6 +57,14 @@
       <!-- Bulk Manual Categorization -->
       <div v-if="bulkSelectedProducts.size > 0" class="space-y-3 rounded-md border border-gray-300 bg-white p-3">
         <p class="text-sm font-medium text-gray-800">Asignar categoria manualmente a seleccionados</p>
+        <!-- Búsqueda por ruta bulk -->
+        <CategoryPathInput
+          :categories="categories"
+          :l1="bulkSelectedLevel1"
+          :l2="bulkSelectedLevel2"
+          :l3="bulkSelectedLevel3"
+          @select="({ l1Id, l2Id, l3Id }) => { bulkSelectedLevel1 = l1Id; bulkSelectedLevel2 = l2Id; bulkSelectedLevel3 = l3Id }"
+        />
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <select
             v-model="bulkSelectedLevel1"
@@ -141,6 +149,17 @@
           </div>
 
           <div class="space-y-3">
+            <!-- Búsqueda por ruta -->
+            <div>
+              <label class="mb-1 block text-sm font-medium text-gray-700">Buscar por ruta</label>
+              <CategoryPathInput
+                :categories="categories"
+                :l1="toNumberOrNull(selectedLevel1[product.id])"
+                :l2="toNumberOrNull(selectedLevel2[product.id])"
+                :l3="toNumberOrNull(selectedLevel3[product.id])"
+                @select="({ l1Id, l2Id, l3Id }) => onPathSelect(product.id, l1Id, l2Id, l3Id)"
+              />
+            </div>
             <div>
               <label :for="`level1-${product.id}`" class="mb-1 block text-sm font-medium text-gray-700">Categoria nivel 1</label>
               <select
@@ -248,6 +267,7 @@
 <script setup>
 import { onMounted, reactive, ref, computed } from 'vue'
 import api, { ensureInterceptors } from '@/axios'
+import CategoryPathInput from '@/components/CategoryPathInput.vue'
 
 const loading = ref(false)
 const loadingMore = ref(false)
@@ -509,6 +529,12 @@ const getLevel3Categories = (level1Id, level2Id) => {
 const onLevel1Change = (productId) => {
   delete selectedLevel2[productId]
   delete selectedLevel3[productId]
+}
+
+const onPathSelect = (productId, l1Id, l2Id, l3Id) => {
+  if (l1Id) selectedLevel1[productId] = l1Id; else delete selectedLevel1[productId]
+  if (l2Id) selectedLevel2[productId] = l2Id; else delete selectedLevel2[productId]
+  if (l3Id) selectedLevel3[productId] = l3Id; else delete selectedLevel3[productId]
 }
 
 const onLevel2Change = (productId) => {

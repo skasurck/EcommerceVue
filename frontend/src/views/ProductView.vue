@@ -36,6 +36,20 @@
           </div>
           <div v-else class="text-sm text-amber-700 italic">Sin categoría asignada</div>
 
+          <!-- Búsqueda por ruta -->
+          <div>
+            <label class="block text-xs font-medium text-amber-800 mb-1">Buscar por ruta</label>
+            <CategoryPathInput
+              :categories="adminCategories"
+              :l1="adminLevel1"
+              :l2="adminLevel2"
+              :l3="adminLevel3"
+              placeholder="Ej: Cómputo (Hardware) > Componentes > Gabinetes"
+              input-class="w-full rounded border border-amber-300 bg-white pr-7 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 placeholder:text-amber-300"
+              @select="onAdminPathSelect"
+            />
+          </div>
+
           <!-- Selectores de nivel -->
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
@@ -375,6 +389,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useBreadcrumbStore } from '@/stores/breadcrumb'
 import { useWishlistStore } from '@/stores/wishlist'
 import ProductCard from '@/components/ProductCard.vue'
+import CategoryPathInput from '@/components/CategoryPathInput.vue'
 import api from '@/axios'
 
 const route = useRoute()
@@ -412,6 +427,12 @@ const adminFinalCategoryId = computed(() => adminLevel3.value || adminLevel2.val
 
 const onAdminLevel1Change = () => { adminLevel2.value = ''; adminLevel3.value = '' }
 const onAdminLevel2Change = () => { adminLevel3.value = '' }
+
+const onAdminPathSelect = ({ l1Id, l2Id, l3Id }) => {
+  adminLevel1.value = l1Id ?? ''
+  adminLevel2.value = l2Id ?? ''
+  adminLevel3.value = l3Id ?? ''
+}
 
 const fetchAdminCategories = async () => {
   if (adminCategories.value.length) return
