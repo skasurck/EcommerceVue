@@ -51,6 +51,16 @@ const routes = [
     component: () => import('@/views/CheckoutView.vue'),
   },
   {
+    path: '/checkout/fallo',
+    name: 'checkout-fallo',
+    component: () => import('@/views/CheckoutFalloView.vue'),
+  },
+  {
+    path: '/checkout/pendiente',
+    name: 'checkout-pendiente',
+    component: () => import('@/views/CheckoutPendienteView.vue'),
+  },
+  {
     path: '/gracias',
     name: 'gracias',
     component: () => import('@/views/GraciasView.vue'),
