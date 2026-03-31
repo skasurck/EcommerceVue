@@ -413,7 +413,7 @@ onBeforeUnmount(() => {
               loading="lazy"
               class="h-full w-full object-contain transition-transform duration-300 group-hover:scale-105"
             />
-            <span v-else class="text-4xl">{{ section.icon }}</span>
+            <div v-else class="h-16 w-16 rounded-lg bg-slate-100 dark:bg-slate-700 animate-pulse" />
           </div>
           <!-- Nombre de la categoría -->
           <div class="px-3 py-2 bg-slate-50 dark:bg-slate-800 border-t border-slate-100 dark:border-slate-700 text-center">
