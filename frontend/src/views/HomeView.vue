@@ -10,6 +10,14 @@ import { useCarritoStore } from '@/stores/carrito'
 const SITE_URL = typeof window !== 'undefined' ? window.location.origin : 'https://mktska.net'
 const OG_IMAGE = `${SITE_URL}/logo-mktska.png`
 
+const MEDIA_BASE = (import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? 'http://localhost:8000' : SITE_URL)).replace(/\/+$/, '')
+const toMedia = (u) => {
+  if (!u) return null
+  if (/^(data:|blob:|https?:)/i.test(u)) return u
+  if (u.startsWith('/media/')) return `${MEDIA_BASE}${u}`
+  return `${MEDIA_BASE}/media/${u.replace(/^\/+/, '')}`
+}
+
 useHead({
   title: 'Mktska Digital — Tecnología y cómputo en México',
   meta: [
@@ -207,13 +215,13 @@ onBeforeUnmount(() => {
     <h1 class="sr-only">Mktska Digital — Tienda de tecnología y cómputo en México</h1>
 
     <!-- ── Slider mobile ─────────────────────────────────────────────────────── -->
-    <section class="lg:hidden bg-slate-900 min-h-[390px]">
+    <section class="lg:hidden bg-slate-900 min-h-[300px] sm:min-h-[390px]">
       <div class="px-2 py-3 overflow-x-auto mobile-no-scrollbar">
         <div class="flex gap-3 snap-x snap-mandatory">
           <article
             v-for="(slide, index) in sliderImages"
             :key="`mobile-slide-${index}`"
-            class="relative snap-start shrink-0 w-[78%] h-[360px] rounded-2xl overflow-hidden border border-white/10"
+            class="relative snap-start shrink-0 w-[80%] xs:w-[75%] h-[280px] sm:h-[360px] rounded-2xl overflow-hidden border border-white/10"
           >
             <img
               :src="slide.mobileSrc || slide.src"
@@ -300,8 +308,8 @@ onBeforeUnmount(() => {
     <!-- ── Trust bar ─────────────────────────────────────────────────────────── -->
     <section class="bg-slate-900 border-t border-white/5">
       <div class="max-w-7xl mx-auto px-4 py-4">
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-y-4">
-          <div class="flex items-center gap-3 px-4">
+        <div class="grid grid-cols-2 lg:grid-cols-4 divide-x divide-white/10">
+          <div class="flex items-center gap-3 px-4 py-1">
             <div class="shrink-0 text-cyan-400">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
@@ -312,7 +320,7 @@ onBeforeUnmount(() => {
               <p class="text-xs text-slate-400">Entregas de 1 a 5 días</p>
             </div>
           </div>
-          <div class="flex items-center gap-3 px-4">
+          <div class="flex items-center gap-3 px-4 py-1">
             <div class="shrink-0 text-cyan-400">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z" />
@@ -323,7 +331,7 @@ onBeforeUnmount(() => {
               <p class="text-xs text-slate-400">100% transacciones protegidas</p>
             </div>
           </div>
-          <div class="flex items-center gap-3 px-4">
+          <div class="flex items-center gap-3 px-4 py-1">
             <div class="shrink-0 text-cyan-400">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z" />
@@ -334,7 +342,7 @@ onBeforeUnmount(() => {
               <p class="text-xs text-slate-400">Atención dedicada siempre</p>
             </div>
           </div>
-          <div class="flex items-center gap-3 px-4">
+          <div class="flex items-center gap-3 px-4 py-1">
             <div class="shrink-0 text-cyan-400">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 0 1-1.043 3.296 3.745 3.745 0 0 1-3.296 1.043A3.745 3.745 0 0 1 12 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 0 1-3.296-1.043 3.745 3.745 0 0 1-1.043-3.296A3.745 3.745 0 0 1 3 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 0 1 1.043-3.296 3.746 3.746 0 0 1 3.296-1.043A3.746 3.746 0 0 1 12 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 0 1 3.296 1.043 3.746 3.746 0 0 1 1.043 3.296A3.745 3.745 0 0 1 21 12Z" />
@@ -385,18 +393,31 @@ onBeforeUnmount(() => {
     <!-- ── Categorías rápidas ─────────────────────────────────────────────────── -->
     <div class="max-w-7xl mx-auto px-4 pt-8 pb-2">
       <h2 class="text-lg font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
-        <span class="block w-1 h-5 rounded-full bg-cyan-500"></span>
+        <span class="block w-1 h-5 rounded-full bg-cyan-500 shrink-0"></span>
         Componentes para PC
       </h2>
-      <div class="grid grid-cols-3 sm:grid-cols-6 gap-3">
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         <RouterLink
           v-for="section in CATEGORY_SECTIONS"
           :key="section.slug"
           :to="section.catId.value ? `/productos?categoria=${section.catId.value}` : '/productos'"
-          class="flex flex-col items-center gap-2 rounded-xl bg-white dark:bg-slate-800 px-2 py-4 text-center border border-slate-100 dark:border-slate-700 hover:border-cyan-400 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group"
+          class="flex flex-col overflow-hidden rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-cyan-400 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 group"
         >
-          <span class="text-3xl leading-none">{{ section.icon }}</span>
-          <span class="text-xs font-medium text-slate-600 dark:text-slate-300 group-hover:text-cyan-600 leading-tight">{{ section.label }}</span>
+          <!-- Imagen del primer producto de la categoría -->
+          <div class="flex items-center justify-center h-28 sm:h-32 bg-white dark:bg-slate-900 p-3">
+            <img
+              v-if="section.productos.value[0]?.imagen_principal"
+              :src="toMedia(section.productos.value[0].imagen_principal)"
+              :alt="section.label"
+              loading="lazy"
+              class="h-full w-full object-contain transition-transform duration-300 group-hover:scale-105"
+            />
+            <span v-else class="text-4xl">{{ section.icon }}</span>
+          </div>
+          <!-- Nombre de la categoría -->
+          <div class="px-3 py-2 bg-slate-50 dark:bg-slate-800 border-t border-slate-100 dark:border-slate-700 text-center">
+            <span class="text-xs font-semibold text-slate-700 dark:text-slate-300 group-hover:text-cyan-600 leading-snug">{{ section.label }}</span>
+          </div>
         </RouterLink>
       </div>
     </div>
