@@ -259,6 +259,7 @@ class MercadoPagoPreferenceView(APIView):
                     if dir_.telefono:
                         payer["phone"] = {"number": dir_.telefono}
                 preference_data["payer"] = payer
+                logger.info("MP payer data: %s", payer)
         except Pedido.DoesNotExist:
             pass
 
