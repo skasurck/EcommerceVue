@@ -143,6 +143,21 @@
       </div>
     </div>
 
+    <!-- ─── SORT BAR ─────────────────────────────────────────────── -->
+    <div class="border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
+      <div class="mx-auto max-w-7xl px-4 py-2 flex items-center gap-2 overflow-x-auto scrollbar-hide">
+        <span class="shrink-0 text-xs text-slate-400 dark:text-slate-500 font-medium">Ordenar:</span>
+        <button
+          v-for="op in ORDEN_OPTS" :key="op.value"
+          @click="setOrden(op.value)"
+          class="shrink-0 rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap transition-all duration-200"
+          :class="orden === op.value
+            ? 'border-cyan-500 bg-cyan-500 text-white'
+            : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600'"
+        >{{ op.label }}</button>
+      </div>
+    </div>
+
     <!-- ─── PRODUCT GRID ──────────────────────────────────────────── -->
     <div class="mx-auto max-w-7xl px-4 py-8">
 
@@ -199,8 +214,17 @@ import ProductCard from '@/components/ProductCard.vue'
 
 const route = useRoute()
 
+// ─── Constantes ───────────────────────────────────────────────────────────────
+const ORDEN_OPTS = [
+  { value: '',               label: 'Más nuevos'   },
+  { value: 'precio_normal',  label: 'Menor precio' },
+  { value: '-precio_normal', label: 'Mayor precio' },
+  { value: 'en_oferta',      label: 'Ofertas'      },
+]
+
 // ─── State ────────────────────────────────────────────────────────────────────
 const categoriaId    = computed(() => Number(route.params.categoriaId))
+const orden          = ref('')
 const allCategories  = ref([])
 const countMap       = ref({})      // id → productos_count
 const productos      = ref([])
@@ -322,11 +346,17 @@ const fetchProducts = async ({ reset = false } = {}) => {
     loadingMore.value = true
   }
   try {
-    const { data } = await getProductos({
+    const params = {
       categoria: selectedSubSubId.value ?? selectedSubId.value ?? categoriaId.value,
       page: page.value,
       page_size: PAGE_SIZE,
-    })
+    }
+    if (orden.value === 'en_oferta') {
+      params.en_oferta = 'true'
+    } else if (orden.value) {
+      params.ordering = orden.value
+    }
+    const { data } = await getProductos(params)
     const results = data.results ?? data
     totalProductos.value = data.count ?? results.length
     if (reset) { productos.value = results } else { productos.value.push(...results) }
@@ -346,6 +376,11 @@ const selectSub = (id) => {
 }
 const selectSubSub = (id) => { selectedSubSubId.value = id }
 
+const setOrden = (val) => {
+  orden.value = val
+  fetchProducts({ reset: true })
+}
+
 // ─── Infinite scroll ──────────────────────────────────────────────────────────
 const setupObserver = () => {
   observer = new IntersectionObserver(
@@ -361,7 +396,7 @@ const setupObserver = () => {
 }
 
 // ─── Watchers ─────────────────────────────────────────────────────────────────
-watch(categoriaId, () => { selectedSubId.value = null; selectedSubSubId.value = null; fetchProducts({ reset: true }) })
+watch(categoriaId, () => { selectedSubId.value = null; selectedSubSubId.value = null; orden.value = ''; fetchProducts({ reset: true }) })
 watch(selectedSubId, () => { selectedSubSubId.value = null; fetchProducts({ reset: true }) })
 watch(selectedSubSubId, () => fetchProducts({ reset: true }))
 
