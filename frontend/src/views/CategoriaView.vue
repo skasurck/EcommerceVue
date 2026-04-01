@@ -43,27 +43,25 @@
 
       <!-- ─── SUBCATEGORY PILLS (level 1) ──────────────────────── -->
       <div v-if="visibleSubs.length" class="relative border-t border-slate-100 dark:border-slate-800">
-        <!-- fade + arrow left -->
+        <!-- arrow left -->
         <transition name="fade-arrow">
-          <div v-if="pillsCanScrollLeft"
-               class="pointer-events-none absolute left-0 top-0 bottom-0 z-10 flex items-center">
-            <div class="h-full w-12 bg-gradient-to-r from-white dark:from-slate-900 to-transparent"></div>
-            <button class="pointer-events-auto absolute left-1 flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
-                    @click="scrollPills('left')" aria-label="Anterior">
-              <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
-            </button>
-          </div>
+          <button v-if="pillsCanScrollLeft"
+                  class="absolute left-0 top-0 bottom-0 z-20 flex items-center px-1 bg-gradient-to-r from-white via-white/90 to-transparent dark:from-slate-900 dark:via-slate-900/90"
+                  @click="scrollPills('left')" aria-label="Anterior">
+            <span class="flex h-8 w-8 items-center justify-center rounded-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 shadow-md text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+            </span>
+          </button>
         </transition>
-        <!-- fade + arrow right -->
+        <!-- arrow right -->
         <transition name="fade-arrow">
-          <div v-if="pillsCanScrollRight"
-               class="pointer-events-none absolute right-0 top-0 bottom-0 z-10 flex items-center">
-            <div class="h-full w-12 bg-gradient-to-l from-white dark:from-slate-900 to-transparent"></div>
-            <button class="pointer-events-auto absolute right-1 flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
-                    @click="scrollPills('right')" aria-label="Siguiente">
-              <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
-            </button>
-          </div>
+          <button v-if="pillsCanScrollRight"
+                  class="absolute right-0 top-0 bottom-0 z-20 flex items-center px-1 bg-gradient-to-l from-white via-white/90 to-transparent dark:from-slate-900 dark:via-slate-900/90"
+                  @click="scrollPills('right')" aria-label="Siguiente">
+            <span class="flex h-8 w-8 items-center justify-center rounded-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 shadow-md text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+            </span>
+          </button>
         </transition>
 
         <div ref="pillsScroll"
@@ -96,10 +94,31 @@
 
       <!-- ─── SUB-SUBCATEGORY PILLS (level 2) ───────────────────── -->
       <div v-if="selectedSubId && visibleSubSubs.length" class="relative border-t border-slate-100/60 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/40">
-        <div class="pointer-events-none absolute left-0 top-0 bottom-0 z-10 w-8 bg-gradient-to-r from-slate-50 dark:from-slate-900 to-transparent"></div>
-        <div class="pointer-events-none absolute right-0 top-0 bottom-0 z-10 w-8 bg-gradient-to-l from-slate-50 dark:from-slate-900 to-transparent"></div>
+        <!-- arrow left -->
+        <transition name="fade-arrow">
+          <button v-if="subSubsCanScrollLeft"
+                  class="absolute left-0 top-0 bottom-0 z-20 flex items-center px-1 bg-gradient-to-r from-slate-50 via-slate-50/90 to-transparent dark:from-slate-900 dark:via-slate-900/90"
+                  @click="scrollSubSubs('left')" aria-label="Anterior">
+            <span class="flex h-7 w-7 items-center justify-center rounded-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 shadow-md text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+              <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+            </span>
+          </button>
+        </transition>
+        <!-- arrow right -->
+        <transition name="fade-arrow">
+          <button v-if="subSubsCanScrollRight"
+                  class="absolute right-0 top-0 bottom-0 z-20 flex items-center px-1 bg-gradient-to-l from-slate-50 via-slate-50/90 to-transparent dark:from-slate-900 dark:via-slate-900/90"
+                  @click="scrollSubSubs('right')" aria-label="Siguiente">
+            <span class="flex h-7 w-7 items-center justify-center rounded-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 shadow-md text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+              <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+            </span>
+          </button>
+        </transition>
 
-        <div class="scrollbar-hide flex gap-2 overflow-x-auto px-4 py-2 mx-auto max-w-7xl" style="-webkit-overflow-scrolling:touch">
+        <div ref="subSubsScroll"
+             class="scrollbar-hide flex gap-2 overflow-x-auto px-4 py-2 mx-auto max-w-7xl"
+             style="-webkit-overflow-scrolling:touch; scroll-behavior:smooth"
+             @scroll="checkSubSubsScroll">
           <button
             @click="selectSubSub(null)"
             class="shrink-0 rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap transition-all duration-200"
@@ -194,9 +213,12 @@ const hasMore        = ref(true)
 const page           = ref(1)
 const PAGE_SIZE      = 20
 const sentinel         = ref(null)
-const pillsScroll      = ref(null)
+const pillsScroll         = ref(null)
 const pillsCanScrollLeft  = ref(false)
 const pillsCanScrollRight = ref(false)
+const subSubsScroll          = ref(null)
+const subSubsCanScrollLeft   = ref(false)
+const subSubsCanScrollRight  = ref(false)
 let observer = null
 
 const checkPillsScroll = () => {
@@ -209,7 +231,20 @@ const checkPillsScroll = () => {
 const scrollPills = (dir) => {
   const el = pillsScroll.value
   if (!el) return
-  el.scrollBy({ left: dir === 'right' ? 200 : -200, behavior: 'smooth' })
+  el.scrollBy({ left: dir === 'right' ? 220 : -220, behavior: 'smooth' })
+}
+
+const checkSubSubsScroll = () => {
+  const el = subSubsScroll.value
+  if (!el) return
+  subSubsCanScrollLeft.value  = el.scrollLeft > 4
+  subSubsCanScrollRight.value = el.scrollLeft + el.clientWidth < el.scrollWidth - 4
+}
+
+const scrollSubSubs = (dir) => {
+  const el = subSubsScroll.value
+  if (!el) return
+  el.scrollBy({ left: dir === 'right' ? 220 : -220, behavior: 'smooth' })
 }
 
 // ─── Derived ──────────────────────────────────────────────────────────────────
@@ -339,10 +374,14 @@ onMounted(async () => {
 })
 onUnmounted(() => observer?.disconnect())
 
-// Re-chequear flechas cuando cambia la lista de subs
+// Re-chequear flechas cuando cambian las listas
 watch(visibleSubs, async () => {
   await nextTick()
   checkPillsScroll()
+})
+watch(visibleSubSubs, async () => {
+  await nextTick()
+  checkSubSubsScroll()
 })
 
 // ─── Icon/color config ────────────────────────────────────────────────────────
