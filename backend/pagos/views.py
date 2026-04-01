@@ -261,7 +261,13 @@ class MercadoPagoPreferenceView(APIView):
                 return Response({"error": error_message}, status=status.HTTP_400_BAD_REQUEST)
 
             preference_id = preference.get("id")
-            init_point = preference.get("sandbox_init_point") or preference.get("init_point")
+            test_mode = getattr(settings, 'MP_TEST_MODE', settings.DEBUG)
+            if isinstance(test_mode, str):
+                test_mode = test_mode.lower() in ('true', '1', 'yes')
+            if test_mode:
+                init_point = preference.get("sandbox_init_point") or preference.get("init_point")
+            else:
+                init_point = preference.get("init_point")
 
             if not preference_id or not init_point:
                 return Response(
