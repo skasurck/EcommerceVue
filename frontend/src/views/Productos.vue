@@ -367,17 +367,17 @@ const RANGOS_PRECIO = [
 ]
 
 const DISPONIBILIDAD_OPTS = [
-  { value: '',           label: 'Todos'        },
-  { value: 'disponible', label: 'En existencia' },
-  { value: 'agotado',    label: 'Agotado'      },
-  { value: 'preventa',   label: 'Preventa'     },
+  { value: '',              label: 'Todos'         },
+  { value: 'en_existencia', label: 'En existencia' },
+  { value: 'agotado',       label: 'Agotado'       },
 ]
 
 const ORDEN_OPTS = [
-  { value: '',               label: 'Relevancia'   },
-  { value: '-fecha_creacion', label: 'Más nuevos'  },
-  { value: 'precio_normal',  label: 'Menor precio' },
-  { value: '-precio_normal', label: 'Mayor precio' },
+  { value: '',               label: 'Más relevantes' },
+  { value: '-fecha_creacion', label: 'Más nuevos'    },
+  { value: 'precio_normal',  label: 'Menor precio'   },
+  { value: '-precio_normal', label: 'Mayor precio'   },
+  { value: 'en_oferta',      label: 'Ofertas'        },
 ]
 
 // ── Estado ───────────────────────────────────────────────────────────────────
@@ -570,8 +570,13 @@ async function fetchProductos(append = false) {
     if (filtros.categoria)     params.categoria = filtros.categoria
     if (filtros.marcas.length) params.marca     = filtros.marcas.join(',')
     if (filtros.disponibilidad) params.estado_inventario = filtros.disponibilidad
-    if (filtros.orden)         params.ordering  = filtros.orden
-    if (filtros.promociones)   params.en_oferta = 'true'
+    // "en_oferta" en el select actúa como filtro de oferta, no como ordering
+    if (filtros.orden === 'en_oferta') {
+      params.en_oferta = 'true'
+    } else {
+      if (filtros.orden)       params.ordering  = filtros.orden
+      if (filtros.promociones) params.en_oferta = 'true'
+    }
     // Solo enviar precio si difiere del rango completo (evita filtrar con [0,0] del init del slider)
     if (priceChanged.value) {
       if (typeof filtros.precio.min === 'number') params.precio_min = filtros.precio.min

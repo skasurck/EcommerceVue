@@ -72,7 +72,7 @@ class PriceRangeAPIView(APIView):
 
     @method_decorator(cache_page(60 * 10))
     def get(self, request):
-        result = Producto.objects.aggregate(min_precio=Min('precio_normal'), max_precio=Max('precio_normal'))
+        result = Producto.objects.filter(visibilidad=True, precio_normal__gt=0).aggregate(min_precio=Min('precio_normal'), max_precio=Max('precio_normal'))
         return Response(result)
 
 
