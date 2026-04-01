@@ -1,7 +1,7 @@
 <template>
   <main class="bg-slate-50 min-h-screen px-4 py-10">
     <div class="mx-auto max-w-4xl space-y-6">
-      <header class="rounded-2xl border border-emerald-100 bg-white p-8 text-center shadow-sm space-y-3">
+      <header class="rounded-2xl bg-white p-8 text-center shadow-sm space-y-3" :class="headerClasses">
         <div v-if="mpStatus" class="mb-4">
           <h2 class="text-2xl font-semibold" :class="{
             'text-green-600': mpStatus === 'approved',
@@ -11,16 +11,15 @@
             Pago {{ mpStatusText }}
           </h2>
         </div>
-        <div class="inline-flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500 text-white text-2xl">
-          ✓
+        <div class="inline-flex h-12 w-12 items-center justify-center rounded-full text-white text-2xl" :class="iconClasses">
+          {{ statusIcon }}
         </div>
-        <h1 class="text-3xl font-semibold text-slate-900">¡Gracias por tu compra!</h1>
+        <h1 class="text-3xl font-semibold text-slate-900">{{ heroTitle }}</h1>
         <p class="text-slate-600">
-          Tu pedido <span v-if="orderId" class="font-semibold text-slate-900">#{{ orderId }}</span>
-          ha sido recibido y estamos preparando el envío.
+          {{ heroMessage }}<span v-if="orderId" class="font-semibold text-slate-900"> #{{ orderId }}</span>.
         </p>
         <p v-if="summary" class="text-lg font-medium text-slate-900">
-          Total pagado: <span class="text-emerald-600">{{ formatMoney(summary.total) }}</span>
+          {{ totalLabel }} <span :class="totalValueClasses">{{ formatMoney(summary.total) }}</span>
         </p>
       </header>
 
@@ -131,15 +130,17 @@
       <section class="rounded-2xl border border-dashed border-slate-300 bg-white p-6 shadow-sm">
         <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-600 mb-2">Rastreadores de compra</h2>
         <p class="text-sm text-slate-600">
-          Esta página dispara el evento <code class="px-1 py-0.5 bg-slate-100 rounded text-xs">checkout:purchase</code>
-          y agrega los datos del pedido al <code class="px-1 py-0.5 bg-slate-100 rounded text-xs">window.dataLayer</code>.
-          Conecta tus píxeles (Ads, Analytics, Meta, etc.) escuchando ese evento:
+          Esta página dispara siempre <code class="px-1 py-0.5 bg-slate-100 rounded text-xs">checkout:payment-return</code>
+          y solo cuando el pago queda aprobado también <code class="px-1 py-0.5 bg-slate-100 rounded text-xs">checkout:purchase</code>.
+          Ambos eventos agregan datos del pedido al <code class="px-1 py-0.5 bg-slate-100 rounded text-xs">window.dataLayer</code>.
         </p>
         <pre class="mt-4 rounded bg-slate-900 p-4 text-xs text-slate-100 overflow-x-auto">
+window.addEventListener('checkout:payment-return', (event) => {
+  console.log('Retorno de pago', event.detail.status, event.detail.order)
+})
+
 window.addEventListener('checkout:purchase', (event) => {
-  const order = event.detail
-  // Envía order a tu píxel favorito
-  console.log('Compra confirmada', order)
+  console.log('Compra confirmada', event.detail)
 })
         </pre>
       </section>
@@ -165,15 +166,17 @@ window.addEventListener('checkout:purchase', (event) => {
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useHead } from '@vueuse/head'
-import { getOrderByPreferenceId } from '@/services/pedidos'
+import { getOrderByPreferenceId, getPublicOrderById } from '@/services/pedidos'
 import api from '@/axios'
 import { useCarritoStore } from '@/stores/carrito'
 
 const route = useRoute()
 const router = useRouter()
 const carrito = useCarritoStore()
+const MP_PENDING_KEY = 'mp_pending_order'
 const summary = ref(null)
-const trackerSent = ref(false)
+const purchaseTrackerSent = ref(false)
+const returnTrackerSent = ref(false)
 const datosBanco = ref(null)
 const mpStatus = ref(null)
 const mpStatusText = computed(() => {
@@ -193,9 +196,104 @@ useHead({ title: 'Gracias por tu compra' })
 const orderId = computed(() => summary.value?.id ?? route.query.pedido ?? null)
 const formatMoney = (value) => currencyFormatter.format(Number(value || 0))
 
-const dispatchTrackingEvents = (payload) => {
-  if (!payload || trackerSent.value) return
-  trackerSent.value = true
+const paidStates = new Set(['pagado', 'confirmado', 'enviado'])
+const pendingStates = new Set(['pendiente'])
+const failedStates = new Set(['cancelado'])
+
+const headerClasses = computed(() => ({
+  'border border-emerald-100': mpStatus.value === 'approved' || !mpStatus.value,
+  'border border-yellow-200': mpStatus.value === 'pending',
+  'border border-red-100': mpStatus.value === 'failure',
+}))
+
+const iconClasses = computed(() => ({
+  'bg-emerald-500': mpStatus.value === 'approved' || !mpStatus.value,
+  'bg-yellow-500': mpStatus.value === 'pending',
+  'bg-red-500': mpStatus.value === 'failure',
+}))
+
+const statusIcon = computed(() => {
+  if (mpStatus.value === 'pending') return '⏳'
+  if (mpStatus.value === 'failure') return '✕'
+  return '✓'
+})
+
+const heroTitle = computed(() => {
+  if (mpStatus.value === 'pending') return 'Tu pago está en proceso'
+  if (mpStatus.value === 'failure') return 'Tu pago no se completó'
+  return '¡Gracias por tu compra!'
+})
+
+const heroMessage = computed(() => {
+  if (mpStatus.value === 'pending') return 'Estamos esperando la confirmación del pago para el pedido'
+  if (mpStatus.value === 'failure') return 'Registramos el intento de pago para el pedido'
+  return 'Tu pedido ha sido recibido y estamos preparando el envío'
+})
+
+const totalLabel = computed(() => {
+  if (mpStatus.value === 'pending') return 'Total del pedido:'
+  if (mpStatus.value === 'failure') return 'Intento de cobro por:'
+  return 'Total pagado:'
+})
+
+const totalValueClasses = computed(() => ({
+  'text-emerald-600': mpStatus.value === 'approved' || !mpStatus.value,
+  'text-yellow-600': mpStatus.value === 'pending',
+  'text-red-600': mpStatus.value === 'failure',
+}))
+
+const loadPendingOrder = () => {
+  try {
+    const raw = sessionStorage.getItem(MP_PENDING_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+const clearPendingOrder = () => {
+  try {
+    sessionStorage.removeItem(MP_PENDING_KEY)
+  } catch {
+    // noop
+  }
+}
+
+const normalizeMpStatus = (value, orderState = null) => {
+  const raw = String(value || '').toLowerCase()
+  if (raw === 'approved' || raw === 'success') return 'approved'
+  if (raw === 'pending' || raw === 'in_process' || raw === 'in_process_contingency') return 'pending'
+  if (raw === 'failure' || raw === 'rejected' || raw === 'cancelled' || raw === 'cancelado') return 'failure'
+  if (paidStates.has(orderState)) return 'approved'
+  if (pendingStates.has(orderState)) return 'pending'
+  if (failedStates.has(orderState)) return 'failure'
+  return null
+}
+
+const buildSummary = (orderData) => ({
+  id: orderData.id,
+  total: orderData.total,
+  subtotal: orderData.subtotal,
+  descuento: Number(orderData.descuento ?? 0),
+  cuponCodigo: orderData.cupon ?? null,
+  shipping: orderData.costo_envio,
+  tax: 0,
+  paymentMethod: orderData.metodo_pago_display,
+  items: Array.isArray(orderData.detalles)
+    ? orderData.detalles.map(item => ({
+        id: item.producto,
+        name: item.producto_nombre,
+        quantity: item.cantidad,
+        price: item.precio_unitario,
+        sku: item.producto_sku ?? null,
+        image: item.producto_imagen ?? null,
+      }))
+    : [],
+})
+
+const dispatchPurchaseEvent = (payload) => {
+  if (!payload || purchaseTrackerSent.value) return
+  purchaseTrackerSent.value = true
   const ecommercePayload = {
     transaction_id: payload.id || payload.folio || `pedido-${Date.now()}`,
     value: Number(payload.total || 0),
@@ -222,6 +320,40 @@ const dispatchTrackingEvents = (payload) => {
   )
 }
 
+const dispatchReturnEvent = (payload, status) => {
+  if (!payload || !status || returnTrackerSent.value) return
+  returnTrackerSent.value = true
+
+  const ecommercePayload = {
+    transaction_id: payload.id || payload.folio || `pedido-${Date.now()}`,
+    value: Number(payload.total || 0),
+    currency: payload.currency || 'MXN',
+    tax: Number(payload.tax || 0),
+    shipping: Number(payload.shipping || 0),
+    items: Array.isArray(payload.items)
+      ? payload.items.map((item) => ({
+          item_id: item.id ?? item.sku,
+          item_name: item.name,
+          price: Number(item.price || 0),
+          quantity: Number(item.quantity || 0),
+        }))
+      : [],
+  }
+
+  window.dataLayer = window.dataLayer || []
+  window.dataLayer.push({
+    event: 'payment_return',
+    payment_status: status,
+    ecommerce: ecommercePayload,
+  })
+
+  window.dispatchEvent(
+    new CustomEvent('checkout:payment-return', {
+      detail: { status, order: payload, ecommerce: ecommercePayload },
+    })
+  )
+}
+
 const fetchDatosBanco = async () => {
   try {
     const { data } = await api.get('pagos/transferencia/config/')
@@ -231,57 +363,61 @@ const fetchDatosBanco = async () => {
   }
 }
 
-onMounted(async () => {
-  const { status, preference_id } = route.query;
+const loadMercadoPagoOrder = async () => {
+  const preferenceId = route.query.preference_id || null
+  const pendingOrder = loadPendingOrder()
 
-  if (status && preference_id) {
-    mpStatus.value = status;
-    if (status === 'approved') {
-      // Pago confirmado: limpiar carrito ahora que el pedido está pagado
-      carrito.limpiar()
-      try {
-        const response = await getOrderByPreferenceId(preference_id);
-        const orderData = response.data;
-        summary.value = {
-          id: orderData.id,
-          total: orderData.total,
-          subtotal: orderData.subtotal,
-          descuento: Number(orderData.descuento ?? 0),
-          cuponCodigo: orderData.cupon ?? null,
-          shipping: orderData.costo_envio,
-          tax: 0, // Ajustar si hay impuestos
-          paymentMethod: orderData.metodo_pago_display,
-          items: orderData.detalles.map(item => ({
-            id: item.producto,
-            name: item.producto_nombre,
-            quantity: item.cantidad,
-            price: item.precio_unitario,
-            sku: item.producto_sku ?? null,
-            image: item.producto_imagen ?? null,
-          })),
-        };
-        dispatchTrackingEvents(summary.value);
-        if (summary.value.paymentMethod?.toLowerCase().includes('transferencia')) {
-          fetchDatosBanco()
-        }
-      } catch (error) {
-        console.error("Error fetching order by preference ID:", error);
+  if (!preferenceId && !pendingOrder?.pedidoId) return false
+
+  const response = preferenceId
+    ? await getOrderByPreferenceId(preferenceId)
+    : await getPublicOrderById(pendingOrder.pedidoId)
+
+  const orderData = response.data
+  summary.value = buildSummary(orderData)
+
+  const queryStatus =
+    route.query.mp_return ||
+    route.query.status ||
+    route.query.collection_status ||
+    null
+  mpStatus.value = normalizeMpStatus(queryStatus, orderData.estado)
+
+  dispatchReturnEvent(summary.value, mpStatus.value)
+
+  if (mpStatus.value === 'approved' || paidStates.has(orderData.estado)) {
+    await carrito.limpiar()
+    clearPendingOrder()
+    dispatchPurchaseEvent(summary.value)
+  }
+
+  if (summary.value.paymentMethod?.toLowerCase().includes('transferencia')) {
+    fetchDatosBanco()
+  }
+
+  return true
+}
+
+onMounted(async () => {
+  try {
+    const loadedMpOrder = await loadMercadoPagoOrder()
+    if (loadedMpOrder) return
+  } catch (error) {
+    console.error('Error fetching Mercado Pago order summary:', error)
+  }
+
+  const raw = sessionStorage.getItem('lastOrderSummary')
+  if (raw) {
+    try {
+      summary.value = JSON.parse(raw)
+      dispatchPurchaseEvent(summary.value)
+      if (summary.value.paymentMethod?.toLowerCase().includes('transferencia')) {
+        fetchDatosBanco()
       }
-    }
-  } else {
-    const raw = sessionStorage.getItem('lastOrderSummary')
-    if (raw) {
-      try {
-        summary.value = JSON.parse(raw)
-        dispatchTrackingEvents(summary.value)
-        if (summary.value.paymentMethod?.toLowerCase().includes('transferencia')) {
-          fetchDatosBanco()
-        }
-      } catch (err) {
-        console.error('No se pudo leer el resumen del pedido', err)
-      } finally {
-        sessionStorage.removeItem('lastOrderSummary')
-      }
+    } catch (err) {
+      console.error('No se pudo leer el resumen del pedido', err)
+    } finally {
+      sessionStorage.removeItem('lastOrderSummary')
     }
   }
 })

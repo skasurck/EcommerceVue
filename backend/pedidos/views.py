@@ -8,23 +8,56 @@ from django.db.models import Sum, Avg
 from django.utils.dateparse import parse_date
 from django.utils import timezone
 from .models import Direccion, MetodoEnvio, Pedido, PedidoHistorial
-from .serializers import DireccionSerializer, MetodoEnvioSerializer, PedidoSerializer
+from .serializers import DireccionSerializer, MetodoEnvioSerializer, PedidoSerializer, PedidoItemSerializer
 from usuarios.permissions import IsAdminOrSuperAdmin
 from tienda.throttles import PedidoCreateRateThrottle
 
 
 class PedidoByPreferenceView(APIView):
-    """Solo devuelve el estado y el ID — nunca datos personales."""
+    """Devuelve un resumen público y seguro del pedido para la página de gracias."""
     permission_classes = [permissions.AllowAny]
+
+    def _serialize_public_order(self, request, pedido):
+        detalles = PedidoItemSerializer(
+            pedido.items.select_related('producto').all(),
+            many=True,
+            context={'request': request},
+        ).data
+        return {
+            'id': pedido.id,
+            'estado': pedido.estado,
+            'subtotal': str(pedido.subtotal),
+            'descuento': str(pedido.descuento),
+            'costo_envio': str(pedido.costo_envio),
+            'total': str(pedido.total),
+            'metodo_pago': pedido.metodo_pago,
+            'metodo_pago_display': pedido.get_metodo_pago_display(),
+            'cupon': pedido.cupon.codigo if pedido.cupon else None,
+            'detalles': detalles,
+        }
 
     def get(self, request, preference_id, *args, **kwargs):
         try:
-            pedido = Pedido.objects.only('id', 'estado', 'total').get(
+            pedido = Pedido.objects.select_related('cupon').prefetch_related('items__producto').get(
                 mercadopago_preference_id=preference_id
             )
-            return Response({'id': pedido.id, 'estado': pedido.estado, 'total': str(pedido.total)})
+            return Response(self._serialize_public_order(request, pedido))
         except Pedido.DoesNotExist:
             return Response({"detail": "Pedido no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+
+
+class PedidoPublicView(APIView):
+    """Resumen público mínimo para reconciliar el retorno desde Mercado Pago."""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, pedido_id, *args, **kwargs):
+        try:
+            pedido = Pedido.objects.select_related('cupon').prefetch_related('items__producto').get(pk=pedido_id)
+        except Pedido.DoesNotExist:
+            return Response({"detail": "Pedido no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+
+        payload = PedidoByPreferenceView()._serialize_public_order(request, pedido)
+        return Response(payload)
 
 
 class DireccionViewSet(viewsets.ModelViewSet):

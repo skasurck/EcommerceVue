@@ -340,13 +340,13 @@ const finalizar = async () => {
         items: carrito.items,
         external_reference: pedidoId,
         back_urls: {
-          success: `${origin}/gracias`,
-          failure: `${origin}/pedido-cancelado?pedido=${pedidoId}`,
-          pending: `${origin}/checkout?status=pending`,
+          success: `${origin}/gracias?mp_return=approved`,
+          failure: `${origin}/gracias?mp_return=failure`,
+          pending: `${origin}/gracias?mp_return=pending`,
         },
-        success_url: `${origin}/gracias`,
-        failure_url: `${origin}/pedido-cancelado?pedido=${pedidoId}`,
-        pending_url: `${origin}/checkout?status=pending`,
+        success_url: `${origin}/gracias?mp_return=approved`,
+        failure_url: `${origin}/gracias?mp_return=failure`,
+        pending_url: `${origin}/gracias?mp_return=pending`,
       })
       const { init_point } = prefRes.data || {}
       if (init_point) {

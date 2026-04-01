@@ -222,9 +222,9 @@ class MercadoPagoPreferenceView(APIView):
             """Construye una URL segura ignorando cualquier URL del cliente."""
             return f"{frontend_base_url}{path}"
 
-        success_url = _safe_url("/gracias")
-        failure_url = _safe_url("/checkout/fallo")
-        pending_url = _safe_url("/checkout/pendiente")
+        success_url = _safe_url("/gracias?mp_return=approved")
+        failure_url = _safe_url("/gracias?mp_return=failure")
+        pending_url = _safe_url("/gracias?mp_return=pending")
 
         back_urls = {
             "success": success_url,
