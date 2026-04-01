@@ -43,11 +43,33 @@
 
       <!-- ─── SUBCATEGORY PILLS (level 1) ──────────────────────── -->
       <div v-if="visibleSubs.length" class="relative border-t border-slate-100 dark:border-slate-800">
-        <!-- fade edges -->
-        <div class="pointer-events-none absolute left-0 top-0 bottom-0 z-10 w-8 bg-gradient-to-r from-white dark:from-slate-900 to-transparent"></div>
-        <div class="pointer-events-none absolute right-0 top-0 bottom-0 z-10 w-8 bg-gradient-to-l from-white dark:from-slate-900 to-transparent"></div>
+        <!-- fade + arrow left -->
+        <transition name="fade-arrow">
+          <div v-if="pillsCanScrollLeft"
+               class="pointer-events-none absolute left-0 top-0 bottom-0 z-10 flex items-center">
+            <div class="h-full w-12 bg-gradient-to-r from-white dark:from-slate-900 to-transparent"></div>
+            <button class="pointer-events-auto absolute left-1 flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+                    @click="scrollPills('left')" aria-label="Anterior">
+              <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+            </button>
+          </div>
+        </transition>
+        <!-- fade + arrow right -->
+        <transition name="fade-arrow">
+          <div v-if="pillsCanScrollRight"
+               class="pointer-events-none absolute right-0 top-0 bottom-0 z-10 flex items-center">
+            <div class="h-full w-12 bg-gradient-to-l from-white dark:from-slate-900 to-transparent"></div>
+            <button class="pointer-events-auto absolute right-1 flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+                    @click="scrollPills('right')" aria-label="Siguiente">
+              <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+            </button>
+          </div>
+        </transition>
 
-        <div class="scrollbar-hide flex gap-2 overflow-x-auto px-4 py-3 mx-auto max-w-7xl" style="-webkit-overflow-scrolling:touch">
+        <div ref="pillsScroll"
+             class="scrollbar-hide flex gap-2 overflow-x-auto px-4 py-3 mx-auto max-w-7xl"
+             style="-webkit-overflow-scrolling:touch; scroll-behavior:smooth"
+             @scroll="checkPillsScroll">
           <!-- Todos -->
           <button
             @click="selectSub(null)"
@@ -149,7 +171,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { useHead } from '@vueuse/head'
 import { getCategoriasTree, getProductos } from '@/api/productos'
@@ -171,8 +193,24 @@ const loadingMore    = ref(false)
 const hasMore        = ref(true)
 const page           = ref(1)
 const PAGE_SIZE      = 20
-const sentinel       = ref(null)
+const sentinel         = ref(null)
+const pillsScroll      = ref(null)
+const pillsCanScrollLeft  = ref(false)
+const pillsCanScrollRight = ref(false)
 let observer = null
+
+const checkPillsScroll = () => {
+  const el = pillsScroll.value
+  if (!el) return
+  pillsCanScrollLeft.value  = el.scrollLeft > 4
+  pillsCanScrollRight.value = el.scrollLeft + el.clientWidth < el.scrollWidth - 4
+}
+
+const scrollPills = (dir) => {
+  const el = pillsScroll.value
+  if (!el) return
+  el.scrollBy({ left: dir === 'right' ? 200 : -200, behavior: 'smooth' })
+}
 
 // ─── Derived ──────────────────────────────────────────────────────────────────
 const currentCategory = computed(() =>
@@ -296,8 +334,16 @@ watch(selectedSubSubId, () => fetchProducts({ reset: true }))
 onMounted(async () => {
   await Promise.all([fetchMeta(), fetchProducts({ reset: true })])
   setupObserver()
+  await nextTick()
+  checkPillsScroll()
 })
 onUnmounted(() => observer?.disconnect())
+
+// Re-chequear flechas cuando cambia la lista de subs
+watch(visibleSubs, async () => {
+  await nextTick()
+  checkPillsScroll()
+})
 
 // ─── Icon/color config ────────────────────────────────────────────────────────
 const CONFIGS = [
@@ -324,4 +370,9 @@ const getConfig = (nombre) => {
 <style scoped>
 .scrollbar-hide { scrollbar-width: none; }
 .scrollbar-hide::-webkit-scrollbar { display: none; }
+
+.fade-arrow-enter-active,
+.fade-arrow-leave-active { transition: opacity 0.2s; }
+.fade-arrow-enter-from,
+.fade-arrow-leave-to { opacity: 0; }
 </style>
