@@ -244,14 +244,21 @@ class MercadoPagoPreferenceView(APIView):
             "external_reference": external_reference,
         }
 
-        # Agregar email del comprador — requerido por MP para habilitar pagos en efectivo (OXXO, etc.)
+        # Agregar datos del comprador — requerido por MP para habilitar pagos en efectivo (OXXO, etc.)
         try:
-            pedido = Pedido.objects.select_related('direccion').get(id=external_reference)
-            payer_email = pedido.direccion.email if pedido.direccion else None
-            if not payer_email and pedido.user:
-                payer_email = pedido.user.email
+            pedido = Pedido.objects.select_related('direccion', 'user').get(id=external_reference)
+            dir_ = pedido.direccion
+            payer_email = (dir_.email if dir_ else None) or (pedido.user.email if pedido.user else None)
             if payer_email:
-                preference_data["payer"] = {"email": payer_email}
+                payer = {"email": payer_email}
+                if dir_:
+                    if dir_.nombre:
+                        payer["first_name"] = dir_.nombre
+                    if dir_.apellidos:
+                        payer["last_name"] = dir_.apellidos
+                    if dir_.telefono:
+                        payer["phone"] = {"number": dir_.telefono}
+                preference_data["payer"] = payer
         except Pedido.DoesNotExist:
             pass
 
