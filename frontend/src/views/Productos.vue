@@ -730,6 +730,7 @@ onMounted(async () => {
   // Aplicar filtros de URL ANTES de cualquier fetch
   if (route.query.categoria) filtros.categoria = String(route.query.categoria)
   if (route.query.search) filtros.search = String(route.query.search)
+  if (route.query.en_oferta) filtros.promociones = true
 
   // Banner en background, no bloquea nada
   obtenerPromoBanners({ ordering: 'orden' }).then(r => {

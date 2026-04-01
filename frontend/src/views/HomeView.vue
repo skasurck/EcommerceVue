@@ -427,8 +427,8 @@ onBeforeUnmount(() => {
     <!-- min-h reserva espacio mientras los productos cargan para evitar CLS del footer.
          Se elimina una vez que fetchCategorySections termina (allLoaded = true). -->
     <div class="max-w-7xl mx-auto px-4 py-6 space-y-8" :class="allLoaded ? '' : 'min-h-[4000px]'">
-      <ProductRow title="Ofertas del día" :productos="ofertas" to="/productos?ofertas=1" @add-to-cart="handleAddToCart" />
-      <ProductRow title="Novedades" :productos="nuevos" to="/productos?orden=-id" @add-to-cart="handleAddToCart" />
+      <ProductRow title="Ofertas del día" :productos="ofertas" to="/productos?en_oferta=true" @add-to-cart="handleAddToCart" />
+      <ProductRow title="Novedades" :productos="nuevos" to="/productos" @add-to-cart="handleAddToCart" />
 
       <section>
         <div class="flex items-baseline justify-between mb-3 px-2">
