@@ -195,9 +195,30 @@
           />
         </div>
 
-        <div v-if="loading" class="text-center text-gray-500">Cargando productos...</div>
-        <div v-else-if="error" class="text-center text-red-500">{{ error }}</div>
-        <div v-else-if="productos.length === 0" class="text-center text-gray-500">No se encontraron productos.</div>
+        <div v-if="error" class="text-center text-red-500 py-6">{{ error }}</div>
+
+        <!-- Skeleton inicial -->
+        <div v-if="loading && productos.length === 0"
+             class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+          <div v-for="i in 10" :key="i" class="rounded-xl border border-gray-100 bg-white overflow-hidden animate-pulse shadow-sm">
+            <div class="bg-gray-200 aspect-square w-full"></div>
+            <div class="p-3 space-y-2">
+              <div class="h-4 bg-gray-200 rounded w-1/2"></div>
+              <div class="h-3 bg-gray-200 rounded w-full"></div>
+              <div class="h-3 bg-gray-200 rounded w-3/4"></div>
+              <div class="h-7 bg-gray-100 rounded-full w-full mt-2"></div>
+            </div>
+          </div>
+        </div>
+
+        <div v-else-if="!loading && productos.length === 0 && !error"
+             class="flex flex-col items-center justify-center py-20 text-center text-gray-400">
+          <svg class="h-12 w-12 mb-3 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0H4m8-7v7"/>
+          </svg>
+          <p class="font-medium">No se encontraron productos</p>
+          <p class="text-sm mt-1">Prueba con otros filtros</p>
+        </div>
 
         <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
           <ProductCard
@@ -208,7 +229,10 @@
           />
         </div>
 
-        <div v-if="loading && productos.length > 0" class="text-center text-gray-500 py-4">Cargando más productos...</div>
+        <!-- Spinner "cargando más" -->
+        <div v-if="loading && productos.length > 0" class="flex justify-center py-6">
+          <div class="h-7 w-7 rounded-full border-2 border-gray-200 border-t-blue-500 animate-spin"></div>
+        </div>
         <div v-if="!loading && pagination.page >= pagination.totalPages" class="text-center text-gray-500 py-4">No hay más productos.</div>
 
         <!-- Centinela para IntersectionObserver -->
@@ -700,17 +724,24 @@ watch(
 )
 
 onMounted(async () => {
+  // Aplicar filtros de URL ANTES de cualquier fetch
+  if (route.query.categoria) filtros.categoria = String(route.query.categoria)
+  if (route.query.search) filtros.search = String(route.query.search)
+
+  // Banner en background, no bloquea nada
   obtenerPromoBanners({ ordering: 'orden' }).then(r => {
     const raw = Array.isArray(r.data?.results) ? r.data.results : Array.isArray(r.data) ? r.data : []
     shopBanner.value = raw.find(b => b.imagen_url) ?? null
   }).catch(() => {})
-  await Promise.all([fetchCategorias(), fetchMarcas(), fetchPriceRange()])
 
-  // Aplicar filtros desde query params de la URL (ej. /productos?categoria=5)
-  if (route.query.categoria) filtros.categoria = String(route.query.categoria)
-  if (route.query.search) filtros.search = String(route.query.search)
+  // Productos + sidebar en paralelo — productos no espera a categorías/marcas/precios
+  await Promise.all([
+    fetchProductos(),
+    fetchCategorias(),
+    fetchMarcas(),
+    fetchPriceRange(),
+  ])
 
-  await fetchProductos()
   await nextTick()
   setupObserver()
 })

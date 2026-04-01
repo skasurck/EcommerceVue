@@ -502,6 +502,18 @@ class ProductoViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
+    def retrieve(self, request, *args, **kwargs):
+        pk = kwargs.get('pk')
+        cache_key = f'producto_detail_{pk}'
+        cached = cache.get(cache_key)
+        if cached is not None:
+            from rest_framework.response import Response as DRFResponse
+            return DRFResponse(cached)
+        response = super().retrieve(request, *args, **kwargs)
+        if response.status_code == 200:
+            cache.set(cache_key, response.data, timeout=60 * 5)  # 5 min
+        return response
+
     def get_serializer_class(self):
         if self.action == 'list':
             return ProductoListSerializer

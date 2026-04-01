@@ -1,10 +1,40 @@
 <template>
   <div>
-    <div v-if="loading" class="animate-pulse mx-auto max-w-7xl px-4 py-6 space-y-4">
-      <div class="h-8 bg-gray-300 rounded w-2/3"></div>
-      <div class="h-96 bg-gray-300 rounded"></div>
-      <div class="h-6 bg-gray-300 rounded w-1/3"></div>
-      <div class="h-24 bg-gray-300 rounded"></div>
+    <!-- Skeleton producto -->
+    <div v-if="loading" class="animate-pulse mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+      <!-- Breadcrumb -->
+      <div class="mb-4 flex gap-2">
+        <div class="h-3 w-12 rounded bg-gray-200"></div>
+        <div class="h-3 w-3 rounded bg-gray-200"></div>
+        <div class="h-3 w-24 rounded bg-gray-200"></div>
+        <div class="h-3 w-3 rounded bg-gray-200"></div>
+        <div class="h-3 w-32 rounded bg-gray-200"></div>
+      </div>
+      <!-- Layout: imagen + info -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- Galería -->
+        <div class="lg:col-span-6 flex gap-3">
+          <div class="hidden sm:flex flex-col gap-2">
+            <div v-for="i in 4" :key="i" class="h-14 w-14 rounded-md bg-gray-200"></div>
+          </div>
+          <div class="flex-1 aspect-square rounded-xl bg-gray-200"></div>
+        </div>
+        <!-- Info -->
+        <div class="lg:col-span-6 space-y-4">
+          <div class="h-3 w-24 rounded bg-gray-200"></div>
+          <div class="h-7 w-full rounded bg-gray-200"></div>
+          <div class="h-7 w-3/4 rounded bg-gray-200"></div>
+          <div class="h-10 w-40 rounded bg-gray-200"></div>
+          <div class="h-4 w-32 rounded bg-gray-200"></div>
+          <div class="h-12 w-full rounded-full bg-gray-200"></div>
+          <div class="h-12 w-full rounded-full bg-gray-100"></div>
+          <div class="space-y-2 pt-2">
+            <div class="h-3 w-full rounded bg-gray-200"></div>
+            <div class="h-3 w-5/6 rounded bg-gray-200"></div>
+            <div class="h-3 w-4/6 rounded bg-gray-200"></div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div v-else-if="errorMsg" class="mx-auto max-w-3xl px-4 py-10">
