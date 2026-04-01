@@ -166,7 +166,7 @@ window.addEventListener('checkout:purchase', (event) => {
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useHead } from '@vueuse/head'
-import { getOrderByPreferenceId, getPublicOrderById } from '@/services/pedidos'
+import { cancelarPedidoMP, getOrderByPreferenceId, getPublicOrderById } from '@/services/pedidos'
 import api from '@/axios'
 import { useCarritoStore } from '@/stores/carrito'
 
@@ -363,6 +363,25 @@ const fetchDatosBanco = async () => {
   }
 }
 
+const reconcileOrderStatus = async (orderData, status) => {
+  if (!orderData?.id || !status) return orderData
+
+  if (status === 'failure' && orderData.estado === 'pendiente') {
+    try {
+      await cancelarPedidoMP(orderData.id)
+      return { ...orderData, estado: 'cancelado' }
+    } catch (err) {
+      console.error('No se pudo cancelar el pedido de Mercado Pago', err)
+    }
+  }
+
+  if (status === 'pending' && orderData.estado !== 'pendiente') {
+    return { ...orderData, estado: 'pendiente' }
+  }
+
+  return orderData
+}
+
 const loadMercadoPagoOrder = async () => {
   const preferenceId = route.query.preference_id || null
   const pendingOrder = loadPendingOrder()
@@ -373,21 +392,25 @@ const loadMercadoPagoOrder = async () => {
     ? await getOrderByPreferenceId(preferenceId)
     : await getPublicOrderById(pendingOrder.pedidoId)
 
-  const orderData = response.data
-  summary.value = buildSummary(orderData)
-
   const queryStatus =
     route.query.mp_return ||
     route.query.status ||
     route.query.collection_status ||
     null
+  let orderData = response.data
   mpStatus.value = normalizeMpStatus(queryStatus, orderData.estado)
+  orderData = await reconcileOrderStatus(orderData, mpStatus.value)
+  mpStatus.value = normalizeMpStatus(queryStatus, orderData.estado)
+  summary.value = buildSummary(orderData)
 
   dispatchReturnEvent(summary.value, mpStatus.value)
 
-  if (mpStatus.value === 'approved' || paidStates.has(orderData.estado)) {
+  if (mpStatus.value) {
     await carrito.limpiar()
     clearPendingOrder()
+  }
+
+  if (mpStatus.value === 'approved' || paidStates.has(orderData.estado)) {
     dispatchPurchaseEvent(summary.value)
   }
 
