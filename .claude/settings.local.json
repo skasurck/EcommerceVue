@@ -25,7 +25,9 @@
       "Bash(xargs grep:*)",
       "Bash(python manage.py makemigrations suppliers --name add_stock_history)",
       "Bash(.venv/Scripts/python backend/manage.py makemigrations suppliers --name add_stock_history)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "WebSearch",
+      "WebFetch(domain:mktska.net)"
     ]
   }
 }

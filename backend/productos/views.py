@@ -631,6 +631,11 @@ class ProductoViewSet(viewsets.ModelViewSet):
         if en_oferta and en_oferta.lower() in ['true', '1']:
             qs = qs.filter(precio_rebajado__isnull=False, precio_rebajado__gt=0)
 
+        ordering_param = params.get('ordering')
+        _VALID_ORDERINGS = {'precio_normal', '-precio_normal', '-fecha_creacion', 'fecha_creacion', '-id', 'id'}
+        if ordering_param in _VALID_ORDERINGS:
+            qs = qs.order_by(ordering_param)
+
         if self.action == 'list':
             qs = qs.annotate(
                 has_tier=Exists(
