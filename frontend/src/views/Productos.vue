@@ -563,8 +563,11 @@ async function fetchProductos(append = false) {
     if (filtros.search) params.search = filtros.search
     if (filtros.categoria) params.categoria = filtros.categoria
     if (filtros.marcas.length > 0) params.marca = filtros.marcas.join(',')
-    if (typeof filtros.precio.min === 'number') params.precio_min = filtros.precio.min
-    if (typeof filtros.precio.max === 'number') params.precio_max = filtros.precio.max
+    // Solo enviar precio si el usuario realmente cambió el rango (evita filtrar con [0,0] del init del slider)
+    if (priceChanged.value) {
+      if (typeof filtros.precio.min === 'number') params.precio_min = filtros.precio.min
+      if (typeof filtros.precio.max === 'number') params.precio_max = filtros.precio.max
+    }
     if (filtros.promociones) params.en_oferta = 'true'
 
     const res = await obtenerProductos(params)
@@ -734,12 +737,14 @@ onMounted(async () => {
     shopBanner.value = raw.find(b => b.imagen_url) ?? null
   }).catch(() => {})
 
-  // Productos + sidebar en paralelo — productos no espera a categorías/marcas/precios
+  // Primero el rango de precios para que el slider no dispare un segundo fetchProductos
+  await fetchPriceRange()
+
+  // Luego productos + sidebar en paralelo
   await Promise.all([
     fetchProductos(),
     fetchCategorias(),
     fetchMarcas(),
-    fetchPriceRange(),
   ])
 
   await nextTick()
