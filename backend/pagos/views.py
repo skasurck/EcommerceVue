@@ -244,6 +244,17 @@ class MercadoPagoPreferenceView(APIView):
             "external_reference": external_reference,
         }
 
+        # Agregar email del comprador — requerido por MP para habilitar pagos en efectivo (OXXO, etc.)
+        try:
+            pedido = Pedido.objects.select_related('direccion').get(id=external_reference)
+            payer_email = pedido.direccion.email if pedido.direccion else None
+            if not payer_email and pedido.user:
+                payer_email = pedido.user.email
+            if payer_email:
+                preference_data["payer"] = {"email": payer_email}
+        except Pedido.DoesNotExist:
+            pass
+
         requested_auto_return = request.data.get("auto_return", "approved")
         success_callback = back_urls.get("success")
         if requested_auto_return and success_callback and success_callback.startswith("https://"):
@@ -276,9 +287,9 @@ class MercadoPagoPreferenceView(APIView):
                 )
 
             try:
-                pedido = Pedido.objects.get(id=external_reference)
-                pedido.mercadopago_preference_id = preference_id
-                pedido.save()
+                _pedido = Pedido.objects.get(id=external_reference)
+                _pedido.mercadopago_preference_id = preference_id
+                _pedido.save()
             except Pedido.DoesNotExist:
                 logger.warning("ADVERTENCIA: No se encontró el pedido con ID %s para guardar el preference_id.", external_reference)
 
