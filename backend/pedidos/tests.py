@@ -86,6 +86,32 @@ class PedidoAPITests(APITestCase):
         self.assertEqual(self.producto.stock, 3)
         self.assertEqual(self.cart.items.count(), 0)
 
+    def test_crear_pedido_mercadopago_inicia_sin_confirmar(self):
+        url = reverse('pedido-list')
+        data = {
+            'direccion': {
+                'nombre': 'John',
+                'apellidos': 'Doe',
+                'email': 'john@example.com',
+                'calle': 'Calle 1',
+                'numero_exterior': '123',
+                'colonia': 'Centro',
+                'ciudad': 'CDMX',
+                'pais': 'MX',
+                'estado': 'CDMX',
+                'codigo_postal': '01010',
+                'telefono': '5555555555'
+            },
+            'metodo_envio': self.metodo.id,
+            'metodo_pago': 'mercadopago',
+            'indicaciones': '',
+            'save_address': True
+        }
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        pedido = Pedido.objects.get(id=response.data['id'])
+        self.assertEqual(pedido.estado, 'iniciado')
+
     def test_cancelar_pedido_devuelve_stock(self):
         url = reverse('pedido-list')
         data = {
@@ -124,6 +150,17 @@ class PedidoAPITests(APITestCase):
         self.assertEqual(self.producto.stock, 5)
         pedido.refresh_from_db()
         self.assertEqual(pedido.historial.filter(descripcion__icontains='Stock devuelto').count(), 1)
+
+    def test_retorno_mp_failure_marca_fallido(self):
+        pedido = self._crear_pedido_simple(self.user)
+        pedido.metodo_pago = 'mercadopago'
+        pedido.estado = 'iniciado'
+        pedido.save(update_fields=['metodo_pago', 'estado'])
+
+        response = self.client.post(reverse('pedido-retorno-mp', kwargs={'pk': pedido.id}), {'status': 'failure'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        pedido.refresh_from_db()
+        self.assertEqual(pedido.estado, 'fallido')
 
     def test_listado_solo_incluye_pedidos_del_usuario(self):
         propio = self._crear_pedido_simple(self.user, email='tester@example.com')

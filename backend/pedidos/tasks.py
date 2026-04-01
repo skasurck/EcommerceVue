@@ -10,15 +10,15 @@ logger = logging.getLogger(__name__)
 def cancelar_pedidos_mp_abandonados():
     """
     Cancela pedidos de Mercado Pago que llevan más de 2 horas en estado
-    'pendiente' sin completar el pago. Evita acumular pedidos fantasma.
+    'iniciado' o 'pendiente' sin completar el pago. Evita acumular pedidos fantasma.
     """
     from pedidos.models import Pedido
 
     limite = timezone.now() - timedelta(hours=2)
     abandonados = Pedido.objects.filter(
         metodo_pago='mercadopago',
-        estado='pendiente',
-        fecha_creacion__lt=limite,
+        estado__in=['iniciado', 'pendiente'],
+        creado__lt=limite,
     )
     total = abandonados.count()
     if total:

@@ -153,16 +153,39 @@ class PedidoViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'], permission_classes=[permissions.AllowAny], url_path='cancelar-mp')
     def cancelar_mp(self, request, pk=None):
-        """Cancela un pedido de MP que sigue pendiente (pago fallido o abandono)."""
+        """Compatibilidad: marca como fallido un pedido de MP con pago rechazado."""
         try:
             pedido = Pedido.objects.get(pk=pk)
         except Pedido.DoesNotExist:
             return Response({'detail': 'Pedido no encontrado'}, status=status.HTTP_404_NOT_FOUND)
-        if pedido.estado != 'pendiente' or pedido.metodo_pago != 'mercadopago':
+        if pedido.estado not in ('iniciado', 'pendiente') or pedido.metodo_pago != 'mercadopago':
             return Response({'detail': 'El pedido no puede cancelarse'}, status=status.HTTP_400_BAD_REQUEST)
-        pedido.estado = 'cancelado'
+        pedido.estado = 'fallido'
         pedido.save(update_fields=['estado'])
-        return Response({'status': 'cancelado', 'id': pedido.id})
+        return Response({'status': 'fallido', 'id': pedido.id})
+
+    @action(detail=True, methods=['post'], permission_classes=[permissions.AllowAny], url_path='retorno-mp')
+    def retorno_mp(self, request, pk=None):
+        try:
+            pedido = Pedido.objects.get(pk=pk)
+        except Pedido.DoesNotExist:
+            return Response({'detail': 'Pedido no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+        if pedido.metodo_pago != 'mercadopago':
+            return Response({'detail': 'El pedido no es de Mercado Pago'}, status=status.HTTP_400_BAD_REQUEST)
+
+        retorno = str(request.data.get('status', '')).lower()
+        if retorno not in ('approved', 'pending', 'failure'):
+            return Response({'detail': 'Estado de retorno inválido'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if retorno == 'failure' and pedido.estado in ('iniciado', 'pendiente'):
+            pedido.estado = 'fallido'
+            pedido.save(update_fields=['estado'])
+        elif retorno in ('pending', 'approved') and pedido.estado == 'iniciado':
+            pedido.estado = 'pendiente'
+            pedido.save(update_fields=['estado'])
+
+        return Response({'id': pedido.id, 'estado': pedido.estado})
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -185,7 +208,7 @@ class PedidoViewSet(viewsets.ModelViewSet):
         ids = request.data.get('ids', [])
         estado = request.data.get('estado')
         numero_guia = request.data.get('numero_guia', '')
-        allowed = ['pendiente', 'pagado', 'confirmado', 'enviado', 'cancelado']
+        allowed = ['iniciado', 'pendiente', 'pagado', 'confirmado', 'enviado', 'fallido', 'cancelado']
         if estado not in allowed:
             return Response({'detail': 'Estado inválido'}, status=status.HTTP_400_BAD_REQUEST)
         updated = 0

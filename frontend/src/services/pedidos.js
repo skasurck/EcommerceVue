@@ -11,3 +11,7 @@ export const getPublicOrderById = (pedidoId) => {
 export const cancelarPedidoMP = (pedidoId) => {
   return axios.post(`pedidos/${pedidoId}/cancelar-mp/`);
 };
+
+export const registrarRetornoMP = (pedidoId, status) => {
+  return axios.post(`pedidos/${pedidoId}/retorno-mp/`, { status });
+};

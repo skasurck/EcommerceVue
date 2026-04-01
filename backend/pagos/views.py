@@ -156,6 +156,15 @@ class MercadoPagoWebhookView(APIView):
                             pedido.id, payment_id,
                         )
 
+                    elif pay_status in ('pending', 'in_process') and pedido.estado == 'iniciado':
+                        pedido.estado = 'pendiente'
+                        pedido.save(update_fields=['estado'])
+
+                    elif pay_status in ('rejected', 'cancelled') and pedido.estado in ('iniciado', 'pendiente'):
+                        pedido.estado = 'fallido'
+                        pedido.mercadopago_payment_id = str(payment.get('id', ''))
+                        pedido.save(update_fields=['estado', 'mercadopago_payment_id'])
+
                     elif pay_status == 'in_mediation' and pedido.estado != 'en_disputa':
                         pedido.estado = 'en_disputa'
                         pedido.save(update_fields=['estado'])

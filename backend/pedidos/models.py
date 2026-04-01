@@ -1,4 +1,5 @@
-from django.db import models
+from django.core.exceptions import ValidationError
+from django.db import models, transaction
 from django.contrib.auth.models import User
 
 from carrito.models import Cart
@@ -64,10 +65,12 @@ class Pedido(models.Model):
     estado = models.CharField(
         max_length=20,
         choices=[
+            ('iniciado', 'Iniciado'),
             ('pendiente', 'Pendiente'),
             ('pagado', 'Pagado'),
             ('confirmado', 'Confirmado'),
             ('enviado', 'Enviado'),
+            ('fallido', 'Fallido'),
             ('cancelado', 'Cancelado'),
             ('en_disputa', 'En disputa'),
             ('contracargo', 'Contracargo'),
@@ -97,23 +100,44 @@ class Pedido(models.Model):
                 estado_anterior = Pedido.objects.get(pk=self.pk).estado
             except Pedido.DoesNotExist:
                 pass
-        super().save(*args, **kwargs)
-
-        if (
-            self.estado == 'cancelado'
-            and estado_anterior in ['pendiente', 'pagado', 'confirmado']
+        release_states = {'cancelado', 'fallido'}
+        active_states = {'iniciado', 'pendiente', 'pagado', 'confirmado', 'enviado', 'en_disputa', 'contracargo'}
+        restoring_transition = (
+            estado_anterior in release_states
+            and self.estado in active_states
+            and self.stock_restaurado
+        )
+        releasing_transition = (
+            self.estado in release_states
+            and estado_anterior in active_states
             and not self.stock_restaurado
-        ):
-            for item in self.items.all():
-                producto = item.producto
-                producto.stock += item.cantidad
-                producto.save(update_fields=['stock'])
-            self.stock_restaurado = True
-            super().save(update_fields=['stock_restaurado'])
-            PedidoHistorial.objects.create(
-                pedido=self,
-                descripcion='Stock devuelto por cancelación',
-            )
+        )
+
+        with transaction.atomic():
+            if restoring_transition:
+                for item in self.items.select_related('producto').select_for_update():
+                    producto = item.producto
+                    if producto.stock < item.cantidad:
+                        raise ValidationError(
+                            f"Stock insuficiente para reactivar el pedido #{self.pk or 'nuevo'} de {producto.nombre}."
+                        )
+                    producto.stock -= item.cantidad
+                    producto.save(update_fields=['stock'])
+                self.stock_restaurado = False
+
+            super().save(*args, **kwargs)
+
+            if releasing_transition:
+                for item in self.items.select_related('producto').select_for_update():
+                    producto = item.producto
+                    producto.stock += item.cantidad
+                    producto.save(update_fields=['stock'])
+                self.stock_restaurado = True
+                super().save(update_fields=['stock_restaurado'])
+                PedidoHistorial.objects.create(
+                    pedido=self,
+                    descripcion=f'Stock devuelto por cambio a {self.estado}',
+                )
 
         # ── Emails transaccionales ─────────────────────────────────────────
         try:
@@ -123,10 +147,10 @@ class Pedido(models.Model):
                 enviar_email_enviado,
                 enviar_email_cancelado,
             )
-            if is_new:
-                enviar_email_pedido_creado.delay(self.pk)
-            elif estado_anterior and estado_anterior != self.estado:
-                if self.estado == 'pagado':
+            if estado_anterior and estado_anterior != self.estado:
+                if self.estado == 'pendiente':
+                    enviar_email_pedido_creado.delay(self.pk)
+                elif self.estado == 'pagado':
                     enviar_email_pago_confirmado.delay(self.pk)
                 elif self.estado == 'enviado':
                     enviar_email_enviado.delay(self.pk)

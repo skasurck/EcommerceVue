@@ -166,7 +166,7 @@ window.addEventListener('checkout:purchase', (event) => {
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useHead } from '@vueuse/head'
-import { cancelarPedidoMP, getOrderByPreferenceId, getPublicOrderById } from '@/services/pedidos'
+import { getOrderByPreferenceId, getPublicOrderById, registrarRetornoMP } from '@/services/pedidos'
 import api from '@/axios'
 import { useCarritoStore } from '@/stores/carrito'
 
@@ -198,7 +198,7 @@ const formatMoney = (value) => currencyFormatter.format(Number(value || 0))
 
 const paidStates = new Set(['pagado', 'confirmado', 'enviado'])
 const pendingStates = new Set(['pendiente'])
-const failedStates = new Set(['cancelado'])
+const failedStates = new Set(['cancelado', 'fallido'])
 
 const headerClasses = computed(() => ({
   'border border-emerald-100': mpStatus.value === 'approved' || !mpStatus.value,
@@ -366,17 +366,13 @@ const fetchDatosBanco = async () => {
 const reconcileOrderStatus = async (orderData, status) => {
   if (!orderData?.id || !status) return orderData
 
-  if (status === 'failure' && orderData.estado === 'pendiente') {
+  if (['approved', 'pending', 'failure'].includes(status)) {
     try {
-      await cancelarPedidoMP(orderData.id)
-      return { ...orderData, estado: 'cancelado' }
+      const { data } = await registrarRetornoMP(orderData.id, status)
+      return { ...orderData, estado: data.estado }
     } catch (err) {
-      console.error('No se pudo cancelar el pedido de Mercado Pago', err)
+      console.error('No se pudo registrar el retorno de Mercado Pago', err)
     }
-  }
-
-  if (status === 'pending' && orderData.estado !== 'pendiente') {
-    return { ...orderData, estado: 'pendiente' }
   }
 
   return orderData

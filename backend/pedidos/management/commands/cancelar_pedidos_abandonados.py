@@ -5,14 +5,14 @@ from pedidos.models import Pedido
 
 
 class Command(BaseCommand):
-    help = 'Cancela pedidos de Mercado Pago pendientes por más de 2 horas (abandonados)'
+    help = 'Cancela pedidos de Mercado Pago iniciados o pendientes por más de 2 horas (abandonados)'
 
     def handle(self, *args, **options):
         limite = timezone.now() - timedelta(hours=2)
         qs = Pedido.objects.filter(
             metodo_pago='mercadopago',
-            estado='pendiente',
-            fecha_creacion__lt=limite,
+            estado__in=['iniciado', 'pendiente'],
+            creado__lt=limite,
         )
         total = qs.count()
         qs.update(estado='cancelado')

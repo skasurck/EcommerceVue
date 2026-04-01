@@ -160,6 +160,9 @@ class PedidoSerializer(serializers.ModelSerializer):
         validated_data.pop('user', None)
         user = request.user if request and request.user.is_authenticated else None
 
+        if validated_data.get('metodo_pago') == 'mercadopago' and 'estado' not in validated_data:
+            validated_data['estado'] = 'iniciado'
+
         cart = None
         items_from_cart = items_data is None
         if items_from_cart:
