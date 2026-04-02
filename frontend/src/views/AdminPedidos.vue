@@ -17,6 +17,28 @@
       </RouterLink>
     </div>
 
+    <!-- Barra de resumen por estado -->
+    <div v-if="resumen" class="text-sm text-slate-600 flex flex-wrap gap-x-1 gap-y-1 items-center">
+      <button
+        @click="aplicarFiltroEstado('')"
+        :class="['hover:text-blue-700', !estadoFiltro && !verPapelera ? 'font-semibold text-blue-700' : '']"
+      >Todos <span class="text-slate-400">({{ resumen.todos }})</span></button>
+
+      <template v-for="(etiqueta, clave) in ESTADOS_RESUMEN" :key="clave">
+        <span class="text-slate-300">|</span>
+        <button
+          @click="aplicarFiltroEstado(clave)"
+          :class="['hover:text-blue-700', estadoFiltro === clave && !verPapelera ? 'font-semibold text-blue-700' : '']"
+        >{{ etiqueta }} <span class="text-slate-400">({{ resumen.estados[clave] ?? 0 }})</span></button>
+      </template>
+
+      <span class="text-slate-300">|</span>
+      <button
+        @click="aplicarFiltroEstado('papelera')"
+        :class="['hover:text-rose-600', verPapelera ? 'font-semibold text-rose-600' : '']"
+      >Papelera <span class="text-slate-400">({{ resumen.papelera }})</span></button>
+    </div>
+
     <!-- Filtros -->
     <section class="bg-white border rounded-xl shadow-sm overflow-hidden">
       <div class="px-4 py-3 border-b bg-slate-50 flex items-center justify-between gap-2">
@@ -400,6 +422,18 @@ import { ref, computed, nextTick } from 'vue'
 import axios from '@/axios'
 import { money, formatFecha } from '@/utils/formatters'
 
+const ESTADOS_RESUMEN = {
+  iniciado:   'Iniciado',
+  pendiente:  'Pendiente',
+  pagado:     'Pagado',
+  confirmado: 'Confirmado',
+  enviado:    'Enviado',
+  fallido:    'Fallido',
+  cancelado:  'Cancelado',
+  en_disputa: 'En disputa',
+  contracargo:'Contracargo',
+}
+
 const ESTADO_CLASSES = {
   pendiente:   'bg-amber-50  border-amber-300  text-amber-800',
   pagado:      'bg-emerald-50 border-emerald-400 text-emerald-800',
@@ -413,6 +447,26 @@ const ESTADO_CLASSES = {
 const estadoClasses = (estado) =>
   ESTADO_CLASSES[estado] ?? 'bg-slate-50 border-slate-300 text-slate-800'
 import { useRouter, RouterLink } from 'vue-router'
+
+const resumen = ref(null)
+
+async function fetchResumen() {
+  try {
+    const res = await axios.get('pedidos/resumen/')
+    resumen.value = res.data
+  } catch { /* silencioso */ }
+}
+
+function aplicarFiltroEstado(clave) {
+  if (clave === 'papelera') {
+    verPapelera.value = true
+    estadoFiltro.value = ''
+  } else {
+    verPapelera.value = false
+    estadoFiltro.value = clave
+  }
+  fetchPedidos(1)
+}
 
 const pedidos = ref([])
 const pagina = ref(1)
@@ -555,18 +609,21 @@ function verDetalle(id) {
 async function moverPapelera(id) {
   if (!confirm('¿Mover pedido a papelera?')) return
   await axios.post(`pedidos/${id}/trash/`)
+  fetchResumen()
   fetchPedidos(pagina.value)
 }
 
 async function restaurar(id) {
   if (!confirm('¿Restaurar pedido?')) return
   await axios.post(`pedidos/${id}/restore/`)
+  fetchResumen()
   fetchPedidos(pagina.value)
 }
 
 async function eliminar(id) {
   if (!confirm('¿Eliminar definitivamente?')) return
   await axios.delete(`pedidos/${id}/`)
+  fetchResumen()
   fetchPedidos(pagina.value)
 }
 
@@ -574,6 +631,7 @@ async function bulkTrash() {
   if (!confirm('¿Mover seleccionados a papelera?')) return
   const res = await axios.post('pedidos/bulk_trash/', { ids: seleccionados.value })
   alert(`Actualizados: ${res.data.updated}, Fallidos: ${res.data.failed.length}`)
+  fetchResumen()
   fetchPedidos(pagina.value)
 }
 
@@ -581,6 +639,7 @@ async function bulkRestore() {
   if (!confirm('¿Restaurar seleccionados?')) return
   const res = await axios.post('pedidos/bulk_restore/', { ids: seleccionados.value })
   alert(`Actualizados: ${res.data.updated}, Fallidos: ${res.data.failed.length}`)
+  fetchResumen()
   fetchPedidos(pagina.value)
 }
 
@@ -588,8 +647,10 @@ async function bulkDestroy() {
   if (!confirm('¿Eliminar definitivamente los seleccionados?')) return
   const res = await axios.post('pedidos/bulk_destroy/', { ids: seleccionados.value })
   alert(`Eliminados: ${res.data.updated}, Fallidos: ${res.data.failed.length}`)
+  fetchResumen()
   fetchPedidos(pagina.value)
 }
 
+fetchResumen()
 fetchPedidos()
 </script>

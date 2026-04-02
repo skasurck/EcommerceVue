@@ -4,7 +4,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.decorators import action
 from rest_framework.views import APIView
-from django.db.models import Sum, Avg
+from django.db.models import Sum, Avg, Count, Q
 from django.utils.dateparse import parse_date
 from django.utils import timezone
 from .models import Direccion, MetodoEnvio, Pedido, PedidoHistorial
@@ -326,6 +326,29 @@ class PedidoViewSet(viewsets.ModelViewSet):
             return Response({'detail': 'Debe estar en papelera para eliminar'}, status=status.HTTP_400_BAD_REQUEST)
         self.perform_destroy(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=['get'], permission_classes=[IsAdminOrSuperAdmin])
+    def resumen(self, request):
+        """Conteos por estado + papelera para la barra de resumen del admin."""
+        base = Pedido.objects.all()
+        estados = [
+            'iniciado', 'pendiente', 'pagado', 'confirmado',
+            'enviado', 'fallido', 'cancelado', 'en_disputa', 'contracargo',
+        ]
+        conteos = (
+            base.filter(papelera=False)
+            .values('estado')
+            .annotate(total=Count('id'))
+        )
+        por_estado = {row['estado']: row['total'] for row in conteos}
+        total_activos = sum(por_estado.values())
+        papelera = base.filter(papelera=True).count()
+        resultado = {
+            'todos': total_activos,
+            'papelera': papelera,
+            'estados': {e: por_estado.get(e, 0) for e in estados},
+        }
+        return Response(resultado)
 
 
 class ClienteSummaryView(APIView):
