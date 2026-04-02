@@ -26,7 +26,8 @@
           <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Recupera tu carrito y direcciones guardadas.</p>
         </div>
 
-        <form class="flex flex-col gap-3" @submit.prevent="onLogin" novalidate>
+        <!-- Paso 1: Credenciales -->
+        <form v-if="!needs2FA && !showForgotPassword" class="flex flex-col gap-3" @submit.prevent="onLogin" novalidate>
           <!-- Usuario -->
           <div class="relative">
             <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-400">
@@ -83,7 +84,116 @@
               Accediendo…
             </span>
           </button>
+
+          <!-- Link olvidé contraseña -->
+          <button type="button" @click="showForgotPassword = true"
+            class="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors text-center">
+            ¿Olvidaste tu contraseña?
+          </button>
         </form>
+
+        <!-- Paso 2: Verificación 2FA -->
+        <form v-else-if="needs2FA" class="flex flex-col gap-3" @submit.prevent="onVerify2FA" novalidate>
+          <div class="flex items-center gap-2 rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-500/20 px-3 py-2.5">
+            <svg class="h-4 w-4 shrink-0 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"/></svg>
+            <p class="text-xs text-amber-700 dark:text-amber-400">Ingresa el código de tu app autenticadora.</p>
+          </div>
+
+          <div class="relative">
+            <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-400">
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7.864 4.243A7.5 7.5 0 0119.5 10.5c0 2.92-.556 5.709-1.568 8.268M5.742 6.364A7.465 7.465 0 004.5 10.5a7.464 7.464 0 01-1.15 3.993m1.989 3.559A11.209 11.209 0 008.25 10.5a3.75 3.75 0 117.5 0c0 .527-.021 1.049-.064 1.565M12 10.5a14.94 14.94 0 01-3.6 9.75m6.633-4.596a18.666 18.666 0 01-2.485 5.33"/></svg>
+            </span>
+            <input
+              v-model="otpCode"
+              type="text"
+              inputmode="numeric"
+              maxlength="6"
+              autocomplete="one-time-code"
+              placeholder="Código 6 dígitos"
+              class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-2.5 pl-10 pr-4 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-cyan-500 focus:border-transparent transition tracking-widest"
+            />
+          </div>
+
+          <div v-if="loginError" class="flex items-center gap-2 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 px-3 py-2">
+            <svg class="h-3.5 w-3.5 shrink-0 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/></svg>
+            <p class="text-xs text-red-600 dark:text-red-400">{{ loginError }}</p>
+          </div>
+
+          <button
+            type="submit"
+            :disabled="loginLoading || otpCode.length !== 6"
+            class="w-full rounded-xl bg-slate-900 dark:bg-cyan-500 py-2.5 text-sm font-semibold text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-cyan-400 disabled:opacity-60 transition-colors shadow-sm"
+          >
+            <span v-if="!loginLoading">Verificar</span>
+            <span v-else class="flex items-center justify-center gap-2">
+              <svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+              Verificando…
+            </span>
+          </button>
+          <button type="button" @click="cancelar2FA"
+            class="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors text-center">
+            Volver al inicio de sesión
+          </button>
+        </form>
+
+        <!-- Paso: Recuperar contraseña -->
+        <div v-else-if="showForgotPassword" class="flex flex-col gap-3">
+          <div v-if="!forgotSent">
+            <p class="text-xs text-slate-500 dark:text-slate-400 mb-3">
+              Ingresa tu usuario o correo y te enviaremos instrucciones para restablecer tu contraseña.
+            </p>
+            <form class="flex flex-col gap-3" @submit.prevent="onForgotPassword" novalidate>
+              <div class="relative">
+                <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-400">
+                  <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"/></svg>
+                </span>
+                <input
+                  v-model="forgotIdentifier"
+                  type="text"
+                  required
+                  placeholder="Usuario o correo electrónico"
+                  class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-2.5 pl-10 pr-4 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-cyan-500 focus:border-transparent transition"
+                />
+              </div>
+
+              <div v-if="forgotError" class="flex items-center gap-2 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 px-3 py-2">
+                <svg class="h-3.5 w-3.5 shrink-0 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/></svg>
+                <p class="text-xs text-red-600 dark:text-red-400">{{ forgotError }}</p>
+              </div>
+
+              <button
+                type="submit"
+                :disabled="forgotLoading"
+                class="w-full rounded-xl bg-slate-900 dark:bg-cyan-500 py-2.5 text-sm font-semibold text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-cyan-400 disabled:opacity-60 transition-colors shadow-sm"
+              >
+                <span v-if="!forgotLoading">Enviar instrucciones</span>
+                <span v-else class="flex items-center justify-center gap-2">
+                  <svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+                  Enviando…
+                </span>
+              </button>
+              <button type="button" @click="showForgotPassword = false"
+                class="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors text-center">
+                Volver al inicio de sesión
+              </button>
+            </form>
+          </div>
+
+          <!-- Éxito: correo enviado -->
+          <div v-else class="flex flex-col items-center text-center gap-3 py-2">
+            <div class="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 dark:bg-emerald-500/10">
+              <svg class="h-6 w-6 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"/></svg>
+            </div>
+            <div>
+              <p class="font-semibold text-slate-900 dark:text-white text-sm">Revisa tu correo</p>
+              <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Si el usuario existe, recibirás instrucciones para restablecer tu contraseña.</p>
+            </div>
+            <button type="button" @click="showForgotPassword = false; forgotSent = false"
+              class="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">
+              Volver al inicio de sesión
+            </button>
+          </div>
+        </div>
       </section>
 
       <!-- ── REGISTER ───────────────────────────────────────────── -->
@@ -278,18 +388,71 @@ const showLoginPwd  = ref(false)
 const loginLoading  = ref(false)
 const loginError    = ref('')
 
+// 2FA
+const needs2FA   = ref(false)
+const twoFAChallenge = ref('')
+const otpCode    = ref('')
+
+// Recuperar contraseña
+const showForgotPassword = ref(false)
+const forgotIdentifier   = ref('')
+const forgotLoading      = ref(false)
+const forgotError        = ref('')
+const forgotSent         = ref(false)
+
 const onLogin = async () => {
   if (loginLoading.value) return
   loginLoading.value = true
   loginError.value = ''
   try {
-    await auth.login({ username: loginUsername.value, password: loginPassword.value })
+    const data = await auth.login({ username: loginUsername.value, password: loginPassword.value })
+    if (data?.requires_2fa) {
+      twoFAChallenge.value = data.challenge
+      needs2FA.value = true
+      return
+    }
     await carrito.cargar()
     emit('logged-in')
   } catch (err) {
     loginError.value = err.response?.status === 401 ? 'Usuario o contraseña incorrectos' : 'No se pudo iniciar sesión'
   } finally {
     loginLoading.value = false
+  }
+}
+
+const onVerify2FA = async () => {
+  if (loginLoading.value) return
+  loginLoading.value = true
+  loginError.value = ''
+  try {
+    await auth.loginWith2FA({ challenge: twoFAChallenge.value, otp: otpCode.value })
+    await carrito.cargar()
+    emit('logged-in')
+  } catch (err) {
+    loginError.value = err.response?.status === 401 || err.message ? (err.message || 'Código incorrecto') : 'No se pudo verificar'
+  } finally {
+    loginLoading.value = false
+  }
+}
+
+const cancelar2FA = () => {
+  needs2FA.value = false
+  twoFAChallenge.value = ''
+  otpCode.value = ''
+  loginError.value = ''
+}
+
+const onForgotPassword = async () => {
+  if (forgotLoading.value) return
+  forgotError.value = ''
+  forgotLoading.value = true
+  try {
+    await api.post('auth/password-reset/', { identifier: forgotIdentifier.value })
+    forgotSent.value = true
+  } catch {
+    forgotError.value = 'No se pudo enviar el correo. Intenta de nuevo.'
+  } finally {
+    forgotLoading.value = false
   }
 }
 

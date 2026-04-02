@@ -12,6 +12,8 @@ from django.db.models import Q
 from django.contrib.auth.password_validation import validate_password
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
+from django.core.mail import send_mail
+from django.conf import settings
 
 from .serializers import (
     RegisterSerializer,
@@ -471,3 +473,80 @@ class Status2FAView(APIView):
     def get(self, request):
         activo = TOTPDevice.objects.filter(user=request.user, confirmed=True).exists()
         return Response({'activo': activo, 'es_admin': _is_admin_user(request.user)})
+
+
+# ─── Recuperación de contraseña ───────────────────────────────────────────────
+
+_RESET_SALT = 'password-reset'
+_RESET_MAX_AGE = 1800  # 30 minutos
+
+
+class PasswordResetRequestView(APIView):
+    """Solicita restablecimiento de contraseña — envía email con token firmado."""
+    permission_classes = [AllowAny]
+    throttle_classes = [LoginRateThrottle]
+
+    def post(self, request):
+        identifier = request.data.get('identifier', '').strip()
+        if not identifier:
+            return Response({'detail': 'Usuario o correo requerido.'}, status=400)
+
+        user = (
+            User.objects.filter(email__iexact=identifier).first()
+            or User.objects.filter(username__iexact=identifier).first()
+        )
+
+        if user and user.email:
+            token = signing.dumps({'user_id': user.id}, salt=_RESET_SALT)
+            frontend_url = getattr(settings, 'FRONTEND_BASE_URL', 'http://localhost:5173')
+            reset_url = f'{frontend_url}/reset-password?token={token}'
+            send_mail(
+                subject='Recuperación de contraseña — Mktska',
+                message=(
+                    f'Hola {user.username},\n\n'
+                    f'Recibimos una solicitud para restablecer tu contraseña.\n\n'
+                    f'Haz clic en el siguiente enlace (válido por 30 minutos):\n{reset_url}\n\n'
+                    f'Si no solicitaste esto, ignora este correo.\n\n'
+                    f'— El equipo de Mktska'
+                ),
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[user.email],
+                fail_silently=True,
+            )
+
+        # Respuesta genérica para evitar enumeración de usuarios
+        return Response({'detail': 'Si el usuario existe, recibirás un correo con instrucciones.'})
+
+
+class PasswordResetConfirmView(APIView):
+    """Valida el token del email y actualiza la contraseña."""
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        token = request.data.get('token', '').strip()
+        new_password = request.data.get('new_password', '')
+
+        if not token or not new_password:
+            return Response({'detail': 'token y new_password son requeridos.'}, status=400)
+
+        try:
+            data = signing.loads(token, salt=_RESET_SALT, max_age=_RESET_MAX_AGE)
+        except signing.SignatureExpired:
+            return Response({'detail': 'El enlace expiró. Solicita uno nuevo.'}, status=400)
+        except signing.BadSignature:
+            return Response({'detail': 'Token inválido.'}, status=400)
+
+        try:
+            user = User.objects.get(id=data['user_id'])
+        except User.DoesNotExist:
+            return Response({'detail': 'Usuario no encontrado.'}, status=404)
+
+        try:
+            validate_password(new_password, user)
+        except Exception as e:
+            msgs = getattr(e, 'messages', [str(e)])
+            return Response({'detail': msgs}, status=400)
+
+        user.set_password(new_password)
+        user.save()
+        return Response({'detail': 'Contraseña actualizada. Ya puedes iniciar sesión.'})
