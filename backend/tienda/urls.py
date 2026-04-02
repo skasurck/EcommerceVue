@@ -18,6 +18,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.contrib.sitemaps.views import sitemap
 from suppliers.views import supplier_status
 
 from rest_framework_simplejwt.views import (
@@ -26,11 +27,21 @@ from rest_framework_simplejwt.views import (
 )
 from productos.views import editar_producto
 from productos.seo import producto_seo_view
+from .sitemaps import StaticPagesSitemap, ProductoSitemap, CategoriaSitemap, MarcaSitemap
+
+
+sitemaps = {
+    'static': StaticPagesSitemap,
+    'productos': ProductoSitemap,
+    'categorias': CategoriaSitemap,
+    'marcas': MarcaSitemap,
+}
 
 urlpatterns = [
     path('mktska-panel-x7k2/admin/', admin.site.urls),
     path('productos/editar/<int:pk>/', editar_producto, name='editar_producto'),
     path('producto/<int:pk>/', producto_seo_view, name='producto_seo'),
+    path('api/sitemap.xml', sitemap, {'sitemaps': sitemaps}, name='django.contrib.sitemaps.views.sitemap'),
     path('api/', include('productos.urls')),
     path('api/', include('usuarios.urls')),
     path('api/', include('carrito.urls')),
