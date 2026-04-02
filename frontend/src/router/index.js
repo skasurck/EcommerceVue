@@ -231,7 +231,8 @@ const routes = [
   {
     path: '/mis-pedidos',
     name: 'MisPedidos',
-    component: () => import('@/views/MisPedidos.vue')
+    component: () => import('@/views/MisPedidos.vue'),
+    meta: { requiresAuth: true }
   },
   {
     path: '/mis-pedidos/:id',

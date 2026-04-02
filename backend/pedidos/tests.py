@@ -193,6 +193,36 @@ class PedidoAPITests(APITestCase):
         ids = {item['id'] for item in resultados}
         self.assertEqual(ids, {propio.id, ajeno.id})
 
+    def test_mis_pedidos_public_por_id_requiere_autenticacion(self):
+        pedido = self._crear_pedido_simple(self.user, email='tester@example.com')
+        self.client.force_authenticate(user=None)
+
+        response = self.client.get(reverse('pedido-public', kwargs={'pedido_id': pedido.id}))
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_mis_pedidos_public_por_id_bloquea_pedido_ajeno(self):
+        User = get_user_model()
+        otro = User.objects.create_user(username='other2', password='pass1234')
+        pedido_ajeno = self._crear_pedido_simple(otro, email='other2@example.com')
+
+        response = self.client.get(reverse('pedido-public', kwargs={'pedido_id': pedido_ajeno.id}))
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_mis_pedidos_por_preference_bloquea_pedido_ajeno(self):
+        User = get_user_model()
+        otro = User.objects.create_user(username='other3', password='pass1234')
+        pedido_ajeno = self._crear_pedido_simple(otro, email='other3@example.com')
+        pedido_ajeno.mercadopago_preference_id = 'pref-ajena-123'
+        pedido_ajeno.save(update_fields=['mercadopago_preference_id'])
+
+        response = self.client.get(
+            reverse('pedido-by-preference', kwargs={'preference_id': pedido_ajeno.mercadopago_preference_id})
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
 
 class DireccionUserPopulateTests(APITestCase):
     def setUp(self):

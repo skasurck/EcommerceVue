@@ -4,18 +4,28 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.decorators import action
 from rest_framework.views import APIView
-from django.db.models import Sum, Avg, Count, Q
+from django.db.models import Sum, Avg, Count, Q, F
+from django.db.models.functions import TruncDate
 from django.utils.dateparse import parse_date
 from django.utils import timezone
-from .models import Direccion, MetodoEnvio, Pedido, PedidoHistorial
+import datetime
+from .models import Direccion, MetodoEnvio, Pedido, PedidoHistorial, PedidoItem
 from .serializers import DireccionSerializer, MetodoEnvioSerializer, PedidoSerializer, PedidoItemSerializer
 from usuarios.permissions import IsAdminOrSuperAdmin
 from tienda.throttles import PedidoCreateRateThrottle
 
 
 class PedidoByPreferenceView(APIView):
-    """Devuelve un resumen público y seguro del pedido para la página de gracias."""
-    permission_classes = [permissions.AllowAny]
+    """Devuelve el resumen del pedido solo a su dueño autenticado o a un admin."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def _user_can_access_order(self, user, pedido):
+        perfil = getattr(user, "perfil", None)
+        if perfil and perfil.rol in ("admin", "super_admin"):
+            return True
+        if user.is_staff or user.is_superuser:
+            return True
+        return pedido.user_id == user.id
 
     def _serialize_public_order(self, request, pedido):
         detalles = PedidoItemSerializer(
@@ -41,20 +51,25 @@ class PedidoByPreferenceView(APIView):
             pedido = Pedido.objects.select_related('cupon').prefetch_related('items__producto').get(
                 mercadopago_preference_id=preference_id
             )
+            if not self._user_can_access_order(request.user, pedido):
+                return Response({"detail": "No tienes permiso para ver este pedido"}, status=status.HTTP_403_FORBIDDEN)
             return Response(self._serialize_public_order(request, pedido))
         except Pedido.DoesNotExist:
             return Response({"detail": "Pedido no encontrado"}, status=status.HTTP_404_NOT_FOUND)
 
 
 class PedidoPublicView(APIView):
-    """Resumen público mínimo para reconciliar el retorno desde Mercado Pago."""
-    permission_classes = [permissions.AllowAny]
+    """Devuelve el resumen del pedido solo a su dueño autenticado o a un admin."""
+    permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, pedido_id, *args, **kwargs):
         try:
             pedido = Pedido.objects.select_related('cupon').prefetch_related('items__producto').get(pk=pedido_id)
         except Pedido.DoesNotExist:
             return Response({"detail": "Pedido no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+
+        if not PedidoByPreferenceView()._user_can_access_order(request.user, pedido):
+            return Response({"detail": "No tienes permiso para ver este pedido"}, status=status.HTTP_403_FORBIDDEN)
 
         payload = PedidoByPreferenceView()._serialize_public_order(request, pedido)
         return Response(payload)
@@ -349,6 +364,128 @@ class PedidoViewSet(viewsets.ModelViewSet):
             'estados': {e: por_estado.get(e, 0) for e in estados},
         }
         return Response(resultado)
+
+    @action(detail=False, methods=['get'], permission_classes=[IsAdminOrSuperAdmin])
+    def estadisticas(self, request):
+        """Dashboard de estadísticas: ingresos, pedidos, top productos y categorías."""
+        hoy = timezone.now().date()
+        desde_str = request.query_params.get('desde')
+        hasta_str = request.query_params.get('hasta')
+
+        desde = parse_date(desde_str) if desde_str else hoy - datetime.timedelta(days=29)
+        hasta = parse_date(hasta_str) if hasta_str else hoy
+
+        # Estados que generan ingresos
+        ESTADOS_VENTA = ['pagado', 'confirmado', 'enviado']
+
+        qs = Pedido.objects.filter(
+            estado__in=ESTADOS_VENTA,
+            papelera=False,
+            creado__date__gte=desde,
+            creado__date__lte=hasta,
+        )
+
+        # Métricas del período actual
+        agg = qs.aggregate(
+            ventas_totales=Sum('total'),
+            ventas_netas=Sum('subtotal'),
+            envio_total=Sum('costo_envio'),
+            descuento_total=Sum('descuento'),
+            total_pedidos=Count('id'),
+        )
+        ventas_totales = float(agg['ventas_totales'] or 0)
+        ventas_netas = float(agg['ventas_netas'] or 0)
+        envio_total = float(agg['envio_total'] or 0)
+        total_pedidos = agg['total_pedidos'] or 0
+        valor_promedio = round(ventas_totales / total_pedidos, 2) if total_pedidos else 0
+        productos_vendidos = PedidoItem.objects.filter(pedido__in=qs).aggregate(t=Sum('cantidad'))['t'] or 0
+
+        # Período anterior (mismo número de días)
+        delta = (hasta - desde).days + 1
+        desde_ant = desde - datetime.timedelta(days=delta)
+        hasta_ant = desde - datetime.timedelta(days=1)
+        qs_ant = Pedido.objects.filter(
+            estado__in=ESTADOS_VENTA,
+            papelera=False,
+            creado__date__gte=desde_ant,
+            creado__date__lte=hasta_ant,
+        )
+        agg_ant = qs_ant.aggregate(
+            ventas_totales=Sum('total'),
+            ventas_netas=Sum('subtotal'),
+            envio_total=Sum('costo_envio'),
+            total_pedidos=Count('id'),
+        )
+        vt_ant = float(agg_ant['ventas_totales'] or 0)
+        vn_ant = float(agg_ant['ventas_netas'] or 0)
+        env_ant = float(agg_ant['envio_total'] or 0)
+        tp_ant = agg_ant['total_pedidos'] or 0
+        vp_ant = round(vt_ant / tp_ant, 2) if tp_ant else 0
+        pv_ant = PedidoItem.objects.filter(pedido__in=qs_ant).aggregate(t=Sum('cantidad'))['t'] or 0
+
+        def pct(nuevo, viejo):
+            if viejo == 0:
+                return None
+            return round((nuevo - viejo) / viejo * 100)
+
+        # Por día
+        por_dia = list(
+            qs.annotate(fecha=TruncDate('creado'))
+            .values('fecha')
+            .annotate(ventas=Sum('total'), pedidos=Count('id'))
+            .order_by('fecha')
+            .values('fecha', 'ventas', 'pedidos')
+        )
+        for row in por_dia:
+            row['fecha'] = str(row['fecha'])
+            row['ventas'] = float(row['ventas'] or 0)
+
+        # Top productos
+        top_productos = list(
+            PedidoItem.objects.filter(pedido__in=qs)
+            .values(nombre=F('producto__nombre'), slug=F('producto__slug'))
+            .annotate(articulos=Sum('cantidad'), ventas_netas=Sum('subtotal'))
+            .order_by('-articulos')[:10]
+            .values('nombre', 'slug', 'articulos', 'ventas_netas')
+        )
+        for row in top_productos:
+            row['ventas_netas'] = float(row['ventas_netas'] or 0)
+
+        # Top categorías (usando category_ai_main como campo plano)
+        top_categorias = list(
+            PedidoItem.objects.filter(pedido__in=qs)
+            .exclude(producto__category_ai_main='')
+            .exclude(producto__category_ai_main__isnull=True)
+            .values(nombre=F('producto__category_ai_main'))
+            .annotate(articulos=Sum('cantidad'), ventas_netas=Sum('subtotal'))
+            .order_by('-articulos')[:10]
+            .values('nombre', 'articulos', 'ventas_netas')
+        )
+        for row in top_categorias:
+            row['ventas_netas'] = float(row['ventas_netas'] or 0)
+
+        return Response({
+            'periodo': {'desde': str(desde), 'hasta': str(hasta)},
+            'metricas': {
+                'ventas_totales': ventas_totales,
+                'ventas_netas': ventas_netas,
+                'envio_total': envio_total,
+                'total_pedidos': total_pedidos,
+                'valor_promedio': valor_promedio,
+                'productos_vendidos': int(productos_vendidos),
+            },
+            'vs_anterior': {
+                'ventas_totales': pct(ventas_totales, vt_ant),
+                'ventas_netas': pct(ventas_netas, vn_ant),
+                'envio_total': pct(envio_total, env_ant),
+                'total_pedidos': pct(total_pedidos, tp_ant),
+                'valor_promedio': pct(valor_promedio, vp_ant),
+                'productos_vendidos': pct(int(productos_vendidos), int(pv_ant)),
+            },
+            'por_dia': por_dia,
+            'top_productos': top_productos,
+            'top_categorias': top_categorias,
+        })
 
 
 class ClienteSummaryView(APIView):
