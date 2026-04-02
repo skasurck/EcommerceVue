@@ -3,15 +3,19 @@
 
     <!-- Header -->
     <div class="text-center space-y-1">
-      <h1 class="text-xl font-bold text-slate-900 dark:text-white">¿Cómo deseas continuar?</h1>
+      <h1 class="text-2xl font-bold text-slate-900 dark:text-white">¿Cómo deseas continuar?</h1>
       <p class="text-sm text-slate-500 dark:text-slate-400">Elige una opción para finalizar tu compra.</p>
     </div>
 
-    <!-- 3 columns on md, stacked on mobile -->
-    <div class="grid gap-4 md:grid-cols-3">
+    <!-- Grid: 1 col mobile · 2 cols tablet · 3 cols desktop -->
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 
       <!-- ── LOGIN ─────────────────────────────────────────────── -->
-      <section class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm flex flex-col gap-4">
+      <section class="rounded-2xl border-2 border-slate-900 dark:border-cyan-500 bg-white dark:bg-slate-900 p-5 shadow-md flex flex-col gap-4 relative overflow-hidden">
+        <!-- Badge "Recomendado" -->
+        <span class="absolute top-3 right-3 rounded-full bg-slate-900 dark:bg-cyan-500 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white dark:text-slate-900">
+          Recomendado
+        </span>
         <div>
           <div class="mb-2 inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800">
             <svg class="h-5 w-5 text-slate-600 dark:text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -83,7 +87,7 @@
       </section>
 
       <!-- ── REGISTER ───────────────────────────────────────────── -->
-      <section class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm flex flex-col gap-4">
+      <section class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm flex flex-col gap-4 relative overflow-hidden">
 
         <!-- Success state -->
         <div v-if="registerSuccess" class="flex flex-1 flex-col items-center justify-center text-center py-4 gap-3">
@@ -225,32 +229,32 @@
       </section>
 
       <!-- ── GUEST ──────────────────────────────────────────────── -->
-      <section class="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 p-5 flex flex-col gap-4">
-        <div>
-          <div class="mb-2 inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-200 dark:bg-slate-800">
+      <!-- sm: franja horizontal full-width (col-span-2) · lg: card normal (col-span-1) -->
+      <section class="sm:col-span-2 lg:col-span-1 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 p-5 flex flex-col sm:flex-row lg:flex-col items-start sm:items-center lg:items-start gap-4">
+
+        <!-- Info -->
+        <div class="flex items-start sm:items-center lg:items-start gap-3 flex-1 min-w-0">
+          <div class="shrink-0 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-slate-200 dark:bg-slate-800">
             <svg class="h-5 w-5 text-slate-500 dark:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M15.182 15.182a4.5 4.5 0 01-6.364 0M21 12a9 9 0 11-18 0 9 9 0 0118 0zM9.75 9.75c0 .414-.168.75-.375.75S9 10.164 9 9.75 9.168 9 9.375 9s.375.336.375.75zm-.375 0h.008v.015h-.008V9.75zm5.625 0c0 .414-.168.75-.375.75s-.375-.336-.375-.75.168-.75.375-.75.375.336.375.75zm-.375 0h.008v.015h-.008V9.75z"/>
             </svg>
           </div>
-          <h2 class="text-base font-semibold text-slate-900 dark:text-white">Continuar como invitado</h2>
-          <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-            Realiza tu compra sin crear cuenta. Tus artículos se mantienen reservados.
-          </p>
+          <div class="min-w-0">
+            <h2 class="text-base font-semibold text-slate-900 dark:text-white">Continuar como invitado</h2>
+            <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+              Sin cuenta. Rápido y sin registros. Puedes crear tu cuenta después.
+            </p>
+          </div>
         </div>
 
-        <div class="flex-1"></div>
-
+        <!-- Button -->
         <button
           type="button"
-          class="w-full rounded-xl border-2 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:border-slate-500 dark:hover:border-slate-400 hover:text-slate-900 dark:hover:text-white transition-all"
+          class="shrink-0 w-full sm:w-auto lg:w-full rounded-xl border-2 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-5 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:border-slate-500 dark:hover:border-slate-400 hover:text-slate-900 dark:hover:text-white transition-all"
           @click="emit('guest')"
         >
           Seguir como invitado
         </button>
-
-        <p class="text-xs text-slate-400 dark:text-slate-500 text-center">
-          Podrás crear una cuenta después para guardar tu información.
-        </p>
       </section>
     </div>
   </div>
