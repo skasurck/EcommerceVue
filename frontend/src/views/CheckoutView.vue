@@ -1,5 +1,5 @@
 <template>
-  <div class="max-w-xl mx-auto pt-10 px-4">
+  <div class="mx-auto pt-10 px-4 transition-all duration-300" :class="showSteps ? 'max-w-xl' : 'max-w-4xl'">
 
     <!-- Cargando -->
     <div v-if="loading" class="flex justify-center py-20">
