@@ -128,9 +128,47 @@
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           <!-- Left: gallery -->
           <div class="lg:col-span-6">
-            <div class="flex gap-3">
+
+            <!-- ── Carrusel móvil (< sm) ── -->
+            <div class="sm:hidden">
+              <div
+                ref="mobileCarousel"
+                class="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide rounded-xl border bg-white"
+                style="scroll-behavior: smooth; -webkit-overflow-scrolling: touch;"
+                @scroll.passive="onMobileScroll"
+              >
+                <div
+                  v-for="(t, i) in thumbs"
+                  :key="i"
+                  class="shrink-0 w-full snap-center flex items-center justify-center aspect-square"
+                >
+                  <img
+                    :src="t"
+                    :alt="`Imagen ${i + 1}`"
+                    class="w-full h-full object-contain cursor-zoom-in"
+                    @click="selectedIndex = i; openLightbox()"
+                  />
+                </div>
+              </div>
+              <!-- Dots -->
+              <div v-if="thumbs.length > 1" class="flex justify-center gap-1.5 mt-2">
+                <button
+                  v-for="(_, i) in thumbs"
+                  :key="i"
+                  type="button"
+                  class="h-2 rounded-full transition-all duration-200"
+                  :class="selectedIndex === i ? 'w-5 bg-sky-600' : 'w-2 bg-gray-300'"
+                  @click="scrollMobileTo(i)"
+                  :aria-label="`Imagen ${i + 1}`"
+                />
+              </div>
+              <button type="button" class="mt-2 block mx-auto text-center text-xs text-sky-700 hover:underline" @click="openLightbox">Haz clic para una vista completa</button>
+            </div>
+
+            <!-- ── Galería desktop (sm+) ── -->
+            <div class="hidden sm:flex gap-3">
               <!-- Thumbs -->
-              <div class="hidden sm:flex flex-col gap-2 w-16 overflow-auto max-h-[420px] pr-1">
+              <div class="flex flex-col gap-2 w-16 overflow-auto max-h-[420px] pr-1">
                 <button
                   v-for="(t, i) in thumbs"
                   :key="i"
@@ -148,6 +186,7 @@
                 <button type="button" class="mt-2 block mx-auto text-center text-xs text-sky-700 hover:underline" @click="openLightbox">Haz clic para una vista completa</button>
               </div>
             </div>
+
           </div>
 
           <!-- Middle: info -->
@@ -1027,6 +1066,23 @@ const selectedIndex = ref(0)
 const selectedImage = computed(() => thumbs.value[selectedIndex.value] || null)
 watch(() => thumbs.value, () => { selectedIndex.value = 0 }, { immediate: true })
 
+// Carrusel móvil
+const mobileCarousel = ref(null)
+
+function onMobileScroll() {
+  const el = mobileCarousel.value
+  if (!el) return
+  const index = Math.round(el.scrollLeft / el.offsetWidth)
+  if (index !== selectedIndex.value) selectedIndex.value = index
+}
+
+function scrollMobileTo(i) {
+  const el = mobileCarousel.value
+  if (!el) return
+  selectedIndex.value = i
+  el.scrollTo({ left: el.offsetWidth * i, behavior: 'smooth' })
+}
+
 // Lightbox controls
 const lightboxOpen = ref(false)
 const openLightbox = () => { if (thumbs.value.length) lightboxOpen.value = true }
@@ -1175,3 +1231,9 @@ const productoId = computed(() => producto.value?.id)
 const isFavorito = computed(() => auth.isAuthenticated && wishlist.esFavorito(productoId.value))
 const toggleFav = () => productoId.value && wishlist.toggle(productoId.value)
 </script>
+
+<style scoped>
+/* Ocultar scrollbar del carrusel móvil */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+</style>
