@@ -14,5 +14,8 @@ export const crearDireccion = (data) => api.post('direcciones/', data)
 export const actualizarDireccion = (id, data) => api.put(`direcciones/${id}/`, data)
 export const eliminarDireccion = (id) => api.delete(`direcciones/${id}/`)
 
-export const obtenerPedidos = (page = 1) => api.get('pedidos/', { params: { page } })
+export const obtenerPedidos = (params = {}) => {
+  const p = typeof params === 'number' ? { page: params } : params
+  return api.get('pedidos/', { params: p })
+}
 export const obtenerPedido = (id) => api.get(`pedidos/${id}/`)

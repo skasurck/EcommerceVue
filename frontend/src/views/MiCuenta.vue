@@ -85,6 +85,47 @@
         />
       </div>
 
+      <!-- ── Califica tus compras (solo si hay productos pendientes) ── -->
+      <RouterLink
+        v-if="pedidosParaCalificar.length"
+        to="/mis-pedidos"
+        class="block rounded-2xl border-2 border-amber-400 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/20 dark:border-amber-600 p-6 shadow-sm hover:shadow-md transition-shadow group"
+      >
+        <div class="flex items-center gap-5">
+          <!-- Icono animado -->
+          <div class="shrink-0 flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/40 border-2 border-amber-300 dark:border-amber-700 group-hover:scale-105 transition-transform">
+            <span class="text-3xl">⭐</span>
+          </div>
+
+          <div class="flex-1 min-w-0">
+            <h2 class="text-lg font-bold text-amber-900 dark:text-amber-200">¡Califica tu compra!</h2>
+            <p class="text-sm text-amber-700 dark:text-amber-400 mt-0.5">
+              Tienes
+              <span class="font-semibold">{{ totalProductosPorCalificar }} producto{{ totalProductosPorCalificar !== 1 ? 's' : '' }}</span>
+              sin calificar. Tu opinión ayuda a otros compradores.
+            </p>
+            <!-- Mini vista previa de productos -->
+            <div class="mt-3 flex items-center gap-2 flex-wrap">
+              <img
+                v-for="(img, i) in previewImagenes"
+                :key="i"
+                :src="img"
+                class="h-10 w-10 rounded-lg object-cover border-2 border-white dark:border-slate-700 shadow-sm"
+              />
+              <span v-if="totalProductosPorCalificar > previewImagenes.length"
+                class="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                +{{ totalProductosPorCalificar - previewImagenes.length }} más
+              </span>
+            </div>
+          </div>
+
+          <!-- Flecha -->
+          <svg class="h-6 w-6 text-amber-500 shrink-0 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+          </svg>
+        </div>
+      </RouterLink>
+
       <!-- Cerrar sesión -->
       <div class="pt-2">
         <button
@@ -104,12 +145,13 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter, RouterLink } from 'vue-router'
 import AccountTile from '@/components/AccountTile.vue'
 import placeholderImg from '@/assets/profile-placeholder.svg'
-import { obtenerPerfil, actualizarPerfil, subirFotoPerfil } from '@/services/account'
+import { obtenerPerfil, actualizarPerfil, subirFotoPerfil, obtenerPedidos } from '@/services/account'
 import { useAuthStore } from '@/stores/auth'
+import axios from '@/axios'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -119,6 +161,56 @@ const fotoUrl = ref(placeholderImg)
 const fileInput = ref(null)
 const guardando = ref(false)
 const guardadoOk = ref(false)
+
+// ── Productos sin calificar ──
+const pedidosParaCalificar = ref([])   // pedidos que tienen items sin reseña
+const productosParaCalificar = ref([]) // lista plana de items sin reseña
+
+const totalProductosPorCalificar = computed(() => productosParaCalificar.value.length)
+
+const previewImagenes = computed(() =>
+  productosParaCalificar.value
+    .map(it => it.producto_imagen)
+    .filter(Boolean)
+    .slice(0, 5)
+)
+
+const ESTADOS_CALIFICABLES = ['pagado', 'confirmado', 'enviado', 'entregado']
+
+async function detectarProductosSinCalificar() {
+  try {
+    // 1. Traer pedidos elegibles (máx 20 para no sobrecargar)
+    const { data } = await obtenerPedidos({ page: 1, page_size: 20 })
+    const lista = Array.isArray(data) ? data : (data.results ?? [])
+    const elegibles = lista.filter(p => ESTADOS_CALIFICABLES.includes(p.estado))
+    if (!elegibles.length) return
+
+    // 2. Recopilar IDs únicos de productos
+    const allItems = elegibles.flatMap(p => p.detalles ?? [])
+    const productoIds = [...new Set(allItems.map(it => it.producto).filter(Boolean))]
+    if (!productoIds.length) return
+
+    // 3. Traer reseñas propias del usuario para esos productos
+    const res = await axios.get(`resenas/?productos=${productoIds.join(',')}&mias=1`)
+    const misResenas = Array.isArray(res.data?.results) ? res.data.results : (res.data || [])
+    const resenadoIds = new Set(misResenas.map(r => r.producto))
+
+    // 4. Filtrar items sin reseña (únicos por productoId)
+    const vistos = new Set()
+    const sinCalificar = []
+    for (const it of allItems) {
+      if (it.producto && !resenadoIds.has(it.producto) && !vistos.has(it.producto)) {
+        vistos.add(it.producto)
+        sinCalificar.push(it)
+      }
+    }
+
+    productosParaCalificar.value = sinCalificar
+    pedidosParaCalificar.value = elegibles.filter(p =>
+      (p.detalles ?? []).some(it => it.producto && !resenadoIds.has(it.producto))
+    )
+  } catch { /* silencioso */ }
+}
 
 const inputClass = 'w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition'
 
@@ -153,5 +245,8 @@ const onFotoChange = async (e) => {
   fotoUrl.value = data.foto_url
 }
 
-onMounted(cargarDatos)
+onMounted(() => {
+  cargarDatos()
+  detectarProductosSinCalificar()
+})
 </script>
