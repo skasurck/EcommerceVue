@@ -257,23 +257,22 @@ const loadPendingOrder = () => {
   } catch { /* */ }
 }
 
-// Cancela silenciosamente un pedido iniciado y limpia el estado pendiente
-const autoCancelPendingOrder = async (pedidoId) => {
-  try {
-    await cancelarPedidoMP(pedidoId)
-  } catch { /* ya estaba cancelado o no existe */ }
+// Cancela silenciosamente un pedido en background, sin bloquear la UI
+const autoCancelPendingOrder = (pedidoId) => {
+  // Limpiar UI inmediatamente para que el usuario vea el checkout limpio
   clearPendingOrder()
   creatingPreference.value = false
+  // Cancelar en background (fire-and-forget, errores son ignorados)
+  cancelarPedidoMP(pedidoId).catch(() => {})
 }
 
 // Restauración desde bfcache (usuario presionó Atrás desde la página de MP)
-const handlePageShow = async (event) => {
+const handlePageShow = (event) => {
   if (event.persisted) {
     creatingPreference.value = false
     loadPendingOrder()
     if (pendingOrder.value?.pedidoId) {
-      await autoCancelPendingOrder(pendingOrder.value.pedidoId)
-      await carrito.cargar()
+      autoCancelPendingOrder(pendingOrder.value.pedidoId)
     }
   }
 }
@@ -290,13 +289,12 @@ const cancelPendingOrder = async () => {
   await carrito.cargar()
 }
 
-onMounted(async () => {
+onMounted(() => {
   window.addEventListener('pageshow', handlePageShow)
   loadPendingOrder()
   // Si hay un pedido pendiente al montar (reload completo tras regresar de MP), cancelarlo
   if (pendingOrder.value?.pedidoId) {
-    await autoCancelPendingOrder(pendingOrder.value.pedidoId)
-    await carrito.cargar()
+    autoCancelPendingOrder(pendingOrder.value.pedidoId)
   }
 })
 onBeforeUnmount(() => {

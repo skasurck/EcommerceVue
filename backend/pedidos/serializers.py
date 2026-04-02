@@ -163,6 +163,18 @@ class PedidoSerializer(serializers.ModelSerializer):
         if validated_data.get('metodo_pago') == 'mercadopago' and 'estado' not in validated_data:
             validated_data['estado'] = 'iniciado'
 
+        # Para pedidos de MP desde el carrito:
+        # - El carrito ya hizo stock -= cantidad al agregar.
+        # - El carrito NO se limpia hasta que el pago sea confirmado.
+        # - Marcamos stock_restaurado=True para que Pedido.save() NO restaure
+        #   stock al cancelar: el carrito sigue siendo dueño de la reserva
+        #   y la libera cuando expire o el usuario vacíe el carrito.
+        # Para pedidos de transferencia desde el carrito:
+        # - El carrito SÍ se limpia al crear → el pedido hereda la reserva.
+        # - stock_restaurado=False (default) permite que el modelo restaure al cancelar.
+        if items_data is None and validated_data.get('metodo_pago') == 'mercadopago':
+            validated_data['stock_restaurado'] = True
+
         cart = None
         items_from_cart = items_data is None
         if items_from_cart:
@@ -272,11 +284,7 @@ class PedidoSerializer(serializers.ModelSerializer):
             pedido.total = subtotal - descuento + metodo_envio.costo
             pedido.save(update_fields=['cupon', 'subtotal', 'descuento', 'costo_envio', 'total'])
 
-            # Limpiar el carrito siempre que el pedido venga del carrito.
-            # clear_cart elimina los items SIN restaurar stock, transfiriendo
-            # la propiedad de la reserva al pedido (stock_restaurado=False).
-            # Si el pago falla, Pedido.save() restaura el stock correctamente.
-            if cart and items_from_cart:
+            if cart and pedido.metodo_pago != 'mercadopago':
                 clear_cart(cart)
 
             return pedido
