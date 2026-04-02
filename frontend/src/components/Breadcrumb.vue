@@ -38,7 +38,7 @@ const crumbs = computed(() => {
   const map = {
     productos:        [home, tienda],
     busqueda:         [home, { label: route.query.q ? `Búsqueda: "${route.query.q}"` : 'Búsqueda' }],
-    categoria:        [home, tienda, { label: dyn || String(route.params.categoriaId) }],
+    categoria:        [home, tienda, { label: dyn || String(route.params.categoriaSlug) }],
     marca:            [home, tienda, { label: dyn || String(route.params.marcaId) }],
     producto:         [home, tienda, { label: dyn || '…' }],
     carrito:          [home, { label: 'Carrito', to: '/carrito' }],

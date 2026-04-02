@@ -43,7 +43,7 @@
         <RouterLink
           v-for="cat in visibleCategories"
           :key="cat.id"
-          :to="{ name: 'categoria', params: { categoriaId: cat.id } }"
+          :to="{ name: 'categoria', params: { categoriaSlug: cat.slug || cat.id } }"
           class="group relative flex flex-col overflow-hidden rounded-2xl border bg-white dark:bg-slate-900/80
                  border-slate-200 dark:border-slate-800
                  transition-all duration-300 hover:-translate-y-1

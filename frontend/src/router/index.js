@@ -262,7 +262,7 @@ const routes = [
     component: () => import('@/views/ResultadosBusqueda.vue')
   },
   {
-    path: '/categoria/:categoriaId',
+    path: '/categoria/:categoriaSlug',
     name: 'categoria',
     component: () => import('@/views/CategoriaView.vue')
   },

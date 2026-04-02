@@ -213,15 +213,26 @@
             >
               <span class="font-semibold text-gray-800">Categorías:</span>
               <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <template v-for="(cat, idx) in categoryBreadcrumb" :key="idx">
+                <template v-for="(cat, idx) in categoryBreadcrumb" :key="cat.slug || cat.id || `${cat.name}-${idx}`">
+                  <RouterLink
+                    v-if="cat.slug"
+                    :to="{ name: 'categoria', params: { categoriaSlug: cat.slug } }"
+                    :class="[
+                      'inline-flex items-center rounded-full px-2 py-1 transition-colors',
+                      idx === categoryBreadcrumb.length - 1
+                        ? 'bg-blue-50 border border-blue-200 text-blue-800 hover:bg-blue-100'
+                        : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                    ]"
+                  >{{ cat.name }}</RouterLink>
                   <span
+                    v-else
                     :class="[
                       'inline-flex items-center rounded-full px-2 py-1',
                       idx === categoryBreadcrumb.length - 1
                         ? 'bg-blue-50 border border-blue-200 text-blue-800'
                         : 'bg-gray-100'
                     ]"
-                  >{{ cat }}</span>
+                  >{{ cat.name }}</span>
                   <span v-if="idx < categoryBreadcrumb.length - 1" class="text-gray-400">&gt;</span>
                 </template>
               </div>
@@ -596,6 +607,22 @@ const normalizeCategoryName = (val) => {
   return raw
 }
 
+const normalizeCategoryEntry = (val) => {
+  if (val == null) return null
+  if (typeof val === 'object' && !Array.isArray(val)) {
+    const name = normalizeCategoryName(val.nombre ?? val.name ?? val.titulo ?? val.title)
+    if (!name) return null
+    return {
+      id: val.id ?? val.pk ?? null,
+      slug: val.slug ?? null,
+      name,
+    }
+  }
+  const name = normalizeCategoryName(val)
+  if (!name) return null
+  return { id: null, slug: null, name }
+}
+
 const categoryBreadcrumb = computed(() => {
   const currentProduct = p.value
   if (!currentProduct) return []
@@ -604,19 +631,19 @@ const categoryBreadcrumb = computed(() => {
 
   // Prioridad 0: Ruta completa entregada por la API (incluye padres/hijos)
   if (Array.isArray(currentProduct.categoria_ruta) && currentProduct.categoria_ruta.length > 0) {
-    path = currentProduct.categoria_ruta.map((cat) => normalizeCategoryName(cat.nombre ?? cat)).filter(Boolean)
+    path = currentProduct.categoria_ruta.map(normalizeCategoryEntry).filter(Boolean)
   }
   // Prioridad 1: Usar el array de categorías detallado si existe
   else if (Array.isArray(currentProduct.categorias_detalle) && currentProduct.categorias_detalle.length > 0) {
-    path = currentProduct.categorias_detalle.map(cat => normalizeCategoryName(cat.nombre)).filter(Boolean)
+    path = currentProduct.categorias_detalle.map(normalizeCategoryEntry).filter(Boolean)
   }
   // Prioridad 2: Usar la categoría principal detallada y sus padres
   else if (currentProduct.categoria_detalle && typeof currentProduct.categoria_detalle === 'object' && currentProduct.categoria_detalle.nombre) {
     let current = currentProduct.categoria_detalle
     const tempPath = []
     while (current) {
-      const name = normalizeCategoryName(current.nombre)
-      if (name) tempPath.unshift(name)
+      const entry = normalizeCategoryEntry(current)
+      if (entry) tempPath.unshift(entry)
       // Asumiendo que el padre es un objeto anidado o null
       current = current.parent 
     }
@@ -627,30 +654,36 @@ const categoryBreadcrumb = computed(() => {
     let current = currentProduct.categoria
     const tempPath = []
     while (current) {
-      const name = normalizeCategoryName(current.nombre)
-      if (name) tempPath.unshift(name)
+      const entry = normalizeCategoryEntry(current)
+      if (entry) tempPath.unshift(entry)
       current = current.padre
     }
     path = tempPath
   }
   else if (Array.isArray(currentProduct.categorias) && currentProduct.categorias.length > 0) {
-    path = currentProduct.categorias.map(c => normalizeCategoryName(c.nombre ?? c)).filter(Boolean)
+    path = currentProduct.categorias.map(normalizeCategoryEntry).filter(Boolean)
   }
   else {
-    const mainName = normalizeCategoryName(
+    const mainEntry = normalizeCategoryEntry(
       currentProduct.categoria_nombre || currentProduct.categoriaNombre || currentProduct.nombre_categoria || currentProduct.nombreCategoria || currentProduct.categoria || currentProduct.Categoria
     )
-    if (mainName) {
-      path.push(mainName)
+    if (mainEntry) {
+      path.push(mainEntry)
     }
   }
 
   // Quitar duplicados
-  return [...new Set(path)]
+  const seen = new Set()
+  return path.filter((entry) => {
+    const key = entry.slug || entry.id || entry.name
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
 })
 const categoryName = computed(() => {
   if (categoryBreadcrumb.value.length) {
-    return categoryBreadcrumb.value[categoryBreadcrumb.value.length - 1]
+    return categoryBreadcrumb.value[categoryBreadcrumb.value.length - 1].name
   }
   const primary = getPrimaryCategoryId(producto.value)
   return categoryNameFromId(primary) || ''
@@ -1007,7 +1040,10 @@ useHead(computed(() => {
   // BreadcrumbList: Inicio > Categoría > ... > Producto
   const breadcrumbItems = [
     { name: 'Inicio', href: origin },
-    ...categoryBreadcrumb.value.map((name) => ({ name, href: `${origin}/categorias` })),
+    ...categoryBreadcrumb.value.map((entry) => ({
+      name: entry.name,
+      href: entry.slug ? `${origin}/categoria/${entry.slug}` : `${origin}/categorias`,
+    })),
     { name: nombreLegible, href: productUrl },
   ]
   const breadcrumbJsonLd = {

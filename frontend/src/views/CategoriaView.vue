@@ -206,13 +206,14 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useHead } from '@vueuse/head'
 import { getCategoriasTree, getProductos } from '@/api/productos'
 import api from '@/axios'
 import ProductCard from '@/components/ProductCard.vue'
 
 const route = useRoute()
+const router = useRouter()
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 const ORDEN_OPTS = [
@@ -223,7 +224,7 @@ const ORDEN_OPTS = [
 ]
 
 // ─── State ────────────────────────────────────────────────────────────────────
-const categoriaId    = computed(() => Number(route.params.categoriaId))
+const categoriaParam = computed(() => String(route.params.categoriaSlug ?? '').trim())
 const orden          = ref('')
 const allCategories  = ref([])
 const countMap       = ref({})      // id → productos_count
@@ -272,9 +273,35 @@ const scrollSubSubs = (dir) => {
 }
 
 // ─── Derived ──────────────────────────────────────────────────────────────────
-const currentCategory = computed(() =>
-  allCategories.value.find((c) => c.id === categoriaId.value) ?? null
-)
+const findCategoryInTree = (categories, matcher) => {
+  for (const category of categories) {
+    if (matcher(category)) return category
+    const nested = findCategoryInTree(category.subcategorias ?? [], matcher)
+    if (nested) return nested
+  }
+  return null
+}
+
+const currentCategory = computed(() => {
+  const key = categoriaParam.value
+  if (!key) return null
+  const normalized = key.toLowerCase()
+  const bySlug = findCategoryInTree(
+    allCategories.value,
+    (category) => String(category.slug ?? '').toLowerCase() === normalized
+  )
+  if (bySlug) return bySlug
+  if (/^\d+$/.test(key)) {
+    return findCategoryInTree(allCategories.value, (category) => String(category.id) === key)
+  }
+  return null
+})
+
+const currentCategoryId = computed(() => {
+  if (currentCategory.value?.id) return currentCategory.value.id
+  if (/^\d+$/.test(categoriaParam.value)) return Number(categoriaParam.value)
+  return null
+})
 
 // Recursively check if a category or any descendant has products
 const hasAnyProducts = (cat) => {
@@ -333,6 +360,10 @@ const fetchMeta = async () => {
   const map = {}
   flat.forEach((c) => { map[c.id] = c.productos_count ?? 0 })
   countMap.value = map
+
+  if (currentCategory.value?.slug && categoriaParam.value !== currentCategory.value.slug) {
+    router.replace({ name: 'categoria', params: { categoriaSlug: currentCategory.value.slug } })
+  }
 }
 
 const fetchProducts = async ({ reset = false } = {}) => {
@@ -347,9 +378,12 @@ const fetchProducts = async ({ reset = false } = {}) => {
   }
   try {
     const params = {
-      categoria: selectedSubSubId.value ?? selectedSubId.value ?? categoriaId.value,
+      categoria: selectedSubSubId.value ?? selectedSubId.value ?? currentCategoryId.value,
       page: page.value,
       page_size: PAGE_SIZE,
+    }
+    if (!params.categoria && currentCategory.value?.id) {
+      params.categoria = currentCategory.value.id
     }
     if (orden.value === 'en_oferta') {
       params.en_oferta = 'true'
@@ -396,13 +430,14 @@ const setupObserver = () => {
 }
 
 // ─── Watchers ─────────────────────────────────────────────────────────────────
-watch(categoriaId, () => { selectedSubId.value = null; selectedSubSubId.value = null; orden.value = ''; fetchProducts({ reset: true }) })
+watch(categoriaParam, () => { selectedSubId.value = null; selectedSubSubId.value = null; orden.value = ''; fetchProducts({ reset: true }) })
 watch(selectedSubId, () => { selectedSubSubId.value = null; fetchProducts({ reset: true }) })
 watch(selectedSubSubId, () => fetchProducts({ reset: true }))
 
 // ─── Lifecycle ────────────────────────────────────────────────────────────────
 onMounted(async () => {
-  await Promise.all([fetchMeta(), fetchProducts({ reset: true })])
+  await fetchMeta()
+  await fetchProducts({ reset: true })
   setupObserver()
   await nextTick()
   checkPillsScroll()

@@ -63,7 +63,7 @@ class CategoriaSitemap(Sitemap):
         return obj.last_product_date
 
     def location(self, obj):
-        return f"/categoria/{obj.id}"
+        return f"/categoria/{obj.slug}"
 
 
 class MarcaSitemap(Sitemap):
@@ -87,4 +87,3 @@ class MarcaSitemap(Sitemap):
 
     def location(self, obj):
         return f"/marca/{obj.id}"
-

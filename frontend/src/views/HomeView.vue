@@ -50,12 +50,12 @@ let autoplayTimer = null
 // Cada entrada define el label visible, el slug de la categoría en la DB,
 // y el ref que recibirá los productos.
 const CATEGORY_SECTIONS = [
-  { label: 'CPU (Procesadores)',        slug: 'procesadores',       icon: '🖥️',  productos: ref([]), catId: ref(null) },
-  { label: 'GPU (Tarjetas de Video)',   slug: 'tarjetas-de-video',  icon: '🎮',  productos: ref([]), catId: ref(null) },
-  { label: 'Memoria RAM',               slug: 'memorias-ram-flash', icon: '💾',  productos: ref([]), catId: ref(null) },
-  { label: 'SSD / NVMe',               slug: 'ssd',                icon: '⚡',  productos: ref([]), catId: ref(null) },
-  { label: 'Tarjetas Madre',            slug: 'tarjetas-madre',     icon: '🔧',  productos: ref([]), catId: ref(null) },
-  { label: 'Fuentes de Poder',          slug: 'fuentes-poder-pc',   icon: '🔌',  productos: ref([]), catId: ref(null) },
+  { label: 'CPU (Procesadores)',        slug: 'procesadores',       icon: '🖥️',  productos: ref([]), catId: ref(null), catSlug: ref(null) },
+  { label: 'GPU (Tarjetas de Video)',   slug: 'tarjetas-de-video',  icon: '🎮',  productos: ref([]), catId: ref(null), catSlug: ref(null) },
+  { label: 'Memoria RAM',               slug: 'memorias-ram-flash', icon: '💾',  productos: ref([]), catId: ref(null), catSlug: ref(null) },
+  { label: 'SSD / NVMe',                slug: 'ssd',                icon: '⚡',  productos: ref([]), catId: ref(null), catSlug: ref(null) },
+  { label: 'Tarjetas Madre',            slug: 'tarjetas-madre',     icon: '🔧',  productos: ref([]), catId: ref(null), catSlug: ref(null) },
+  { label: 'Fuentes de Poder',          slug: 'fuentes-poder-pc',   icon: '🔌',  productos: ref([]), catId: ref(null), catSlug: ref(null) },
 ]
 
 const cartStore = useCarritoStore()
@@ -87,15 +87,19 @@ const fetchCategorySections = async () => {
     // Traer categorías planas para mapear slug → id
     const { data } = await api.get('categorias/?page_size=500')
     const catList = Array.isArray(data) ? data : (data?.results ?? [])
-    const slugToId = {}
-    catList.forEach(c => { if (c.slug) slugToId[c.slug] = c.id })
+    const slugToCategory = {}
+    catList.forEach(c => {
+      if (c.slug) slugToCategory[c.slug] = c
+    })
 
     // Cargar las 6 secciones en paralelo
     await Promise.all(
       CATEGORY_SECTIONS.map(async (section) => {
-        const catId = slugToId[section.slug]
+        const category = slugToCategory[section.slug]
+        const catId = category?.id
         if (!catId) return
         section.catId.value = catId
+        section.catSlug.value = category?.slug || section.slug
         try {
           const res = await obtenerProductos({ categoria: catId, page_size: 12, ordering: '-id' })
           section.productos.value = res.data?.results ?? []
@@ -401,7 +405,7 @@ onBeforeUnmount(() => {
         <RouterLink
           v-for="section in CATEGORY_SECTIONS"
           :key="section.slug"
-          :to="section.catId.value ? `/productos?categoria=${section.catId.value}` : '/productos'"
+          :to="section.catSlug.value ? `/categoria/${section.catSlug.value}` : (section.catId.value ? `/productos?categoria=${section.catId.value}` : '/productos')"
           class="flex flex-col overflow-hidden rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-cyan-400 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 group"
         >
           <!-- Imagen del primer producto de la categoría -->
@@ -449,7 +453,7 @@ onBeforeUnmount(() => {
           v-if="section.productos.value.length"
           :title="`${section.icon} ${section.label}`"
           :productos="section.productos.value"
-          :to="section.catId.value ? `/productos?categoria=${section.catId.value}` : '/productos'"
+          :to="section.catSlug.value ? `/categoria/${section.catSlug.value}` : (section.catId.value ? `/productos?categoria=${section.catId.value}` : '/productos')"
           @add-to-cart="handleAddToCart"
         />
       </template>

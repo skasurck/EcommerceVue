@@ -3,14 +3,14 @@
     <ul class="category-list">
       <li v-for="category in categories" :key="category.id" class="category-item">
         <div class="category-item-content">
-          <RouterLink :to="{ name: 'categoria', params: { categoriaId: category.id } }">{{ category.nombre }}</RouterLink>
+          <RouterLink :to="{ name: 'categoria', params: { categoriaSlug: category.slug || category.id } }">{{ category.nombre }}</RouterLink>
           <button v-if="category.subcategorias.length > 0" @click="toggleCategory(category)" class="submenu-toggle">
             <span class="submenu-arrow" :class="{ 'open': category.open }"></span>
           </button>
         </div>
         <ul v-if="category.open && category.subcategorias.length > 0" class="submenu">
           <li v-for="subcategory in category.subcategorias" :key="subcategory.id">
-            <RouterLink :to="{ name: 'categoria', params: { categoriaId: subcategory.id } }">{{ subcategory.nombre }}</RouterLink>
+            <RouterLink :to="{ name: 'categoria', params: { categoriaSlug: subcategory.slug || subcategory.id } }">{{ subcategory.nombre }}</RouterLink>
           </li>
         </ul>
       </li>

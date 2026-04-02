@@ -89,7 +89,7 @@ class CategoryTreeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Categoria
-        fields = ["id", "nombre", "subcategorias", "primera_imagen"]
+        fields = ["id", "nombre", "slug", "subcategorias", "primera_imagen"]
 
     def get_primera_imagen(self, obj):
         image_map = self.context.get('image_map', {})
