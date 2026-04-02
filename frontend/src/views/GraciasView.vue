@@ -384,9 +384,21 @@ const loadMercadoPagoOrder = async () => {
 
   if (!preferenceId && !pendingOrder?.pedidoId) return false
 
-  const response = preferenceId
-    ? await getOrderByPreferenceId(preferenceId)
-    : await getPublicOrderById(pendingOrder.pedidoId)
+  // Intentar por preference_id primero; si falla, usar pedidoId de sessionStorage
+  let response
+  if (preferenceId) {
+    try {
+      response = await getOrderByPreferenceId(preferenceId)
+    } catch {
+      if (pendingOrder?.pedidoId) {
+        response = await getPublicOrderById(pendingOrder.pedidoId)
+      } else {
+        throw new Error('Pedido no encontrado')
+      }
+    }
+  } else {
+    response = await getPublicOrderById(pendingOrder.pedidoId)
+  }
 
   const queryStatus =
     route.query.mp_return ||

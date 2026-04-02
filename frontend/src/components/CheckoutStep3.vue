@@ -257,11 +257,22 @@ const loadPendingOrder = () => {
   } catch { /* */ }
 }
 
-// Restauración desde bfcache (usuario presionó Atrás en el navegador)
-const handlePageShow = (event) => {
+// Restauración desde bfcache (usuario presionó Atrás en el navegador desde MP)
+const handlePageShow = async (event) => {
   if (event.persisted) {
     creatingPreference.value = false
     loadPendingOrder()
+    // Auto-cancelar el pedido iniciado: el usuario abandonó MP sin pagar
+    if (pendingOrder.value?.pedidoId) {
+      cancellingOrder.value = true
+      try {
+        await cancelarPedidoMP(pendingOrder.value.pedidoId)
+      } catch { /* ya estaba cancelado o no existe, ignorar */ }
+      clearPendingOrder()
+      creatingPreference.value = false
+      cancellingOrder.value = false
+      await carrito.cargar()
+    }
   }
 }
 

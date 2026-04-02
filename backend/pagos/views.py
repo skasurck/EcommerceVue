@@ -253,9 +253,22 @@ class MercadoPagoPreferenceView(APIView):
             "external_reference": external_reference,
         }
 
-        # Agregar datos del comprador — requerido por MP para habilitar pagos en efectivo (OXXO, etc.)
+        # Agregar datos del comprador y costo de envío al pedido
         try:
             pedido = Pedido.objects.select_related('direccion', 'user').get(id=external_reference)
+
+            # ── Agregar costo de envío como ítem separado ─────────────────────
+            costo_envio = float(pedido.costo_envio or 0)
+            if costo_envio > 0:
+                preference_data["items"].append({
+                    "title": "Envío",
+                    "quantity": 1,
+                    "unit_price": costo_envio,
+                    "currency_id": "MXN"
+                })
+                logger.info("MP: se agregó envío $%.2f al pedido #%s", costo_envio, external_reference)
+
+            # ── Datos del comprador (payer) ────────────────────────────────────
             dir_ = pedido.direccion
             payer_email = (dir_.email if dir_ else None) or (pedido.user.email if pedido.user else None)
             if payer_email:
