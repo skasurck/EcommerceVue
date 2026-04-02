@@ -143,6 +143,11 @@ class PedidoViewSet(viewsets.ModelViewSet):
             return True
         return user.is_staff or user.is_superuser
 
+    def _user_can_access_order(self, user, pedido):
+        if self._user_can_view_all(user):
+            return True
+        return pedido.user_id == user.id
+
     def get_queryset(self):
         user = self.request.user
         if not user.is_authenticated:
@@ -179,25 +184,30 @@ class PedidoViewSet(viewsets.ModelViewSet):
         user = self.request.user if self.request.user.is_authenticated else None
         serializer.save(user=user)
 
-    @action(detail=True, methods=['post'], permission_classes=[permissions.AllowAny], url_path='cancelar-mp')
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated], url_path='cancelar-mp')
     def cancelar_mp(self, request, pk=None):
         """Compatibilidad: marca como fallido un pedido de MP con pago rechazado."""
         try:
             pedido = Pedido.objects.get(pk=pk)
         except Pedido.DoesNotExist:
             return Response({'detail': 'Pedido no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        if not self._user_can_access_order(request.user, pedido):
+            return Response({'detail': 'No tienes permiso para modificar este pedido'}, status=status.HTTP_403_FORBIDDEN)
         if pedido.estado not in ('iniciado', 'pendiente') or pedido.metodo_pago != 'mercadopago':
             return Response({'detail': 'El pedido no puede cancelarse'}, status=status.HTTP_400_BAD_REQUEST)
         pedido.estado = 'fallido'
         pedido.save(update_fields=['estado'])
         return Response({'status': 'fallido', 'id': pedido.id})
 
-    @action(detail=True, methods=['post'], permission_classes=[permissions.AllowAny], url_path='retorno-mp')
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated], url_path='retorno-mp')
     def retorno_mp(self, request, pk=None):
         try:
             pedido = Pedido.objects.get(pk=pk)
         except Pedido.DoesNotExist:
             return Response({'detail': 'Pedido no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+        if not self._user_can_access_order(request.user, pedido):
+            return Response({'detail': 'No tienes permiso para modificar este pedido'}, status=status.HTTP_403_FORBIDDEN)
 
         if pedido.metodo_pago != 'mercadopago':
             return Response({'detail': 'El pedido no es de Mercado Pago'}, status=status.HTTP_400_BAD_REQUEST)

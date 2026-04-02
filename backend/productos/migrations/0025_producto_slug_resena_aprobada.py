@@ -22,7 +22,7 @@ def poblar_slugs(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('productos', '0024_resena_producto_rating_promedio_and_more'),
+        ('productos', '0022_producto_search_keywords'),
     ]
 
     operations = [

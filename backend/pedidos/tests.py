@@ -162,6 +162,52 @@ class PedidoAPITests(APITestCase):
         pedido.refresh_from_db()
         self.assertEqual(pedido.estado, 'fallido')
 
+    def test_retorno_mp_requiere_autenticacion(self):
+        pedido = self._crear_pedido_simple(self.user)
+        pedido.metodo_pago = 'mercadopago'
+        pedido.estado = 'iniciado'
+        pedido.save(update_fields=['metodo_pago', 'estado'])
+        self.client.force_authenticate(user=None)
+
+        response = self.client.post(reverse('pedido-retorno-mp', kwargs={'pk': pedido.id}), {'status': 'failure'}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_retorno_mp_bloquea_pedido_ajeno(self):
+        User = get_user_model()
+        otro = User.objects.create_user(username='other-retorno', password='pass1234')
+        pedido_ajeno = self._crear_pedido_simple(otro, email='other-retorno@example.com')
+        pedido_ajeno.metodo_pago = 'mercadopago'
+        pedido_ajeno.estado = 'iniciado'
+        pedido_ajeno.save(update_fields=['metodo_pago', 'estado'])
+
+        response = self.client.post(reverse('pedido-retorno-mp', kwargs={'pk': pedido_ajeno.id}), {'status': 'failure'}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_cancelar_mp_requiere_autenticacion(self):
+        pedido = self._crear_pedido_simple(self.user)
+        pedido.metodo_pago = 'mercadopago'
+        pedido.estado = 'iniciado'
+        pedido.save(update_fields=['metodo_pago', 'estado'])
+        self.client.force_authenticate(user=None)
+
+        response = self.client.post(reverse('pedido-cancelar-mp', kwargs={'pk': pedido.id}), format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_cancelar_mp_bloquea_pedido_ajeno(self):
+        User = get_user_model()
+        otro = User.objects.create_user(username='other-cancel', password='pass1234')
+        pedido_ajeno = self._crear_pedido_simple(otro, email='other-cancel@example.com')
+        pedido_ajeno.metodo_pago = 'mercadopago'
+        pedido_ajeno.estado = 'iniciado'
+        pedido_ajeno.save(update_fields=['metodo_pago', 'estado'])
+
+        response = self.client.post(reverse('pedido-cancelar-mp', kwargs={'pk': pedido_ajeno.id}), format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
     def test_listado_solo_incluye_pedidos_del_usuario(self):
         propio = self._crear_pedido_simple(self.user, email='tester@example.com')
         User = get_user_model()

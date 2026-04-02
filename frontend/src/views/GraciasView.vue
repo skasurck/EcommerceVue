@@ -166,7 +166,7 @@ window.addEventListener('checkout:purchase', (event) => {
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useHead } from '@vueuse/head'
-import { getOrderByPreferenceId, getPublicOrderById, registrarRetornoMP } from '@/services/pedidos'
+import { getOrderByPreferenceId, registrarRetornoMP } from '@/services/pedidos'
 import api from '@/axios'
 import { useCarritoStore } from '@/stores/carrito'
 
@@ -382,23 +382,9 @@ const loadMercadoPagoOrder = async () => {
   const preferenceId = route.query.preference_id || null
   const pendingOrder = loadPendingOrder()
 
-  if (!preferenceId && !pendingOrder?.pedidoId) return false
+  if (!preferenceId) return false
 
-  // Intentar por preference_id primero; si falla, usar pedidoId de sessionStorage
-  let response
-  if (preferenceId) {
-    try {
-      response = await getOrderByPreferenceId(preferenceId)
-    } catch {
-      if (pendingOrder?.pedidoId) {
-        response = await getPublicOrderById(pendingOrder.pedidoId)
-      } else {
-        throw new Error('Pedido no encontrado')
-      }
-    }
-  } else {
-    response = await getPublicOrderById(pendingOrder.pedidoId)
-  }
+  const response = await getOrderByPreferenceId(preferenceId)
 
   const queryStatus =
     route.query.mp_return ||
@@ -413,7 +399,7 @@ const loadMercadoPagoOrder = async () => {
 
   dispatchReturnEvent(summary.value, mpStatus.value)
 
-  if (mpStatus.value) {
+  if (mpStatus.value && pendingOrder?.pedidoId) {
     await carrito.limpiar()
     clearPendingOrder()
   }
