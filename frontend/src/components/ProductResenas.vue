@@ -53,7 +53,12 @@
     <!-- Mi reseña existente -->
     <div v-if="miResena" class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
       <div class="flex items-center justify-between mb-1">
-        <span class="text-sm font-semibold text-blue-800">Tu reseña</span>
+        <div class="flex items-center gap-2">
+          <span class="text-sm font-semibold text-blue-800">Tu reseña</span>
+          <span v-if="!miResena.aprobada" class="text-xs bg-amber-100 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded-full">
+            Pendiente de aprobación
+          </span>
+        </div>
         <button @click="eliminarMiResena" class="text-xs text-rose-500 hover:text-rose-700">Eliminar</button>
       </div>
       <StarRating :rating="miResena.calificacion" size="sm" :show-count="false" />

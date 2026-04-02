@@ -721,7 +721,7 @@ class ResenaSerializer(serializers.ModelSerializer):
         model = Resena
         fields = [
             'id', 'producto', 'calificacion', 'comentario',
-            'verificado', 'creado', 'usuario_nombre', 'mi_resena',
+            'verificado', 'aprobada', 'creado', 'usuario_nombre', 'mi_resena',
         ]
         read_only_fields = ['verificado', 'creado', 'usuario_nombre', 'mi_resena']
 

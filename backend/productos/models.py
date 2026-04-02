@@ -541,6 +541,11 @@ class Resena(models.Model):
         default=False,
         help_text='True si el usuario compró el producto.',
     )
+    aprobada = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text='Solo las reseñas aprobadas son visibles públicamente.',
+    )
     creado = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
@@ -552,7 +557,7 @@ class Resena(models.Model):
 
     def _actualizar_rating_producto(self):
         from django.db.models import Avg, Count
-        agg = Resena.objects.filter(producto_id=self.producto_id).aggregate(
+        agg = Resena.objects.filter(producto_id=self.producto_id, aprobada=True).aggregate(
             promedio=Avg('calificacion'), total=Count('id')
         )
         Producto.objects.filter(pk=self.producto_id).update(

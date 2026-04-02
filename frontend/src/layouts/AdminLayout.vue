@@ -78,6 +78,14 @@
             </li>
 
             <li>
+              <RouterLink to="/admin/resenas"
+                class="group flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800"
+                :class="sectionActive('/admin/resenas') ? 'bg-slate-800 text-white' : 'text-slate-300'">
+                <span>⭐</span><span>Reseñas</span>
+              </RouterLink>
+            </li>
+
+            <li>
               <RouterLink to="/admin/promotions"
                 class="group flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800"
                 :class="sectionActive('/admin/promotions') ? 'bg-slate-800 text-white' : 'text-slate-300'">

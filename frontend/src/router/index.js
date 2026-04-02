@@ -158,6 +158,12 @@ const routes = [
         meta: { title: 'Banners promocionales', requiresAuth: true, roles: ['admin', 'super_admin'] }
       },
       {
+        path: 'resenas',
+        name: 'admin-resenas',
+        component: () => import('@/views/AdminResenas.vue'),
+        meta: { title: 'Reseñas', roles: ['admin', 'super_admin'] }
+      },
+      {
         path: 'configuracion',
         name: 'admin-configuracion',
         component: () => import('@/views/AdminConfiguracion.vue'),

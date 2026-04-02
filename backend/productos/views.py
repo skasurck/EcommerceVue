@@ -967,6 +967,10 @@ class ResenaViewSet(viewsets.ModelViewSet):
     serializer_class = ResenaSerializer
     http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
 
+    def _es_admin(self, request):
+        perfil = getattr(request.user, 'perfil', None)
+        return request.user.is_authenticated and perfil and perfil.rol in ('admin', 'super_admin')
+
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:
             return [permissions.AllowAny()]
@@ -977,10 +981,21 @@ class ResenaViewSet(viewsets.ModelViewSet):
         producto_id = self.request.query_params.get('producto')
         if producto_id:
             qs = qs.filter(producto_id=producto_id)
+        # Admins ven todas; usuarios/público solo las aprobadas
+        # (excepto la propia reseña del usuario que la escribió)
+        if not self._es_admin(self.request):
+            if self.request.user.is_authenticated:
+                from django.db.models import Q
+                qs = qs.filter(Q(aprobada=True) | Q(usuario=self.request.user))
+            else:
+                qs = qs.filter(aprobada=True)
+        # Filtros adicionales para el panel admin
+        pendiente = self.request.query_params.get('pendiente')
+        if pendiente == '1':
+            qs = qs.filter(aprobada=False)
         return qs
 
     def create(self, request, *args, **kwargs):
-        # Un usuario solo puede tener una reseña por producto
         producto_id = request.data.get('producto')
         if Resena.objects.filter(usuario=request.user, producto_id=producto_id).exists():
             return Response(
@@ -991,12 +1006,16 @@ class ResenaViewSet(viewsets.ModelViewSet):
 
     def partial_update(self, request, *args, **kwargs):
         resena = self.get_object()
-        if resena.usuario != request.user:
+        # Admin puede aprobar/rechazar; usuario solo edita la suya
+        if not self._es_admin(request) and resena.usuario != request.user:
+            return Response({'detail': 'No autorizado.'}, status=status.HTTP_403_FORBIDDEN)
+        # No dejar que el usuario cambie `aprobada`
+        if not self._es_admin(request) and 'aprobada' in request.data:
             return Response({'detail': 'No autorizado.'}, status=status.HTTP_403_FORBIDDEN)
         return super().partial_update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
         resena = self.get_object()
-        if resena.usuario != request.user and not request.user.is_staff:
+        if resena.usuario != request.user and not self._es_admin(request):
             return Response({'detail': 'No autorizado.'}, status=status.HTTP_403_FORBIDDEN)
         return super().destroy(request, *args, **kwargs)
