@@ -86,6 +86,14 @@
                   >
                     Ver detalles del pedido
                   </RouterLink>
+                  <!-- Badge calificar -->
+                  <RouterLink
+                    v-if="['pagado','confirmado','enviado','entregado'].includes(p.estado) && pedidosSinCalificar.has(p.id)"
+                    :to="`/mis-pedidos/${p.id}`"
+                    class="mt-1.5 flex items-center justify-end gap-1 text-amber-600 dark:text-amber-400 hover:underline text-xs font-semibold"
+                  >
+                    <span>⭐</span> Califica tu compra
+                  </RouterLink>
                 </div>
               </div>
             </div>
@@ -195,6 +203,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { obtenerPedidos } from '@/services/account'
+import axios from '@/axios'
 
 const pedidos   = ref([])
 const cargando  = ref(false)
@@ -255,6 +264,7 @@ const cargarPedidos = async () => {
       pedidos.value = (data.results ?? []).filter(Boolean)
       total.value = data.count ?? 0
     }
+    detectarSinCalificar()
   } catch (e) {
     pedidos.value = []
     errorMsg.value = e?.response?.status === 403
@@ -270,6 +280,36 @@ const cambiarPagina = (n) => {
   page.value = n
   cargarPedidos()
   window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+// ── Detectar pedidos con productos sin calificar ──
+const pedidosSinCalificar = ref(new Set())
+
+const ESTADOS_CALIFICABLES = ['pagado', 'confirmado', 'enviado', 'entregado']
+
+async function detectarSinCalificar() {
+  const elegibles = pedidos.value.filter(p => ESTADOS_CALIFICABLES.includes(p.estado))
+  if (!elegibles.length) return
+
+  // Recopilar todos los IDs de productos únicos de esos pedidos
+  const productoIds = [...new Set(
+    elegibles.flatMap(p => (p.detalles ?? []).map(it => it.producto).filter(Boolean))
+  )]
+  if (!productoIds.length) return
+
+  try {
+    const res = await axios.get(`resenas/?productos=${productoIds.join(',')}&mias=1`)
+    const lista = Array.isArray(res.data?.results) ? res.data.results : (res.data || [])
+    const resenadoIds = new Set(lista.map(r => r.producto))
+
+    const sinCalificar = new Set()
+    elegibles.forEach(p => {
+      const tieneProductoSinResena = (p.detalles ?? [])
+        .some(it => it.producto && !resenadoIds.has(it.producto))
+      if (tieneProductoSinResena) sinCalificar.add(p.id)
+    })
+    pedidosSinCalificar.value = sinCalificar
+  } catch { /* silencioso */ }
 }
 
 onMounted(cargarPedidos)

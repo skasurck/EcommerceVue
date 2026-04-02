@@ -978,9 +978,24 @@ class ResenaViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = Resena.objects.select_related('usuario').order_by('-creado')
-        producto_id = self.request.query_params.get('producto')
+        params = self.request.query_params
+
+        # Filtro por un producto
+        producto_id = params.get('producto')
         if producto_id:
             qs = qs.filter(producto_id=producto_id)
+
+        # Filtro por múltiples productos (para pantalla "mis compras")
+        productos_ids = params.get('productos')
+        if productos_ids:
+            ids = [i.strip() for i in productos_ids.split(',') if i.strip().isdigit()]
+            qs = qs.filter(producto_id__in=ids)
+
+        # Filtro por reseñas propias del usuario autenticado
+        solo_mias = params.get('mias')
+        if solo_mias == '1' and self.request.user.is_authenticated:
+            qs = qs.filter(usuario=self.request.user)
+
         # Admins ven todas; usuarios/público solo las aprobadas
         # (excepto la propia reseña del usuario que la escribió)
         if not self._es_admin(self.request):
@@ -989,10 +1004,12 @@ class ResenaViewSet(viewsets.ModelViewSet):
                 qs = qs.filter(Q(aprobada=True) | Q(usuario=self.request.user))
             else:
                 qs = qs.filter(aprobada=True)
+
         # Filtros adicionales para el panel admin
-        pendiente = self.request.query_params.get('pendiente')
+        pendiente = params.get('pendiente')
         if pendiente == '1':
             qs = qs.filter(aprobada=False)
+
         return qs
 
     def create(self, request, *args, **kwargs):
