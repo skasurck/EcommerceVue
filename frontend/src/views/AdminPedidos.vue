@@ -26,6 +26,7 @@
             <option value="pagado">Pagado</option>
             <option value="confirmado">Confirmado</option>
             <option value="enviado">Enviado</option>
+            <option value="fallido">Fallido</option>
             <option value="cancelado">Cancelado</option>
           </select>
         </div>
@@ -61,6 +62,7 @@
           <option value="pagado">Pagado</option>
           <option value="confirmado">Confirmado</option>
           <option value="enviado">Enviado</option>
+          <option value="fallido">Fallido</option>
           <option value="cancelado">Cancelado</option>
         </select>
 
@@ -139,6 +141,7 @@
                   <option value="pagado">Pagado</option>
                   <option value="confirmado">Confirmado</option>
                   <option value="enviado">Enviado</option>
+                  <option value="fallido">Fallido</option>
                   <option value="cancelado">Cancelado</option>
                   <option value="en_disputa">En disputa</option>
                   <option value="contracargo">Contracargo</option>
@@ -208,6 +211,7 @@
                 <option value="pagado">Pagado</option>
                 <option value="confirmado">Confirmado</option>
                 <option value="enviado">Enviado</option>
+                <option value="fallido">Fallido</option>
                 <option value="cancelado">Cancelado</option>
                 <option value="en_disputa">En disputa</option>
                 <option value="contracargo">Contracargo</option>
@@ -336,6 +340,7 @@ const ESTADO_CLASSES = {
   pagado:      'bg-emerald-50 border-emerald-400 text-emerald-800',
   confirmado:  'bg-blue-50   border-blue-300   text-blue-800',
   enviado:     'bg-indigo-50 border-indigo-300 text-indigo-800',
+  fallido:     'bg-rose-50   border-rose-300   text-rose-800',
   cancelado:   'bg-red-50    border-red-300    text-red-800',
   en_disputa:  'bg-orange-50 border-orange-300 text-orange-800',
   contracargo: 'bg-rose-100  border-rose-400   text-rose-900',

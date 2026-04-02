@@ -36,6 +36,7 @@
                 <option value="pagado">Pagado</option>
                 <option value="confirmado">Confirmado</option>
                 <option value="enviado">Enviado</option>
+                <option value="fallido">Fallido</option>
                 <option value="cancelado">Cancelado</option>
               </select>
               <span :class="estadoBadge(pedido.estado)" class="inline-flex items-center px-2 py-0.5 rounded-full text-xs">
@@ -245,6 +246,7 @@ const estadoBadge = (estado) => ({
   'pagado':     'bg-emerald-100 text-emerald-800 border border-emerald-200',
   'confirmado': 'bg-blue-100 text-blue-800 border border-blue-200',
   'enviado':    'bg-indigo-100 text-indigo-800 border border-indigo-200',
+  'fallido':    'bg-rose-100 text-rose-800 border border-rose-200',
   'cancelado':  'bg-rose-100 text-rose-800 border border-rose-200',
 }[estado] || 'bg-slate-100 text-slate-700 border')
 
@@ -330,4 +332,3 @@ function removeItem(idx) {
 
 cargar()
 </script>
-
