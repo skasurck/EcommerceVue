@@ -2,46 +2,111 @@
   <div class="space-y-5">
     <!-- Título + CTA -->
     <div class="flex items-center justify-between flex-wrap gap-2">
-      <h1 class="text-2xl font-bold text-slate-800">Gestión de pedidos</h1>
+      <div>
+        <h1 class="text-2xl font-bold text-slate-800">Gestión de pedidos</h1>
+        <p v-if="totalPedidos !== null" class="text-sm text-slate-500 mt-0.5">
+          {{ totalPedidos }} pedido{{ totalPedidos !== 1 ? 's' : '' }} encontrado{{ totalPedidos !== 1 ? 's' : '' }}
+        </p>
+      </div>
       <RouterLink
         to="/admin/pedidos/nuevo"
-        class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm"
+        class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium"
       >
-        ➕ Nuevo pedido
+        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+        Nuevo pedido
       </RouterLink>
     </div>
 
     <!-- Filtros -->
-    <section class="bg-white border rounded-xl p-4 shadow-sm">
-      <div class="flex flex-col sm:flex-row gap-3 sm:items-end">
-        <div>
-          <label class="block text-xs font-medium text-slate-500 mb-1">Estado</label>
-          <select
-            v-model="estadoFiltro"
-            @change="fetchPedidos(1)"
-            class="h-10 rounded-md border border-slate-300 px-3 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">Todos</option>
-            <option value="pendiente">Pendiente</option>
-            <option value="pagado">Pagado</option>
-            <option value="confirmado">Confirmado</option>
-            <option value="enviado">Enviado</option>
-            <option value="fallido">Fallido</option>
-            <option value="cancelado">Cancelado</option>
-          </select>
+    <section class="bg-white border rounded-xl shadow-sm overflow-hidden">
+      <div class="px-4 py-3 border-b bg-slate-50 flex items-center justify-between gap-2">
+        <span class="text-sm font-semibold text-slate-700">Filtros</span>
+        <button
+          v-if="hayFiltrosActivos"
+          @click="limpiarFiltros"
+          class="text-xs text-blue-600 hover:text-blue-800 font-medium"
+        >
+          Limpiar filtros
+        </button>
+      </div>
+
+      <div class="p-4 space-y-3">
+        <!-- Búsqueda general -->
+        <div class="relative">
+          <svg class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/>
+          </svg>
+          <input
+            v-model="busqueda"
+            type="text"
+            placeholder="Buscar por #ID, nombre, correo, dirección, teléfono…"
+            class="w-full h-10 rounded-lg border border-slate-300 pl-9 pr-4 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            @input="onBusquedaInput"
+          />
+          <button v-if="busqueda" @click="busqueda = ''; fetchPedidos(1)"
+            class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
         </div>
 
-        <div class="flex items-center gap-2 h-10">
-          <label class="relative inline-flex items-center cursor-pointer select-none">
-            <input type="checkbox" class="sr-only peer" v-model="verPapelera" @change="fetchPedidos(1)" />
-            <div
-              class="w-10 h-6 bg-slate-300 rounded-full peer peer-checked:bg-rose-500 transition-colors"
-            ></div>
-            <div
-              class="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full shadow transform transition-transform peer-checked:translate-x-4"
-            ></div>
-          </label>
-          <span class="text-sm text-slate-700">Ver papelera</span>
+        <!-- Fila de selects -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          <!-- Estado -->
+          <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1">Estado</label>
+            <select v-model="estadoFiltro" @change="fetchPedidos(1)"
+              class="w-full h-9 rounded-lg border border-slate-300 px-2 text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="">Todos</option>
+              <option value="iniciado">Iniciado</option>
+              <option value="pendiente">Pendiente</option>
+              <option value="pagado">Pagado</option>
+              <option value="confirmado">Confirmado</option>
+              <option value="enviado">Enviado</option>
+              <option value="fallido">Fallido</option>
+              <option value="cancelado">Cancelado</option>
+              <option value="en_disputa">En disputa</option>
+              <option value="contracargo">Contracargo</option>
+            </select>
+          </div>
+
+          <!-- Método de pago -->
+          <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1">Método de pago</label>
+            <select v-model="metodoPagoFiltro" @change="fetchPedidos(1)"
+              class="w-full h-9 rounded-lg border border-slate-300 px-2 text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="">Todos</option>
+              <option value="mercadopago">Mercado Pago</option>
+              <option value="transferencia">Transferencia</option>
+              <option value="tarjeta">Tarjeta</option>
+            </select>
+          </div>
+
+          <!-- Fecha desde -->
+          <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1">Desde</label>
+            <input type="date" v-model="fechaDesde" @change="fetchPedidos(1)"
+              class="w-full h-9 rounded-lg border border-slate-300 px-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+
+          <!-- Fecha hasta -->
+          <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1">Hasta</label>
+            <input type="date" v-model="fechaHasta" @change="fetchPedidos(1)"
+              class="w-full h-9 rounded-lg border border-slate-300 px-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+
+          <!-- Papelera toggle -->
+          <div class="flex flex-col justify-end">
+            <label class="block text-xs font-medium text-slate-500 mb-1 opacity-0 select-none">–</label>
+            <label class="flex items-center gap-2 cursor-pointer h-9">
+              <div class="relative inline-flex shrink-0">
+                <input type="checkbox" class="sr-only peer" v-model="verPapelera" @change="fetchPedidos(1)" />
+                <div class="w-9 h-5 bg-slate-300 rounded-full peer peer-checked:bg-rose-500 transition-colors"></div>
+                <div class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow transform transition-transform peer-checked:translate-x-4"></div>
+              </div>
+              <span class="text-sm text-slate-700">Papelera</span>
+            </label>
+          </div>
         </div>
       </div>
     </section>
@@ -331,7 +396,7 @@
 </template>
 
 <script setup>
-import { ref, nextTick } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 import axios from '@/axios'
 import { money, formatFecha } from '@/utils/formatters'
 
@@ -352,13 +417,39 @@ import { useRouter, RouterLink } from 'vue-router'
 const pedidos = ref([])
 const pagina = ref(1)
 const siguiente = ref(false)
+const totalPedidos = ref(null)
 const estadoFiltro = ref('')
+const metodoPagoFiltro = ref('')
+const busqueda = ref('')
+const fechaDesde = ref('')
+const fechaHasta = ref('')
 const seleccionados = ref([])
 const seleccionarTodo = ref(false)
 const estadoBulk = ref('')
 const verPapelera = ref(false)
 const router = useRouter()
 const inputGuia = ref(null)
+
+const hayFiltrosActivos = computed(() =>
+  busqueda.value || estadoFiltro.value || metodoPagoFiltro.value ||
+  fechaDesde.value || fechaHasta.value || verPapelera.value
+)
+
+function limpiarFiltros() {
+  busqueda.value = ''
+  estadoFiltro.value = ''
+  metodoPagoFiltro.value = ''
+  fechaDesde.value = ''
+  fechaHasta.value = ''
+  verPapelera.value = false
+  fetchPedidos(1)
+}
+
+let _debounceTimer = null
+function onBusquedaInput() {
+  clearTimeout(_debounceTimer)
+  _debounceTimer = setTimeout(() => fetchPedidos(1), 400)
+}
 
 // Modal de número de guía
 const modalGuia = ref({ visible: false, numero: '', pedido: null, bulk: false })
@@ -395,10 +486,15 @@ async function fetchPedidos(p = 1) {
   pagina.value = p
   const params = { page: p }
   if (estadoFiltro.value) params.estado = estadoFiltro.value
+  if (metodoPagoFiltro.value) params.metodo_pago = metodoPagoFiltro.value
+  if (busqueda.value.trim()) params.search = busqueda.value.trim()
+  if (fechaDesde.value) params.fecha_desde = fechaDesde.value
+  if (fechaHasta.value) params.fecha_hasta = fechaHasta.value
   if (verPapelera.value) params.papelera = 1
   const res = await axios.get('pedidos/', { params })
   pedidos.value = unwrapList(res.data)
   siguiente.value = Boolean(res.data?.next)
+  totalPedidos.value = res.data?.count ?? null
   seleccionados.value = []
   seleccionarTodo.value = false
 }

@@ -101,8 +101,13 @@ class PedidoViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     pagination_class = PageNumberPagination
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ['id', 'direccion__nombre', 'direccion__apellidos', 'direccion__email']
-    ordering_fields = ['creado', 'total']
+    search_fields = [
+        '=id',
+        'direccion__nombre', 'direccion__apellidos', 'direccion__email',
+        'direccion__calle', 'direccion__colonia', 'direccion__ciudad',
+        'direccion__codigo_postal', 'direccion__telefono',
+    ]
+    ordering_fields = ['creado', 'total', 'id']
     ordering = ['-creado']
 
     def get_permissions(self):
@@ -130,21 +135,29 @@ class PedidoViewSet(viewsets.ModelViewSet):
 
         qs = Pedido.objects.all() if self._user_can_view_all(user) else Pedido.objects.filter(user=user)
         params = self.request.query_params
+
         estado = params.get("estado")
         if estado:
             qs = qs.filter(estado=estado)
+
+        metodo_pago = params.get("metodo_pago")
+        if metodo_pago:
+            qs = qs.filter(metodo_pago=metodo_pago)
+
         papelera = params.get("papelera")
         incluye_papelera = params.get("incluye_papelera")
         if papelera:
             qs = qs.filter(papelera=True)
         elif not incluye_papelera:
             qs = qs.filter(papelera=False)
+
         fecha_desde = params.get("fecha_desde")
         if fecha_desde:
             qs = qs.filter(creado__date__gte=parse_date(fecha_desde))
         fecha_hasta = params.get("fecha_hasta")
         if fecha_hasta:
             qs = qs.filter(creado__date__lte=parse_date(fecha_hasta))
+
         return qs
 
     def perform_create(self, serializer):
