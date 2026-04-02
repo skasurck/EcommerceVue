@@ -311,6 +311,19 @@ router.beforeEach((to, from, next) => {
   next()
 })
 
+// Notifica a GTM/GA4 cada cambio de ruta en la SPA.
+// Se espera un tick para que @vueuse/head haya actualizado document.title.
+router.afterEach((to) => {
+  setTimeout(() => {
+    window.dataLayer = window.dataLayer || []
+    window.dataLayer.push({
+      event: 'page_view',
+      page_path: to.fullPath,
+      page_title: document.title,
+    })
+  }, 300)
+})
+
 // Cuando el navegador tiene cacheado un index.html viejo y los chunks JS
 // ya no existen en el servidor (nuevo deploy), fuerza una recarga completa.
 router.onError((error, to) => {
