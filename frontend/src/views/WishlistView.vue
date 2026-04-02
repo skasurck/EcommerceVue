@@ -40,7 +40,7 @@
             </svg>
           </button>
 
-          <RouterLink :to="{ name: 'producto', params: { id: item.producto_id } }" class="block">
+          <RouterLink :to="{ name: 'producto', params: { slug: item.producto_slug } }" class="block">
             <!-- Image -->
             <div class="relative">
               <img

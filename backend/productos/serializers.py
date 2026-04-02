@@ -279,6 +279,7 @@ class ProductoListSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "nombre",
+            "slug",
             "precio_normal",
             "precio_rebajado",
             "imagen_principal",
@@ -287,6 +288,8 @@ class ProductoListSerializer(serializers.ModelSerializer):
             "estado_inventario",
             "tiene_precios_escalonados",
             "colores",
+            "rating_promedio",
+            "total_resenas",
         ]
     
     def get_imagen_principal(self, obj):
@@ -378,6 +381,7 @@ class ProductoSerializer(serializers.ModelSerializer):
             "is_virtual_qty",
             "rating_promedio",
             "total_resenas",
+            "slug",
         ]
         read_only_fields = [
             "miniatura",
@@ -389,6 +393,7 @@ class ProductoSerializer(serializers.ModelSerializer):
             "categoria",
             "categoria_detalle",
             "categoria_ruta",
+            "slug",
         ]
 
     def to_internal_value(self, data):
@@ -690,6 +695,7 @@ class ProductoDestacadoAdminSerializer(serializers.ModelSerializer):
 # ──────────── LISTA DE DESEOS ────────────
 class ListaDeseosSerializer(serializers.ModelSerializer):
     producto_id = serializers.IntegerField(source='producto.id', read_only=True)
+    producto_slug = serializers.CharField(source='producto.slug', read_only=True)
     nombre = serializers.CharField(source='producto.nombre', read_only=True)
     precio_normal = serializers.DecimalField(source='producto.precio_normal', max_digits=10, decimal_places=2, read_only=True)
     precio_rebajado = serializers.DecimalField(source='producto.precio_rebajado', max_digits=10, decimal_places=2, read_only=True, allow_null=True)
@@ -700,7 +706,7 @@ class ListaDeseosSerializer(serializers.ModelSerializer):
     class Meta:
         from .models import ListaDeseos
         model = ListaDeseos
-        fields = ['id', 'producto_id', 'nombre', 'precio_normal', 'precio_rebajado', 'stock', 'estado_inventario', 'imagen', 'fecha_agregado']
+        fields = ['id', 'producto_id', 'producto_slug', 'nombre', 'precio_normal', 'precio_rebajado', 'stock', 'estado_inventario', 'imagen', 'fecha_agregado']
         read_only_fields = ['id', 'fecha_agregado']
 
     def get_imagen(self, obj):

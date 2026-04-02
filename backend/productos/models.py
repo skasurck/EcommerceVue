@@ -106,9 +106,27 @@ class Producto(models.Model):
     )
     rating_promedio = models.DecimalField(max_digits=3, decimal_places=2, default=0, db_index=True)
     total_resenas = models.PositiveIntegerField(default=0)
+    slug = models.SlugField(max_length=200, unique=True, blank=True, db_index=True)
+
+    def _generar_slug_unico(self):
+        base = slugify(self.nombre)
+        if not base:
+            base = str(self.pk or 'producto')
+        slug = base[:200]
+        n = 1
+        qs = Producto.objects.exclude(pk=self.pk) if self.pk else Producto.objects.all()
+        while qs.filter(slug=slug).exists():
+            suffix = f'-{n}'
+            slug = base[:200 - len(suffix)] + suffix
+            n += 1
+        return slug
 
     def save(self, *args, **kwargs):
         reprocess_image = kwargs.pop('reprocess_image', False)
+
+        # Generar slug si no existe
+        if not self.slug:
+            self.slug = self._generar_slug_unico()
 
         # Guardar una copia del nombre de archivo original antes de que se modifique
         old_instance = None

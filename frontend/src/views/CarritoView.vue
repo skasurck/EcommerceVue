@@ -39,7 +39,7 @@
             class="flex gap-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-3 sm:p-4 shadow-sm"
           >
             <!-- Imagen -->
-            <RouterLink :to="{ name: 'producto', params: { id: item.producto?.id } }" class="shrink-0">
+            <RouterLink :to="{ name: 'producto', params: { slug: item.producto?.slug } }" class="shrink-0">
               <img
                 :src="item.producto?.miniatura_url || item.producto?.imagen_principal || ''"
                 :alt="item.producto?.nombre"
@@ -52,7 +52,7 @@
               <!-- Nombre + badge + delete -->
               <div class="flex items-start justify-between gap-2">
                 <div class="min-w-0">
-                  <RouterLink :to="{ name: 'producto', params: { id: item.producto?.id } }">
+                  <RouterLink :to="{ name: 'producto', params: { slug: item.producto?.slug } }">
                     <p class="text-sm font-semibold text-slate-800 dark:text-slate-100 line-clamp-2 break-words leading-snug hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors">
                       {{ item.producto?.nombre }}
                     </p>

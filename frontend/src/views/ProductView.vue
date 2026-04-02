@@ -544,7 +544,7 @@ const saveAdminCategory = async () => {
       category_ids: [adminFinalCategoryId.value]
     })
     // Recargar producto para reflejar la nueva categoría
-    const { data } = await obtenerProducto(route.params.id)
+    const { data } = await obtenerProducto(route.params.slug)
     producto.value = data
     adminSaveMsg.value = '✓ Categoría guardada'
     adminLevel1.value = ''
@@ -848,7 +848,7 @@ onMounted(async () => {
   try {
     // Producto y categorías en paralelo
     const [{ data }] = await Promise.all([
-      obtenerProducto(route.params.id),
+      obtenerProducto(route.params.slug),
       fetchCategoriasIndex(),
     ])
     producto.value = data

@@ -548,8 +548,8 @@ const onFocus = () => {
 
 const selectSuggestion = (item) => {
   showDropdown.value = false
-  if (item?.id != null) {
-    router.push({ name: 'producto', params: { id: String(item.id) } })
+  if (item?.slug) {
+    router.push({ name: 'producto', params: { slug: item.slug } })
   } else {
     goSearch()
   }

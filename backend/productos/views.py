@@ -499,13 +499,14 @@ class ProductoViewSet(viewsets.ModelViewSet):
     serializer_class = ProductoSerializer
     pagination_class = StandardResultsSetPagination
     parser_classes = [MultiPartParser, FormParser, JSONParser]
+    lookup_field = 'slug'
 
     @method_decorator(cache_page(10))
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
     def retrieve(self, request, *args, **kwargs):
-        pk = kwargs.get('pk')
+        pk = kwargs.get('slug')
         cache_key = f'producto_detail_{pk}'
         cached = cache.get(cache_key)
         if cached is not None:
@@ -528,8 +529,9 @@ class ProductoViewSet(viewsets.ModelViewSet):
             # las relaciones mínimas que usa el serializador ligero.
             qs = (
                 Producto.objects.only(
-                    'id', 'nombre', 'precio_normal', 'precio_rebajado',
-                    'miniatura', 'imagen_principal', 'descripcion_corta', 'stock'
+                    'id', 'nombre', 'slug', 'precio_normal', 'precio_rebajado',
+                    'miniatura', 'imagen_principal', 'descripcion_corta', 'stock',
+                    'estado_inventario', 'rating_promedio', 'total_resenas'
                 ).prefetch_related(
                     Prefetch(
                         "atributos",

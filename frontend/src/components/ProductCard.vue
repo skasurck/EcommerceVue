@@ -16,7 +16,7 @@
     </button>
 
     <!-- Link & image -->
-    <router-link :to="{ name: 'producto', params: { id: (p.id ?? producto.id) } }" class="block">
+    <router-link :to="{ name: 'producto', params: { slug: (p.slug ?? producto.slug) } }" class="block">
       <div class="relative">
         <!-- Discount badge -->
         <div v-if="hasDiscount && !isOutOfStock" class="absolute left-2 top-2 z-10 rounded-md bg-rose-600 px-2 py-0.5 text-white text-xs font-semibold">
