@@ -257,20 +257,22 @@ const loadPendingOrder = () => {
   } catch { /* */ }
 }
 
-// Restauración desde bfcache (usuario presionó Atrás en el navegador desde MP)
+// Cancela silenciosamente un pedido iniciado y limpia el estado pendiente
+const autoCancelPendingOrder = async (pedidoId) => {
+  try {
+    await cancelarPedidoMP(pedidoId)
+  } catch { /* ya estaba cancelado o no existe */ }
+  clearPendingOrder()
+  creatingPreference.value = false
+}
+
+// Restauración desde bfcache (usuario presionó Atrás desde la página de MP)
 const handlePageShow = async (event) => {
   if (event.persisted) {
     creatingPreference.value = false
     loadPendingOrder()
-    // Auto-cancelar el pedido iniciado: el usuario abandonó MP sin pagar
     if (pendingOrder.value?.pedidoId) {
-      cancellingOrder.value = true
-      try {
-        await cancelarPedidoMP(pendingOrder.value.pedidoId)
-      } catch { /* ya estaba cancelado o no existe, ignorar */ }
-      clearPendingOrder()
-      creatingPreference.value = false
-      cancellingOrder.value = false
+      await autoCancelPendingOrder(pendingOrder.value.pedidoId)
       await carrito.cargar()
     }
   }
@@ -288,9 +290,14 @@ const cancelPendingOrder = async () => {
   await carrito.cargar()
 }
 
-onMounted(() => {
+onMounted(async () => {
   window.addEventListener('pageshow', handlePageShow)
   loadPendingOrder()
+  // Si hay un pedido pendiente al montar (reload completo tras regresar de MP), cancelarlo
+  if (pendingOrder.value?.pedidoId) {
+    await autoCancelPendingOrder(pendingOrder.value.pedidoId)
+    await carrito.cargar()
+  }
 })
 onBeforeUnmount(() => {
   window.removeEventListener('pageshow', handlePageShow)
