@@ -17,6 +17,7 @@ from .models import (
     Atributo,
     ValorAtributo,
     ProductoDestacado,
+    Resena,
 )
 
 
@@ -375,6 +376,8 @@ class ProductoSerializer(serializers.ModelSerializer):
             # NUEVOS:
             "effective_qty",
             "is_virtual_qty",
+            "rating_promedio",
+            "total_resenas",
         ]
         read_only_fields = [
             "miniatura",
@@ -707,3 +710,47 @@ class ListaDeseosSerializer(serializers.ModelSerializer):
             return None
         url = image_field.url
         return request.build_absolute_uri(url) if request else url
+
+
+# ──────────── RESEÑAS ────────────
+class ResenaSerializer(serializers.ModelSerializer):
+    usuario_nombre = serializers.SerializerMethodField()
+    mi_resena = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Resena
+        fields = [
+            'id', 'producto', 'calificacion', 'comentario',
+            'verificado', 'creado', 'usuario_nombre', 'mi_resena',
+        ]
+        read_only_fields = ['verificado', 'creado', 'usuario_nombre', 'mi_resena']
+
+    def get_usuario_nombre(self, obj):
+        u = obj.usuario
+        nombre = f"{u.first_name} {u.last_name}".strip()
+        return nombre or u.username
+
+    def get_mi_resena(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return False
+        return obj.usuario_id == request.user.id
+
+    def validate_calificacion(self, value):
+        if not 1 <= value <= 5:
+            raise serializers.ValidationError('La calificación debe ser entre 1 y 5.')
+        return value
+
+    def create(self, validated_data):
+        usuario = self.context['request'].user
+        producto = validated_data['producto']
+        # Marcar como verificado si el usuario compró el producto
+        from pedidos.models import Pedido
+        compro = Pedido.objects.filter(
+            usuario=usuario,
+            estado__in=['pagado', 'confirmado', 'enviado'],
+            items__producto=producto,
+        ).exists()
+        validated_data['verificado'] = compro
+        validated_data['usuario'] = usuario
+        return super().create(validated_data)

@@ -22,6 +22,7 @@ from .views import (
     ProductosDestacadosAPIView,
     ProductoDestacadoAdminViewSet,
     ListaDeseosViewSet,
+    ResenaViewSet,
 )
 
 router = DefaultRouter()
@@ -34,6 +35,7 @@ router.register(r'home-slider', HomeSliderImageViewSet, basename='home-slider')
 router.register(r'promo-banners', PromoBannerViewSet, basename='promo-banners')
 router.register(r'admin/destacados', ProductoDestacadoAdminViewSet, basename='admin-destacados')
 router.register(r'lista-deseos', ListaDeseosViewSet, basename='lista-deseos')
+router.register(r'resenas', ResenaViewSet, basename='resenas')
 
 urlpatterns = [
     # Productos destacados (público)

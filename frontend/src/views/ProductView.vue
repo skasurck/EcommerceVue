@@ -192,10 +192,20 @@
           <!-- Middle: info -->
           <div class="lg:col-span-4">
              <!-- Title -->
-            <h1 class="text-2xl font-semibold text-gray-900 mb-3 leading-snug break-words">
+            <h1 class="text-2xl font-semibold text-gray-900 mb-2 leading-snug break-words">
               {{ toProductTitle(p.nombre) }}
               <span v-if="agotado" class="inline-block align-middle bg-red-600 text-white text-xs px-2 py-1 rounded ml-1">Agotado</span>
             </h1>
+
+            <!-- Rating resumen -->
+            <div v-if="p.total_resenas > 0" class="flex items-center gap-2 mb-3">
+              <StarRating :rating="Number(p.rating_promedio)" size="sm" :show-count="false" />
+              <span class="text-sm text-slate-600">{{ Number(p.rating_promedio).toFixed(1) }}</span>
+              <a href="#resenas" class="text-sm text-blue-600 hover:underline">({{ p.total_resenas }} reseña{{ p.total_resenas !== 1 ? 's' : '' }})</a>
+            </div>
+            <div v-else class="mb-3">
+              <a href="#resenas" class="text-sm text-slate-400 hover:text-blue-600">Sin reseñas aún — ¡sé el primero!</a>
+            </div>
 
             <div
               v-if="categoryBreadcrumb.length > 0"
@@ -393,6 +403,17 @@
           </div>
         </section>
 
+        <!-- Reseñas -->
+        <div id="resenas">
+          <ProductResenas
+            v-if="p?.id"
+            :producto-id="p.id"
+            :rating-promedio="p.rating_promedio"
+            :total-resenas="p.total_resenas"
+            @rating-updated="recargarRating"
+          />
+        </div>
+
         <section class="mt-10 space-y-8" v-if="hasAnyRelacionados">
           <div v-if="relacionadosLoading || relacionados.length">
             <div class="flex items-center justify-between mb-4">
@@ -459,6 +480,8 @@ import { useBreadcrumbStore } from '@/stores/breadcrumb'
 import { useWishlistStore } from '@/stores/wishlist'
 import ProductCard from '@/components/ProductCard.vue'
 import CategoryPathInput from '@/components/CategoryPathInput.vue'
+import StarRating from '@/components/StarRating.vue'
+import ProductResenas from '@/components/ProductResenas.vue'
 import api from '@/axios'
 
 const route = useRoute()
@@ -1230,6 +1253,17 @@ const hasAnyRelacionados = computed(
 const productoId = computed(() => producto.value?.id)
 const isFavorito = computed(() => auth.isAuthenticated && wishlist.esFavorito(productoId.value))
 const toggleFav = () => productoId.value && wishlist.toggle(productoId.value)
+
+async function recargarRating() {
+  if (!productoId.value) return
+  try {
+    const res = await api.get(`productos/${productoId.value}/`)
+    if (res.data) {
+      p.value.rating_promedio = res.data.rating_promedio
+      p.value.total_resenas = res.data.total_resenas
+    }
+  } catch { /* silencioso */ }
+}
 </script>
 
 <style scoped>

@@ -104,6 +104,8 @@ class Producto(models.Model):
         default='',
         help_text='Palabras clave generadas automáticamente por IA para mejorar la búsqueda (sinónimos, abreviaciones, términos alternativos).',
     )
+    rating_promedio = models.DecimalField(max_digits=3, decimal_places=2, default=0, db_index=True)
+    total_resenas = models.PositiveIntegerField(default=0)
 
     def save(self, *args, **kwargs):
         reprocess_image = kwargs.pop('reprocess_image', False)
@@ -517,3 +519,53 @@ class PromoBanner(models.Model):
         if self.imagen:
             self.imagen.delete(save=False)
         super().delete(*args, **kwargs)
+
+
+# ──────────── RESEÑAS ────────────
+class Resena(models.Model):
+    producto = models.ForeignKey(
+        Producto,
+        on_delete=models.CASCADE,
+        related_name='resenas',
+    )
+    usuario = models.ForeignKey(
+        'auth.User',
+        on_delete=models.CASCADE,
+        related_name='resenas',
+    )
+    calificacion = models.PositiveSmallIntegerField(
+        choices=[(i, i) for i in range(1, 6)],
+    )
+    comentario = models.TextField(blank=True, default='')
+    verificado = models.BooleanField(
+        default=False,
+        help_text='True si el usuario compró el producto.',
+    )
+    creado = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        unique_together = ('producto', 'usuario')
+        ordering = ['-creado']
+
+    def __str__(self):
+        return f"{self.usuario.username} → {self.producto.nombre} ({self.calificacion}★)"
+
+    def _actualizar_rating_producto(self):
+        from django.db.models import Avg, Count
+        agg = Resena.objects.filter(producto_id=self.producto_id).aggregate(
+            promedio=Avg('calificacion'), total=Count('id')
+        )
+        Producto.objects.filter(pk=self.producto_id).update(
+            rating_promedio=round(agg['promedio'] or 0, 2),
+            total_resenas=agg['total'] or 0,
+        )
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        self._actualizar_rating_producto()
+
+    def delete(self, *args, **kwargs):
+        producto_id = self.producto_id
+        super().delete(*args, **kwargs)
+        self.producto_id = producto_id
+        self._actualizar_rating_producto()

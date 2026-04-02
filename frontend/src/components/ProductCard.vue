@@ -58,6 +58,12 @@
           {{ toProductTitle(p.nombre) }}
         </h3>
 
+        <!-- Rating -->
+        <div v-if="p.total_resenas > 0" class="mt-1 flex items-center gap-1">
+          <StarRating :rating="Number(p.rating_promedio)" size="sm" :show-count="false" />
+          <span class="text-xs text-slate-500">({{ p.total_resenas }})</span>
+        </div>
+
         <!-- Short description (muted) -->
         <p v-if="p.descripcion_corta" class="mt-0.5 text-xs text-gray-500 line-clamp-2">
           {{ p.descripcion_corta }}
@@ -122,6 +128,7 @@ import { computed } from 'vue'
 import { useWishlistStore } from '@/stores/wishlist'
 import { useAuthStore } from '@/stores/auth'
 import { toProductTitle } from '@/utils/text'
+import StarRating from '@/components/StarRating.vue'
 
 const emit = defineEmits(['add-to-cart'])
 const wishlist = useWishlistStore()

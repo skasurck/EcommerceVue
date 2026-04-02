@@ -29,6 +29,7 @@ from .models import (
     HomeSliderImage,
     PromoBanner,
     ProductoDestacado,
+    Resena,
 )
 
 logger = logging.getLogger(__name__)
@@ -49,6 +50,7 @@ from .serializers import (
     PromoBannerSerializer,
     ProductoDestacadoPublicoSerializer,
     ProductoDestacadoAdminSerializer,
+    ResenaSerializer,
 )
 from .forms import ProductoForm, PrecioEscalonadoFormSet
 from usuarios.permissions import IsAdminOrSuperAdmin, IsSuperAdmin
@@ -958,3 +960,43 @@ class ListaDeseosViewSet(viewsets.ModelViewSet):
         serializer = ListaDeseosSerializer(obj, context={'request': request})
         return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
 
+
+
+# ──────────── RESEÑAS ────────────
+class ResenaViewSet(viewsets.ModelViewSet):
+    serializer_class = ResenaSerializer
+    http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [permissions.AllowAny()]
+        return [permissions.IsAuthenticated()]
+
+    def get_queryset(self):
+        qs = Resena.objects.select_related('usuario').order_by('-creado')
+        producto_id = self.request.query_params.get('producto')
+        if producto_id:
+            qs = qs.filter(producto_id=producto_id)
+        return qs
+
+    def create(self, request, *args, **kwargs):
+        # Un usuario solo puede tener una reseña por producto
+        producto_id = request.data.get('producto')
+        if Resena.objects.filter(usuario=request.user, producto_id=producto_id).exists():
+            return Response(
+                {'detail': 'Ya tienes una reseña para este producto.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return super().create(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        resena = self.get_object()
+        if resena.usuario != request.user:
+            return Response({'detail': 'No autorizado.'}, status=status.HTTP_403_FORBIDDEN)
+        return super().partial_update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        resena = self.get_object()
+        if resena.usuario != request.user and not request.user.is_staff:
+            return Response({'detail': 'No autorizado.'}, status=status.HTTP_403_FORBIDDEN)
+        return super().destroy(request, *args, **kwargs)

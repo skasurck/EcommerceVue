@@ -27,7 +27,11 @@
       "Bash(.venv/Scripts/python backend/manage.py makemigrations suppliers --name add_stock_history)",
       "Bash(npm run:*)",
       "WebSearch",
-      "WebFetch(domain:mktska.net)"
+      "WebFetch(domain:mktska.net)",
+      "Bash(python manage.py makemigrations productos)",
+      "Bash(..\\\\.venv\\\\Scripts\\\\python manage.py makemigrations productos)",
+      "Bash(\"c:/Users/skasu/Documents/Proyectos/EcommerceVue/EcommerceVue/.venv/Scripts/python.exe\" manage.py makemigrations productos)",
+      "Bash(\"venv/Scripts/python.exe\" manage.py makemigrations productos)"
     ]
   }
 }
