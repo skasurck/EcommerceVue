@@ -225,8 +225,6 @@ class PedidoSerializer(serializers.ModelSerializer):
                 )
                 producto = Producto.objects.select_for_update().get(pk=producto_id)
                 cantidad = item['cantidad']
-                if not items_from_cart and producto.stock < cantidad:
-                    raise ValidationError(f'Stock insuficiente para {producto.nombre}')
 
                 precio = producto.precio_rebajado or producto.precio_normal
                 tiers = producto.precios_escalonados.all()
@@ -242,6 +240,12 @@ class PedidoSerializer(serializers.ModelSerializer):
                     subtotal=item_subtotal,
                 )
                 if not items_from_cart:
+                    # Pedido sin carrito: validar y descontar stock aquí
+                    if producto.stock < cantidad:
+                        raise ValidationError(
+                            f'Stock insuficiente para "{producto.nombre}". '
+                            f'Disponible: {producto.stock}, solicitado: {cantidad}.'
+                        )
                     producto.stock -= cantidad
                     producto.save(update_fields=['stock'])
                 subtotal += item_subtotal
@@ -268,10 +272,11 @@ class PedidoSerializer(serializers.ModelSerializer):
             pedido.total = subtotal - descuento + metodo_envio.costo
             pedido.save(update_fields=['cupon', 'subtotal', 'descuento', 'costo_envio', 'total'])
 
-            # Para MercadoPago no limpiamos el carrito aún:
-            # el usuario puede regresar si el pago falla.
-            # El carrito se limpia en GraciasView al confirmar el pago.
-            if cart and pedido.metodo_pago != 'mercadopago':
+            # Limpiar el carrito siempre que el pedido venga del carrito.
+            # clear_cart elimina los items SIN restaurar stock, transfiriendo
+            # la propiedad de la reserva al pedido (stock_restaurado=False).
+            # Si el pago falla, Pedido.save() restaura el stock correctamente.
+            if cart and items_from_cart:
                 clear_cart(cart)
 
             return pedido
