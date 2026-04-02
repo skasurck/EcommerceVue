@@ -16,12 +16,23 @@
     <meta name="twitter:title" content="Mktska Digital — Tecnología y cómputo en México">
     <meta name="twitter:description" content="Tienda de tecnología en México. Encuentra computadoras, componentes, periféricos, impresoras y más.">
     <meta name="twitter:image" content="https://mktska.net/logo-mktska.png">
+    <!-- Google Tag Manager -->
+    <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','GTM-NLK2X4DT');</script>
+    <!-- End Google Tag Manager -->
     <!-- Preconexión al servidor para reducir latencia en las primeras peticiones API -->
     <link rel="preconnect" href="/" crossorigin="use-credentials">
     <!-- Preload del slider: el navegador inicia el fetch en paralelo con la descarga de JS -->
     <link rel="preload" href="/api/home-slider/?ordering=orden" as="fetch" crossorigin="use-credentials">
   </head>
   <body>
+    <!-- Google Tag Manager (noscript) -->
+    <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NLK2X4DT"
+    height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+    <!-- End Google Tag Manager (noscript) -->
     <div id="app"></div>
     <script type="module" src="/src/main.js"></script>
   </body>
