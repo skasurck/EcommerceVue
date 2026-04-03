@@ -62,6 +62,14 @@
             </li>
 
             <li>
+              <RouterLink to="/admin/estadisticas"
+                class="group flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800"
+                :class="sectionActive('/admin/estadisticas') ? 'bg-slate-800 text-white' : 'text-slate-300'">
+                <span>📈</span><span>Estadísticas</span>
+              </RouterLink>
+            </li>
+
+            <li>
               <RouterLink to="/admin/pedidos"
                 class="group flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800"
                 :class="sectionActive('/admin/pedidos') ? 'bg-slate-800 text-white' : 'text-slate-300'">

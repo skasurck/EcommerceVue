@@ -90,10 +90,16 @@ const routes = [
         path: '', 
         name: 'admin', 
         component: () => import('@/views/AdminDashboard.vue'), 
-        meta: { title: 'Dashboard' } 
+        meta: { title: 'Dashboard' }
       },
-      { 
-        path: 'productos', 
+      {
+        path: 'estadisticas',
+        name: 'admin-estadisticas',
+        component: () => import('@/views/AdminEstadisticas.vue'),
+        meta: { title: 'Estadísticas', requiresAuth: true, roles: ['admin','super_admin'] }
+      },
+      {
+        path: 'productos',
         name: 'admin-productos', 
         component: () => import('@/views/AdminProductos.vue'), 
         meta: { title: 'Gestión de productos' } 
