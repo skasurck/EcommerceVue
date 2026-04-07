@@ -1,5 +1,5 @@
 <template>
-  <div class="relative bg-white rounded-lg border shadow-sm group overflow-hidden">
+  <div class="relative bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md hover:border-cyan-400 dark:hover:border-cyan-500 transition-all duration-200 group overflow-hidden cursor-pointer">
     <!-- Wishlist heart button -->
     <button
       type="button"
@@ -16,7 +16,7 @@
     </button>
 
     <!-- Link & image -->
-    <router-link :to="{ name: 'producto', params: { slug: (p.slug ?? producto.slug) } }" class="block">
+    <router-link :to="{ name: 'producto', params: { slug: (p.slug ?? producto.slug) } }" class="block cursor-pointer">
       <div class="relative">
         <!-- Discount badge -->
         <div v-if="hasDiscount && !isOutOfStock" class="absolute left-2 top-2 z-10 rounded-md bg-rose-600 px-2 py-0.5 text-white text-xs font-semibold">
@@ -35,26 +35,25 @@
           :src="imgSrc"
           :alt="p.nombre || 'Producto'"
           loading="lazy"
-          class="aspect-square w-full rounded-t-lg bg-gray-100 object-cover"
-          :class="isOutOfStock ? 'opacity-50 grayscale' : 'group-hover:opacity-90'"
+          class="aspect-square w-full rounded-t-xl bg-slate-50 dark:bg-slate-900 object-contain p-2 transition-transform duration-300"
+          :class="isOutOfStock ? 'opacity-40 grayscale' : 'group-hover:scale-105'"
         />
       </div>
 
       <!-- Content -->
       <div class="p-3">
         <!-- Price -->
-        <div class="flex items-baseline gap-2">
-          <p class="text-gray-900 font-semibold">
+        <div class="flex items-baseline gap-2 flex-wrap">
+          <p class="text-slate-900 dark:text-slate-100 font-bold">
             <span class="text-xl">{{ priceMajor }}</span><span class="align-top text-[10px]">{{ priceMinor }}</span>
           </p>
-          <p v-if="hasDiscount" class="text-xs text-gray-500">
-            Precio de lista:
+          <p v-if="hasDiscount" class="text-xs text-slate-500 dark:text-slate-400">
             <span class="line-through">{{ listPriceFormatted }}</span>
           </p>
         </div>
 
         <!-- Title / name -->
-        <h3 class="mt-1 text-sm text-gray-800 leading-snug line-clamp-3 break-words">
+        <h3 class="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200 leading-snug line-clamp-3 break-words">
           {{ toProductTitle(p.nombre) }}
         </h3>
 
@@ -65,7 +64,7 @@
         </div>
 
         <!-- Short description (muted) -->
-        <p v-if="p.descripcion_corta" class="mt-0.5 text-xs text-gray-500 line-clamp-2">
+        <p v-if="p.descripcion_corta" class="mt-0.5 text-xs text-slate-500 dark:text-slate-400 line-clamp-2">
           {{ p.descripcion_corta }}
         </p>
 
@@ -81,20 +80,20 @@
             <span v-if="colors.length > 4" class="text-[11px] text-gray-500">+{{ colors.length - 4 }}</span>
           </template>
           <template v-else-if="imagenes.length">
-            <span v-for="(img, idx) in imagenes.slice(0,4)" :key="idx" class="h-4 w-4 rounded-full bg-gray-200 overflow-hidden border">
+            <span v-for="(img, idx) in imagenes.slice(0,4)" :key="idx" class="h-4 w-4 rounded-full bg-slate-200 dark:bg-slate-600 overflow-hidden border border-slate-300 dark:border-slate-500">
               <img :src="img" alt="miniatura" class="h-full w-full object-cover" />
             </span>
-            <span v-if="imagenes.length > 4" class="text-[11px] text-gray-500">+{{ imagenes.length - 4 }}</span>
+            <span v-if="imagenes.length > 4" class="text-[11px] text-slate-500 dark:text-slate-400">+{{ imagenes.length - 4 }}</span>
           </template>
         </div>
 
         <!-- Stock warning -->
-        <p v-if="stockLow && !isOutOfStock" class="mt-2 text-xs font-medium text-amber-700">
+        <p v-if="stockLow && !isOutOfStock" class="mt-2 text-xs font-medium text-amber-600 dark:text-amber-400">
           Quedan {{ p.stock }} en inventario
         </p>
 
         <!-- Tier pricing hint -->
-        <p v-if="tienePreciosEscalonados" class="mt-1 text-[11px] text-sky-700">
+        <p v-if="tienePreciosEscalonados" class="mt-1 text-[11px] text-cyan-700 dark:text-cyan-400">
           Precio por volumen disponible
         </p>
       </div>
@@ -103,10 +102,10 @@
     <!-- Add-to-cart floating button -->
     <button
       type="button"
-      class="absolute bottom-2 right-2 rounded-full p-2 shadow transition-colors"
+      class="absolute bottom-2 right-2 rounded-full p-2 shadow-md transition-all duration-200"
       :class="isOutOfStock
-        ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-        : 'bg-yellow-400 text-gray-900 hover:bg-yellow-500'"
+        ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed'
+        : 'bg-yellow-400 hover:bg-yellow-300 text-slate-900 hover:scale-110 cursor-pointer'"
       :disabled="isOutOfStock"
       @click.stop="!isOutOfStock && emit('add-to-cart', producto)"
       :aria-label="isOutOfStock ? 'Producto agotado' : 'Agregar al carrito'"

@@ -50,12 +50,12 @@ let autoplayTimer = null
 // Cada entrada define el label visible, el slug de la categoría en la DB,
 // y el ref que recibirá los productos.
 const CATEGORY_SECTIONS = [
-  { label: 'CPU (Procesadores)',        slug: 'procesadores',       icon: '🖥️',  productos: ref([]), catId: ref(null), catSlug: ref(null) },
-  { label: 'GPU (Tarjetas de Video)',   slug: 'tarjetas-de-video',  icon: '🎮',  productos: ref([]), catId: ref(null), catSlug: ref(null) },
-  { label: 'Memoria RAM',               slug: 'memorias-ram-flash', icon: '💾',  productos: ref([]), catId: ref(null), catSlug: ref(null) },
-  { label: 'SSD / NVMe',                slug: 'ssd',                icon: '⚡',  productos: ref([]), catId: ref(null), catSlug: ref(null) },
-  { label: 'Tarjetas Madre',            slug: 'tarjetas-madre',     icon: '🔧',  productos: ref([]), catId: ref(null), catSlug: ref(null) },
-  { label: 'Fuentes de Poder',          slug: 'fuentes-poder-pc',   icon: '🔌',  productos: ref([]), catId: ref(null), catSlug: ref(null) },
+  { label: 'CPU (Procesadores)',        slug: 'procesadores',       productos: ref([]), catId: ref(null), catSlug: ref(null) },
+  { label: 'GPU (Tarjetas de Video)',   slug: 'tarjetas-de-video',  productos: ref([]), catId: ref(null), catSlug: ref(null) },
+  { label: 'Memoria RAM',               slug: 'memorias-ram-flash', productos: ref([]), catId: ref(null), catSlug: ref(null) },
+  { label: 'SSD / NVMe',                slug: 'ssd',                productos: ref([]), catId: ref(null), catSlug: ref(null) },
+  { label: 'Tarjetas Madre',            slug: 'tarjetas-madre',     productos: ref([]), catId: ref(null), catSlug: ref(null) },
+  { label: 'Fuentes de Poder',          slug: 'fuentes-poder-pc',   productos: ref([]), catId: ref(null), catSlug: ref(null) },
 ]
 
 const cartStore = useCarritoStore()
@@ -284,17 +284,25 @@ onBeforeUnmount(() => {
           </div>
 
           <button
-            class="absolute left-3 top-1/2 -translate-y-1/2 rounded-full w-10 h-10 bg-white/15 hover:bg-white/30 backdrop-blur-sm text-white font-bold text-xl transition-colors"
+            class="absolute left-3 top-1/2 -translate-y-1/2 rounded-full w-11 h-11 bg-white/15 hover:bg-white/35 backdrop-blur-sm text-white transition-all duration-200 hover:scale-110 flex items-center justify-center cursor-pointer"
             type="button"
             aria-label="Imagen anterior"
             @click="prevSlide"
-          >‹</button>
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+            </svg>
+          </button>
           <button
-            class="absolute right-3 top-1/2 -translate-y-1/2 rounded-full w-10 h-10 bg-white/15 hover:bg-white/30 backdrop-blur-sm text-white font-bold text-xl transition-colors"
+            class="absolute right-3 top-1/2 -translate-y-1/2 rounded-full w-11 h-11 bg-white/15 hover:bg-white/35 backdrop-blur-sm text-white transition-all duration-200 hover:scale-110 flex items-center justify-center cursor-pointer"
             type="button"
             aria-label="Imagen siguiente"
             @click="nextSlide"
-          >›</button>
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+            </svg>
+          </button>
 
           <div class="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2">
             <button
@@ -406,7 +414,7 @@ onBeforeUnmount(() => {
           v-for="section in CATEGORY_SECTIONS"
           :key="section.slug"
           :to="section.catSlug.value ? `/categoria/${section.catSlug.value}` : (section.catId.value ? `/productos?categoria=${section.catId.value}` : '/productos')"
-          class="flex flex-col overflow-hidden rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-cyan-400 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 group"
+          class="flex flex-col overflow-hidden rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-cyan-400 dark:hover:border-cyan-500 hover:shadow-lg hover:-translate-y-1 transition-all duration-200 group cursor-pointer"
         >
           <!-- Imagen del primer producto de la categoría -->
           <div class="flex items-center justify-center h-28 sm:h-32 bg-white dark:bg-slate-900 p-3">
@@ -415,13 +423,13 @@ onBeforeUnmount(() => {
               :src="toMedia(section.productos.value[0].imagen_principal)"
               :alt="section.label"
               loading="lazy"
-              class="h-full w-full object-contain transition-transform duration-300 group-hover:scale-105"
+              class="h-full w-full object-contain transition-transform duration-300 group-hover:scale-110"
             />
-            <div v-else class="h-16 w-16 rounded-lg bg-slate-100 dark:bg-slate-700 animate-pulse" />
+            <div v-else class="w-full h-full rounded-lg bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800 animate-pulse" />
           </div>
           <!-- Nombre de la categoría -->
-          <div class="px-3 py-2 bg-slate-50 dark:bg-slate-800 border-t border-slate-100 dark:border-slate-700 text-center">
-            <span class="text-xs font-semibold text-slate-700 dark:text-slate-300 group-hover:text-cyan-600 leading-snug">{{ section.label }}</span>
+          <div class="px-3 py-2.5 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-100 dark:border-slate-700 text-center">
+            <span class="text-xs font-semibold text-slate-700 dark:text-slate-300 group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors leading-snug">{{ section.label }}</span>
           </div>
         </RouterLink>
       </div>
@@ -435,12 +443,17 @@ onBeforeUnmount(() => {
       <ProductRow title="Novedades" :productos="nuevos" to="/productos" @add-to-cart="handleAddToCart" />
 
       <section>
-        <div class="flex items-baseline justify-between mb-3 px-2">
-          <h2 class="text-xl font-semibold text-slate-800 dark:text-white flex items-center gap-2">
+        <div class="flex items-center justify-between mb-4 px-2">
+          <h2 class="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
             <span class="block w-1 h-5 rounded-full bg-cyan-500 shrink-0"></span>
             Destacados
           </h2>
-          <RouterLink to="/productos" class="text-sm text-blue-700 hover:underline">Ver más</RouterLink>
+          <RouterLink to="/productos" class="flex items-center gap-1 text-sm font-medium text-cyan-600 dark:text-cyan-400 hover:text-cyan-500 dark:hover:text-cyan-300 transition-colors">
+            Ver más
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+            </svg>
+          </RouterLink>
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
           <ProductCard v-for="p in destacados" :key="p.id" :producto="p" @add-to-cart="handleAddToCart" />
@@ -451,7 +464,7 @@ onBeforeUnmount(() => {
       <template v-for="section in CATEGORY_SECTIONS" :key="section.slug">
         <ProductRow
           v-if="section.productos.value.length"
-          :title="`${section.icon} ${section.label}`"
+          :title="section.label"
           :productos="section.productos.value"
           :to="section.catSlug.value ? `/categoria/${section.catSlug.value}` : (section.catId.value ? `/productos?categoria=${section.catId.value}` : '/productos')"
           @add-to-cart="handleAddToCart"

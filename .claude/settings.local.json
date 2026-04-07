@@ -36,7 +36,11 @@
       "Bash(.venv/Scripts/python.exe manage.py makemigrations suppliers --name=\"add_supplier_sync_log\")",
       "Bash(venv/Scripts/python.exe manage.py makemigrations suppliers --name=\"add_supplier_sync_log\")",
       "Bash(ls c:/Users/skasu/Documents/Proyectos/EcommerceVue/EcommerceVue/backend/venv/Scripts/python*)",
-      "Bash(ls c:/Users/skasu/Documents/Proyectos/EcommerceVue/EcommerceVue/backend/venv/bin/python*)"
+      "Bash(ls c:/Users/skasu/Documents/Proyectos/EcommerceVue/EcommerceVue/backend/venv/bin/python*)",
+      "Bash(python skills/ui-ux-pro-max/scripts/search.py \"ecommerce tech electronics dark modern professional\" --design-system -p \"Mktska Digital\" -f markdown)",
+      "Bash(python /c/Users/skasu/Documents/Proyectos/EcommerceVue/EcommerceVue/.claude/skills/ui-ux-pro-max/scripts/search.py \"ecommerce tech electronics dark modern professional\" --design-system -p \"Mktska Digital\" -f markdown)",
+      "Bash(python /c/Users/skasu/Documents/Proyectos/EcommerceVue/EcommerceVue/.claude/skills/ui-ux-pro-max/scripts/search.py \"hover animation loading accessibility\" --domain ux)",
+      "Bash(python /c/Users/skasu/Documents/Proyectos/EcommerceVue/EcommerceVue/.claude/skills/ui-ux-pro-max/scripts/search.py \"layout responsive ecommerce\" --stack vue)"
     ]
   }
 }
