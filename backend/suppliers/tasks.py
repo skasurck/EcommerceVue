@@ -94,14 +94,21 @@ def run_supermex_scraper(self, start_url=None, product_urls=None, limit=0,
     }
 
 @shared_task(bind=True)
-def run_supermex_stock_sync(self, http2: bool = True, sleep_s: float = 0.3):
+def run_supermex_stock_sync(self, http2: bool = True, sleep_s: float = 0.3, sync_log_id: int = None):
     """
     Scraper ligero: solo actualiza precio + stock de productos ya existentes.
     No toca nombre/descripción/imágenes ni crea productos nuevos.
     Ideal para ejecución diaria.
     """
     from suppliers.scraper_supermex import get_client, sync_stock_for_product
-    from suppliers.models import SupplierProduct
+    from suppliers.models import SupplierProduct, SupplierSyncLog, SupplierSyncLogEntry
+    import time
+
+    # Crear o reutilizar el registro de log
+    if sync_log_id:
+        sync_log = SupplierSyncLog.objects.get(pk=sync_log_id)
+    else:
+        sync_log = SupplierSyncLog.objects.create(tipo="stock_sync", estado="running")
 
     products = list(SupplierProduct.objects.filter(supplier="supermex", is_active=True).values_list("id", flat=True))
     total = len(products)
@@ -109,6 +116,9 @@ def run_supermex_stock_sync(self, http2: bool = True, sleep_s: float = 0.3):
     unchanged = 0
     errors = 0
     deactivated = 0
+
+    sync_log.total = total
+    sync_log.save(update_fields=["total"])
 
     self.update_state(state="PROGRESS", meta={"current": 0, "total": total, "status": f"Iniciando sync de {total} productos..."})
 
@@ -140,6 +150,8 @@ def run_supermex_stock_sync(self, http2: bool = True, sleep_s: float = 0.3):
 
                 # --- Respuesta normal: resetear contador 404 si venía con fallos ---
                 prev_qty = sp.available_qty
+                prev_price = sp.price_supplier
+                prev_in_stock = sp.in_stock
                 update_fields = ["last_seen"]
                 if sp.consecutive_404s > 0:
                     sp.consecutive_404s = 0
@@ -167,18 +179,58 @@ def run_supermex_stock_sync(self, http2: bool = True, sleep_s: float = 0.3):
                 if len(update_fields) > 1:
                     updated += 1
                     logger.info("Actualizado %s: %s (qty %s→%s)", sp.supplier_sku, update_fields, prev_qty, result["qty"])
+                    # Guardar detalle de cambios en el log
+                    if "available_qty" in update_fields:
+                        SupplierSyncLogEntry.objects.create(
+                            sync_log=sync_log, tipo="cambio",
+                            supplier_sku=sp.supplier_sku, name=sp.name, url=sp.product_url,
+                            campo="stock", valor_anterior=str(prev_qty), valor_nuevo=str(result["qty"]),
+                        )
+                    if "price_supplier" in update_fields:
+                        SupplierSyncLogEntry.objects.create(
+                            sync_log=sync_log, tipo="cambio",
+                            supplier_sku=sp.supplier_sku, name=sp.name, url=sp.product_url,
+                            campo="precio", valor_anterior=str(prev_price), valor_nuevo=str(result["price"]),
+                        )
+                    if "in_stock" in update_fields:
+                        SupplierSyncLogEntry.objects.create(
+                            sync_log=sync_log, tipo="cambio",
+                            supplier_sku=sp.supplier_sku, name=sp.name, url=sp.product_url,
+                            campo="disponibilidad",
+                            valor_anterior="En stock" if prev_in_stock else "Agotado",
+                            valor_nuevo="En stock" if result["in_stock"] else "Agotado",
+                        )
                 else:
                     unchanged += 1
                     logger.debug("Sin cambios %s", sp.supplier_sku)
             except Exception as exc:
                 logger.warning("Error sync stock %s: %s", sp_id, exc)
                 errors += 1
+                try:
+                    sp_obj = SupplierProduct.objects.get(pk=sp_id)
+                    SupplierSyncLogEntry.objects.create(
+                        sync_log=sync_log, tipo="error",
+                        supplier_sku=sp_obj.supplier_sku, name=sp_obj.name, url=sp_obj.product_url,
+                        mensaje_error=str(exc),
+                    )
+                except Exception:
+                    SupplierSyncLogEntry.objects.create(
+                        sync_log=sync_log, tipo="error",
+                        supplier_sku=str(sp_id), mensaje_error=str(exc),
+                    )
 
             if sleep_s > 0:
-                import time
                 time.sleep(sleep_s)
 
     apply_rules()
+
+    sync_log.estado = "completed"
+    sync_log.fecha_fin = timezone.now()
+    sync_log.updated = updated
+    sync_log.unchanged = unchanged
+    sync_log.errors = errors
+    sync_log.deactivated = deactivated
+    sync_log.save(update_fields=["estado", "fecha_fin", "updated", "unchanged", "errors", "deactivated"])
 
     return {
         "current": total, "total": total,
@@ -187,6 +239,7 @@ def run_supermex_stock_sync(self, http2: bool = True, sleep_s: float = 0.3):
         "unchanged": unchanged,
         "errors": errors,
         "deactivated": deactivated,
+        "sync_log_id": sync_log.id,
     }
 
 
@@ -210,7 +263,7 @@ def apply_rules():
             new_estado = "en_existencia"
             new_disponible = True
             new_visibilidad = True
-            new_stock = qty_eff if (p.stock == 0 or p.stock < qty_eff) else p.stock
+            new_stock = qty_eff
         else:
             new_estado = "agotado"
             new_disponible = False
@@ -243,8 +296,91 @@ def apply_rules():
 
 @shared_task(name="suppliers.tasks.sync_supermex_full")
 def sync_supermex_full():
-    """Tarea programada por beat cada día a las 3 AM: actualiza stock y precios de todos los productos activos."""
-    return run_supermex_stock_sync.apply(kwargs={"http2": True, "sleep_s": 0.3}).get()
+    """
+    Tarea diaria a las 3 AM: actualiza stock y precios.
+    Cada 3 días (día del año divisible entre 3) también importa productos nuevos.
+    """
+    from suppliers.models import SupplierSyncLog
+    import datetime
+
+    hoy = datetime.date.today()
+    importar_nuevos = (hoy.timetuple().tm_yday % 3 == 0)
+
+    if importar_nuevos:
+        # Crear un log unificado para stock + importación
+        sync_log = SupplierSyncLog.objects.create(tipo="stock_then_import", estado="running")
+        # Primero sync de stock
+        run_supermex_stock_sync.apply(kwargs={"http2": True, "sleep_s": 0.3, "sync_log_id": sync_log.id}).get()
+        # Luego importar productos nuevos
+        _run_import_and_log(sync_log)
+    else:
+        run_supermex_stock_sync.apply(kwargs={"http2": True, "sleep_s": 0.3}).get()
+
+
+def _run_import_and_log(sync_log):
+    """Ejecuta la importación de productos nuevos y guarda el resultado en sync_log."""
+    from suppliers.models import SupplierSyncLog, SupplierSyncLogEntry
+    from suppliers.scraper_supermex import get_client, plp_collect_all, upsert_product
+    from suppliers.management.commands.sync_supermex import create_or_update_producto_from_supplier
+    from productos.models import Producto
+
+    CATEGORIES = [
+        "https://www.supermexdigital.mx/shop/monitores",
+        "https://www.supermexdigital.mx/shop/almacenamiento",
+    ]
+
+    existing_skus = set(Producto.objects.values_list('sku', flat=True))
+    from suppliers.models import SupplierProduct
+    existing_urls = set(
+        SupplierProduct.objects.filter(supplier='supermex', supplier_sku__in=existing_skus)
+        .values_list('product_url', flat=True)
+    )
+
+    collected_urls = []
+    with get_client(http2=True) as client:
+        for cat in CATEGORIES:
+            try:
+                urls = plp_collect_all(client, cat, sleep_s=0.6, max_pages=5)
+                collected_urls.extend(urls)
+            except Exception as exc:
+                logger.warning("Error recolectando categoría %s: %s", cat, exc)
+
+    new_imported = 0
+    skipped = 0
+    import time
+
+    with get_client(http2=True) as client:
+        for url in collected_urls:
+            if url in existing_urls:
+                skipped += 1
+                continue
+            try:
+                supplier_product = upsert_product(url)
+                existing_urls.add(url)
+                create_or_update_producto_from_supplier(supplier_product)
+                new_imported += 1
+                SupplierSyncLogEntry.objects.create(
+                    sync_log=sync_log, tipo="cambio",
+                    supplier_sku=supplier_product.supplier_sku,
+                    name=supplier_product.name,
+                    url=url,
+                    campo="importacion",
+                    valor_anterior="",
+                    valor_nuevo="nuevo",
+                )
+            except Exception as exc:
+                logger.warning("Error importando %s: %s", url, exc)
+                SupplierSyncLogEntry.objects.create(
+                    sync_log=sync_log, tipo="error",
+                    url=url, mensaje_error=str(exc),
+                )
+            time.sleep(0.6)
+
+    sync_log.new_imported = new_imported
+    sync_log.skipped_existing = skipped
+    sync_log.estado = "completed"
+    sync_log.fecha_fin = timezone.now()
+    sync_log.save(update_fields=["new_imported", "skipped_existing", "estado", "fecha_fin"])
 
 
 @shared_task(name="suppliers.tasks.recheck_inactive_products")

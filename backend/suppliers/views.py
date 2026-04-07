@@ -10,7 +10,7 @@ from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from suppliers.models import SupplierProduct, SupplierStockHistory
+from suppliers.models import SupplierProduct, SupplierStockHistory, SupplierSyncLog, SupplierSyncLogEntry
 from suppliers.serializers import (
     SupplierProductSerializer,
     SupermexRunRequestSerializer,
@@ -209,3 +209,68 @@ class SupermexSalesStatsView(APIView):
             'since': since.isoformat(),
             'ranking': ranking,
         })
+
+
+class SupplierSyncLogListView(APIView):
+    """
+    Lista el historial de sincronizaciones para consulta posterior.
+    GET /suppliers/supermex/sync-logs/?limit=20
+    GET /suppliers/supermex/sync-logs/<id>/  → detalle con entradas
+    """
+    permission_classes = [IsAdminUser]
+
+    def get(self, request, log_id=None):
+        if log_id:
+            try:
+                log = SupplierSyncLog.objects.get(pk=log_id)
+            except SupplierSyncLog.DoesNotExist:
+                return Response({'error': 'No encontrado'}, status=404)
+
+            entries = list(
+                log.entries.values(
+                    'id', 'tipo', 'supplier_sku', 'name', 'url',
+                    'mensaje_error', 'campo', 'valor_anterior', 'valor_nuevo'
+                )
+            )
+            return Response({
+                'id': log.id,
+                'tipo': log.tipo,
+                'tipo_display': log.get_tipo_display(),
+                'estado': log.estado,
+                'fecha_inicio': log.fecha_inicio,
+                'fecha_fin': log.fecha_fin,
+                'total': log.total,
+                'updated': log.updated,
+                'unchanged': log.unchanged,
+                'errors': log.errors,
+                'deactivated': log.deactivated,
+                'new_imported': log.new_imported,
+                'skipped_existing': log.skipped_existing,
+                'entries': entries,
+            })
+
+        try:
+            limit = max(1, min(int(request.query_params.get('limit', 20)), 100))
+        except (TypeError, ValueError):
+            limit = 20
+
+        logs = SupplierSyncLog.objects.all()[:limit]
+        data = [
+            {
+                'id': log.id,
+                'tipo': log.tipo,
+                'tipo_display': log.get_tipo_display(),
+                'estado': log.estado,
+                'fecha_inicio': log.fecha_inicio,
+                'fecha_fin': log.fecha_fin,
+                'total': log.total,
+                'updated': log.updated,
+                'unchanged': log.unchanged,
+                'errors': log.errors,
+                'deactivated': log.deactivated,
+                'new_imported': log.new_imported,
+                'skipped_existing': log.skipped_existing,
+            }
+            for log in logs
+        ]
+        return Response(data)

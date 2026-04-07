@@ -244,6 +244,133 @@
       </div>
     </section>
 
+    <!-- Historial de sincronizaciones -->
+    <section class="bg-white border border-slate-200 rounded-xl shadow-sm p-6 space-y-5">
+      <header class="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h2 class="text-lg font-medium text-slate-800">Historial de sincronizaciones</h2>
+          <p class="text-sm text-slate-500">Registro de cada ejecución automática o manual con errores y cambios aplicados.</p>
+        </div>
+        <button
+          type="button"
+          class="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          @click="fetchSyncLogs"
+          :disabled="syncLogsLoading"
+        >
+          <span v-if="syncLogsLoading" class="animate-spin">⏳</span>
+          <span v-else>🔄</span>
+          Actualizar
+        </button>
+      </header>
+
+      <p v-if="syncLogsError" class="text-sm text-red-600">{{ syncLogsError }}</p>
+
+      <p v-else-if="!syncLogsLoading && !syncLogs.length" class="text-sm text-slate-400">
+        Aún no hay sincronizaciones registradas. Se crearán automáticamente desde la próxima ejecución.
+      </p>
+
+      <div v-else class="space-y-3">
+        <div
+          v-for="log in syncLogs"
+          :key="log.id"
+          class="border border-slate-200 rounded-lg overflow-hidden"
+        >
+          <!-- Cabecera de cada sync -->
+          <button
+            type="button"
+            class="w-full flex items-center justify-between gap-4 px-4 py-3 bg-slate-50 hover:bg-slate-100 text-left"
+            @click="toggleLogDetail(log.id)"
+          >
+            <div class="flex items-center gap-3 flex-wrap">
+              <span class="text-sm font-medium text-slate-800">{{ formatDate(log.fecha_inicio) }}</span>
+              <span
+                class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold"
+                :class="tipoClass(log.tipo)"
+              >{{ log.tipo_display }}</span>
+              <span
+                class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold"
+                :class="estadoClass(log.estado)"
+              >{{ estadoLabel(log.estado) }}</span>
+            </div>
+            <div class="flex items-center gap-3 text-xs text-slate-500 flex-wrap shrink-0">
+              <span class="text-emerald-700 font-medium">✅ {{ log.updated }} cambios</span>
+              <span v-if="log.errors" class="text-red-600 font-medium">❌ {{ log.errors }} errores</span>
+              <span v-if="log.new_imported" class="text-blue-700 font-medium">➕ {{ log.new_imported }} nuevos</span>
+              <span v-if="log.deactivated" class="text-amber-600 font-medium">🚫 {{ log.deactivated }} desactivados</span>
+              <span class="text-slate-400">{{ log.total }} productos</span>
+              <span class="text-slate-400 ml-1">{{ expandedLogs.has(log.id) ? '▲' : '▼' }}</span>
+            </div>
+          </button>
+
+          <!-- Detalle expandible -->
+          <div v-if="expandedLogs.has(log.id)" class="border-t border-slate-200">
+            <div v-if="!logDetails[log.id]" class="px-4 py-6 text-center text-slate-400 text-sm">
+              <span class="animate-spin inline-block mr-2">⏳</span> Cargando detalle...
+            </div>
+            <template v-else>
+              <!-- Errores -->
+              <div v-if="logErrors(log.id).length" class="p-4 space-y-2">
+                <h3 class="text-sm font-semibold text-red-700">Errores ({{ logErrors(log.id).length }})</h3>
+                <div class="overflow-x-auto">
+                  <table class="min-w-full text-xs divide-y divide-slate-200">
+                    <thead class="bg-red-50">
+                      <tr>
+                        <th class="px-3 py-2 text-left font-semibold text-slate-600">SKU</th>
+                        <th class="px-3 py-2 text-left font-semibold text-slate-600">Nombre</th>
+                        <th class="px-3 py-2 text-left font-semibold text-slate-600">Error</th>
+                        <th class="px-3 py-2 text-left font-semibold text-slate-600">URL</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                      <tr v-for="entry in logErrors(log.id)" :key="entry.id">
+                        <td class="px-3 py-2 text-slate-700 font-medium">{{ entry.supplier_sku || '—' }}</td>
+                        <td class="px-3 py-2 text-slate-600 max-w-xs truncate" :title="entry.name">{{ entry.name || '—' }}</td>
+                        <td class="px-3 py-2 text-red-600 max-w-sm truncate" :title="entry.mensaje_error">{{ entry.mensaje_error }}</td>
+                        <td class="px-3 py-2">
+                          <a v-if="entry.url" :href="entry.url" target="_blank" rel="noopener" class="text-blue-600 hover:underline">Ver</a>
+                          <span v-else>—</span>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <p v-else class="px-4 py-3 text-xs text-emerald-700 bg-emerald-50">Sin errores en esta sincronización.</p>
+
+              <!-- Cambios -->
+              <div v-if="logChanges(log.id).length" class="p-4 space-y-2 border-t border-slate-100">
+                <h3 class="text-sm font-semibold text-slate-700">Cambios aplicados ({{ logChanges(log.id).length }})</h3>
+                <div class="overflow-x-auto">
+                  <table class="min-w-full text-xs divide-y divide-slate-200">
+                    <thead class="bg-slate-50">
+                      <tr>
+                        <th class="px-3 py-2 text-left font-semibold text-slate-600">SKU</th>
+                        <th class="px-3 py-2 text-left font-semibold text-slate-600">Nombre</th>
+                        <th class="px-3 py-2 text-left font-semibold text-slate-600">Campo</th>
+                        <th class="px-3 py-2 text-left font-semibold text-slate-600">Antes</th>
+                        <th class="px-3 py-2 text-left font-semibold text-slate-600">Después</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                      <tr v-for="entry in logChanges(log.id)" :key="entry.id">
+                        <td class="px-3 py-2 text-slate-700 font-medium">{{ entry.supplier_sku }}</td>
+                        <td class="px-3 py-2 text-slate-600 max-w-xs truncate" :title="entry.name">{{ entry.name }}</td>
+                        <td class="px-3 py-2">
+                          <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-slate-100 text-slate-600">{{ campoLabel(entry.campo) }}</span>
+                        </td>
+                        <td class="px-3 py-2 text-slate-500">{{ entry.valor_anterior || '—' }}</td>
+                        <td class="px-3 py-2 font-medium text-slate-800">{{ entry.valor_nuevo || '—' }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- Sección de estadísticas de ventas estimadas -->
     <section class="bg-white border border-slate-200 rounded-xl shadow-sm p-6 space-y-5">
       <header class="flex items-center justify-between flex-wrap gap-3">
@@ -514,6 +641,70 @@ const valueOrDash = (value) => {
   return value
 }
 
+// ── Historial de sincronizaciones ──────────────────────────────────────────
+const syncLogs = ref([])
+const syncLogsLoading = ref(false)
+const syncLogsError = ref('')
+const expandedLogs = ref(new Set())
+const logDetails = ref({})
+
+const fetchSyncLogs = async () => {
+  syncLogsLoading.value = true
+  syncLogsError.value = ''
+  try {
+    ensureInterceptors()
+    const { data } = await api.get('suppliers/supermex/sync-logs/', { params: { limit: 30 } })
+    syncLogs.value = Array.isArray(data) ? data : []
+  } catch (err) {
+    syncLogsError.value = err.response?.data?.error || 'No se pudo cargar el historial.'
+  } finally {
+    syncLogsLoading.value = false
+  }
+}
+
+const toggleLogDetail = async (logId) => {
+  if (expandedLogs.value.has(logId)) {
+    expandedLogs.value = new Set([...expandedLogs.value].filter((id) => id !== logId))
+    return
+  }
+  expandedLogs.value = new Set([...expandedLogs.value, logId])
+  if (logDetails.value[logId]) return
+  try {
+    ensureInterceptors()
+    const { data } = await api.get(`suppliers/supermex/sync-logs/${logId}/`)
+    logDetails.value = { ...logDetails.value, [logId]: data }
+  } catch {
+    logDetails.value = { ...logDetails.value, [logId]: { entries: [] } }
+  }
+}
+
+const logErrors = (logId) => (logDetails.value[logId]?.entries || []).filter((e) => e.tipo === 'error')
+const logChanges = (logId) => (logDetails.value[logId]?.entries || []).filter((e) => e.tipo === 'cambio')
+
+const tipoClass = (tipo) => {
+  if (tipo === 'stock_sync') return 'bg-emerald-100 text-emerald-700'
+  if (tipo === 'importacion') return 'bg-blue-100 text-blue-700'
+  return 'bg-purple-100 text-purple-700'
+}
+
+const estadoClass = (estado) => {
+  if (estado === 'completed') return 'bg-slate-100 text-slate-600'
+  if (estado === 'running') return 'bg-yellow-100 text-yellow-700'
+  return 'bg-red-100 text-red-600'
+}
+
+const estadoLabel = (estado) => {
+  if (estado === 'completed') return 'Completado'
+  if (estado === 'running') return 'En progreso'
+  return 'Fallido'
+}
+
+const campoLabel = (campo) => {
+  const map = { stock: 'Stock', precio: 'Precio', disponibilidad: 'Disponibilidad', importacion: 'Nuevo producto' }
+  return map[campo] || campo
+}
+// ────────────────────────────────────────────────────────────────────────────
+
 // ── Estadísticas de ventas ──────────────────────────────────────────────────
 const statsDays = ref(30)
 const statsLoading = ref(false)
@@ -735,7 +926,7 @@ const runStockSync = async () => {
     runError.value = error.response?.data?.detail || error.message || 'Error al sincronizar stock.'
   } finally {
     stockSyncing.value = false
-    await fetchLatest()
+    await Promise.all([fetchLatest(), fetchSyncLogs()])
   }
 }
 
@@ -761,7 +952,7 @@ const fetchLatest = async () => {
 }
 
 onMounted(async () => {
-  await Promise.all([fetchLatest(), fetchStats()])
+  await Promise.all([fetchLatest(), fetchStats(), fetchSyncLogs()])
 
   // Retomar scraper de importación si estaba en progreso
   const scraperTaskId = localStorage.getItem(LS_SCRAPER_KEY)
