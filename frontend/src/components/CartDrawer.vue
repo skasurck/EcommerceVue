@@ -36,6 +36,19 @@
           </button>
         </div>
 
+        <!-- Error del carrito -->
+        <Transition name="fade">
+          <div
+            v-if="carrito.error"
+            class="flex items-start gap-2 bg-rose-50 dark:bg-rose-900/20 border-b border-rose-200 dark:border-rose-800 px-5 py-3 text-sm text-rose-700 dark:text-rose-400"
+          >
+            <svg class="h-4 w-4 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/>
+            </svg>
+            <span>{{ carrito.error }}</span>
+          </div>
+        </Transition>
+
         <!-- Added product -->
         <div v-if="carrito.lastAdded" class="flex gap-4 border-b border-slate-100 dark:border-slate-800 px-5 py-4">
           <img

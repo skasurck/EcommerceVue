@@ -42,14 +42,20 @@ if not DEBUG:
     SECURE_SSL_REDIRECT = True
     SECURE_HSTS_SECONDS = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    # Necesario cuando hay un proxy/Nginx delante de Django (común en producción).
+    # Sin esto, Django no detecta correctamente que la conexión original era HTTPS.
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # Application definition
 
 REST_FRAMEWORK = {
-    # CLASES DE AUTENTICACIÓN VÁLIDAS (elige las que uses)
+    # CLASES DE AUTENTICACIÓN VÁLIDAS
+    # SessionAuthentication: para el panel de Django admin (/mktska-panel-x7k2/admin/).
+    # JWTAuthentication: para la API REST (frontend).
+    # BasicAuthentication se eliminó: envía credenciales en texto base64 y no es necesaria con JWT.
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework.authentication.SessionAuthentication",
-        "rest_framework.authentication.BasicAuthentication",
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
     # ✅ Filtros: aquí van OrderingFilter / DjangoFilterBackend
@@ -217,7 +223,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'es-mx'
 
 TIME_ZONE = 'America/Mexico_City'
 
@@ -246,7 +252,9 @@ SUPPLIER_MIN_VIRTUAL_QTY = 1     # cantidad mínima para considerar "en stock" u
 CELERY_BROKER_URL = "redis://127.0.0.1:6379/0"
 CELERY_RESULT_BACKEND = "redis://127.0.0.1:6379/1"
 CELERY_TIMEZONE = "America/Mexico_City"
-CELERY_ENABLE_UTC = False
+# Con USE_TZ=True Django almacena fechas en UTC internamente.
+# Celery debe hacer lo mismo para evitar desfases horarios en tareas programadas.
+CELERY_ENABLE_UTC = True
 
 # Reserva de carrito
 CART_RESERVATION_MAX_HOURS = int(os.getenv("CART_RESERVATION_MAX_HOURS", "3"))

@@ -31,9 +31,16 @@
         </div>
 
         <!-- Stepper -->
-        <nav v-if="hasItems" class="flex items-center justify-center gap-0">
+        <nav
+          v-if="hasItems"
+          class="flex items-center justify-center gap-0"
+          aria-label="Pasos del proceso de compra"
+        >
           <template v-for="(label, i) in ['Dirección', 'Envío', 'Pago']" :key="i">
-            <div class="flex flex-col items-center">
+            <div
+              class="flex flex-col items-center"
+              :aria-current="store.step === i + 1 ? 'step' : undefined"
+            >
               <div
                 class="flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold transition-colors"
                 :class="store.step === i + 1
@@ -41,19 +48,22 @@
                   : store.step > i + 1
                     ? 'bg-emerald-500 text-white'
                     : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400'"
+                :aria-label="store.step > i + 1 ? `${label} completado` : `Paso ${i + 1}: ${label}`"
               >
-                <span v-if="store.step > i + 1">✓</span>
-                <span v-else>{{ i + 1 }}</span>
+                <span v-if="store.step > i + 1" aria-hidden="true">✓</span>
+                <span v-else aria-hidden="true">{{ i + 1 }}</span>
               </div>
               <span
                 class="mt-1 text-xs"
                 :class="store.step === i + 1 ? 'font-semibold text-slate-900 dark:text-slate-100' : 'text-slate-400'"
+                aria-hidden="true"
               >{{ label }}</span>
             </div>
             <div
               v-if="i < 2"
               class="mb-4 h-px w-12 transition-colors"
               :class="store.step > i + 1 ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-700'"
+              role="presentation"
             />
           </template>
         </nav>

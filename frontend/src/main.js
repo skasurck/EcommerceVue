@@ -12,7 +12,7 @@ const app = createApp(App)
 const pinia = createPinia()
 const head = createHead()
 
-app.use(vClickOutside.directive)
+app.use(vClickOutside)
 app.use(pinia)
 app.use(head)
 ensureInterceptors()

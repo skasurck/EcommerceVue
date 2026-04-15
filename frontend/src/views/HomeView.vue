@@ -64,12 +64,22 @@ const allProductsForCart = computed(() => [
   ...CATEGORY_SECTIONS.flatMap(s => s.productos.value),
 ])
 
-const handleAddToCart = (product) => {
+const handleAddToCart = async (product) => {
   const snapshot = { ...product }
-  // Actualizar stock en cualquier lista que contenga el producto
-  for (const list of [nuevos, ofertas, destacados, ...CATEGORY_SECTIONS.map(s => s.productos)]) {
+  const allLists = [nuevos, ofertas, destacados, ...CATEGORY_SECTIONS.map(s => s.productos)]
+
+  // Guardar estado anterior para rollback
+  let targetList = null
+  let targetIdx = -1
+  let prevItem = null
+
+  for (const list of allLists) {
     const idx = list.value.findIndex(p => p.id === product.id)
     if (idx !== -1) {
+      targetList = list
+      targetIdx = idx
+      prevItem = { ...list.value[idx] }
+      // Actualización optimista del stock
       const newStock = Math.max(0, Number(list.value[idx].stock) - 1)
       list.value[idx] = {
         ...list.value[idx],
@@ -79,7 +89,13 @@ const handleAddToCart = (product) => {
       break
     }
   }
-  cartStore.agregar(snapshot)
+
+  await cartStore.agregar(snapshot)
+
+  // Rollback si el servidor devolvió error
+  if (cartStore.error && targetList && targetIdx !== -1 && prevItem) {
+    targetList.value[targetIdx] = prevItem
+  }
 }
 
 const fetchCategorySections = async () => {

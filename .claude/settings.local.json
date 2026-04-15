@@ -44,7 +44,9 @@
       "Bash(git ls-tree:*)",
       "Bash(git add:*)",
       "Bash(git commit -m ':*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(ls -la /c/Users/skasu/Documents/Proyectos/EcommerceVue/EcommerceVue/backend/.env*)",
+      "Bash(xargs ls:*)"
     ]
   }
 }

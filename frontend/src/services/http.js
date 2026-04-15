@@ -102,8 +102,8 @@ export const ensureInterceptors = () => {
         return Promise.reject(error)
       }
 
-      // Intenta refresh en 401 o 403 (tu caso)
-      if (response.status === 401 || response.status === 403) {
+      // Intenta refresh solo en 401 (token expirado). El 403 es "permiso denegado" y no se resuelve renovando el token.
+      if (response.status === 401) {
         const refresh = getRefreshToken()
         if (!refresh) {
           // Si tampoco hay access token, es un invitado — no redirigir al login

@@ -4,6 +4,16 @@ import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
 
 export default defineConfig({
+  test: {
+    globals: true,
+    environment: 'happy-dom',
+    setupFiles: ['./src/tests/setup.js'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html'],
+      include: ['src/stores/**', 'src/services/**', 'src/utils/**'],
+    },
+  },
   plugins: [
     vue(),
     vueDevTools(),

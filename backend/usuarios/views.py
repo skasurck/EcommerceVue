@@ -77,6 +77,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
         data = super().validate(attrs)
         token = data.pop("access")
+        refresh = data.pop("refresh", None)
         try:
             rol = self.user.perfil.rol
         except Perfil.DoesNotExist:
@@ -85,6 +86,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         default_address_data = DireccionAdminSerializer(default_address).data if default_address else None
         data = {
             "token": token,
+            "refresh": refresh,
             "user": {
                 "id": self.user.id,
                 "username": self.user.username,

@@ -261,6 +261,7 @@
 <script setup>
 import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useHead } from '@vueuse/head'
 import { obtenerProductos, obtenerMarcas, obtenerRangoPrecios } from '@/services/api.js'
 import { useCarritoStore } from '@/stores/carrito'
 import api from '@/axios'
@@ -284,6 +285,31 @@ const showFiltersMobile  = ref(false)
 const expandedCategoryIds = ref([])
 
 const query = computed(() => route.query.q ?? '')
+
+// ── SEO dinámico según término buscado ────────────────────
+useHead(computed(() => {
+  const q = query.value
+  const title = q
+    ? `Resultados para "${q}" — Mktska Digital`
+    : 'Búsqueda de productos — Mktska Digital'
+  const desc = q
+    ? `Encuentra ${q} en Mktska Digital. Tecnología y cómputo al mejor precio. Envíos a todo México.`
+    : 'Busca tecnología, computadoras, componentes y más en Mktska Digital.'
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://mktska.net'
+  const url = typeof window !== 'undefined' ? window.location.href : ''
+  return {
+    title,
+    meta: [
+      { name: 'description', content: desc },
+      { name: 'robots', content: 'noindex, follow' }, // resultados de búsqueda no se indexan
+      { property: 'og:type', content: 'website' },
+      { property: 'og:url', content: url },
+      { property: 'og:title', content: title },
+      { property: 'og:description', content: desc },
+      { property: 'og:image', content: `${origin}/logo-mktska.png` },
+    ],
+  }
+}))
 
 const filtros = reactive({
   categoria:   '',

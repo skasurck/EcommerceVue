@@ -20,12 +20,6 @@ const routes = [
     component: () => import('@/views/CategoriesView.vue'),
   },
   {
-    path: '/nuevo-producto',
-    name: 'nuevo-producto',
-    component: () => import('@/views/NuevoProducto.vue'),
-    meta: { requiresAuth: true, roles: ['admin', 'super_admin'] }
-  },
-  {
     path: '/registro',
     name: 'registro',
     component: () => import('@/views/Registro.vue')
@@ -100,9 +94,9 @@ const routes = [
       },
       {
         path: 'productos',
-        name: 'admin-productos', 
-        component: () => import('@/views/AdminProductos.vue'), 
-        meta: { title: 'Gestión de productos' } 
+        name: 'admin-productos',
+        component: () => import('@/views/AdminProductos.vue'),
+        meta: { title: 'Gestión de productos', requiresAuth: true, roles: ['admin', 'super_admin'] }
       },
       {
         path: 'productos/nuevo',
@@ -110,17 +104,17 @@ const routes = [
         component: () => import('@/views/NuevoProducto.vue'),
         meta: { title: 'Nuevo producto', requiresAuth: true, roles: ['admin','super_admin'] }
       },
-      { 
-        path: 'pedidos',   
-        name: 'admin-pedidos',   
-        component: () => import('@/views/AdminPedidos.vue'),   
-        meta: { title: 'Gestión de pedidos' } 
+      {
+        path: 'pedidos',
+        name: 'admin-pedidos',
+        component: () => import('@/views/AdminPedidos.vue'),
+        meta: { title: 'Gestión de pedidos', requiresAuth: true, roles: ['admin', 'super_admin'] }
       },
-      { 
-        path: 'pedidos/:id', 
-        name: 'admin-pedido-detalle', 
-        component: () => import('@/views/OrderDetail.vue'), 
-        meta: { title: 'Detalle de pedido' } 
+      {
+        path: 'pedidos/:id',
+        name: 'admin-pedido-detalle',
+        component: () => import('@/views/OrderDetail.vue'),
+        meta: { title: 'Detalle de pedido', requiresAuth: true, roles: ['admin', 'super_admin'] }
       },
       { 
         path: 'usuarios',
@@ -139,17 +133,17 @@ const routes = [
           return true
         }
       },
-      { 
-        path: 'usuarios/:id', 
-        name: 'admin-usuario-detalle', 
-        component: () => import('@/views/AdminUsuarioDetalle.vue'), 
-        meta: { title: 'Usuario' } 
+      {
+        path: 'usuarios/:id',
+        name: 'admin-usuario-detalle',
+        component: () => import('@/views/AdminUsuarioDetalle.vue'),
+        meta: { title: 'Usuario', requiresAuth: true, roles: ['admin', 'super_admin'] }
       },
       {
         path: 'promotions',
         name: 'admin-promotions',
         component: () => import('@/views/AdminPromotions.vue'),
-        meta: { title: 'Promociones', roles:['admin', 'super_admin'] }
+        meta: { title: 'Promociones', requiresAuth: true, roles: ['admin', 'super_admin'] }
       },
       {
         path: 'home-editor',
@@ -167,13 +161,13 @@ const routes = [
         path: 'resenas',
         name: 'admin-resenas',
         component: () => import('@/views/AdminResenas.vue'),
-        meta: { title: 'Reseñas', roles: ['admin', 'super_admin'] }
+        meta: { title: 'Reseñas', requiresAuth: true, roles: ['admin', 'super_admin'] }
       },
       {
         path: 'configuracion',
         name: 'admin-configuracion',
         component: () => import('@/views/AdminConfiguracion.vue'),
-        meta: { title: 'Configuración', roles:['super_admin'] }
+        meta: { title: 'Configuración', requiresAuth: true, roles: ['super_admin'] }
       },
       {
         path: 'ai/clasificar-productos',
@@ -249,12 +243,14 @@ const routes = [
   {
     path: '/seguridad',
     name: 'Seguridad',
-    component: () => import('@/views/Seguridad.vue')
+    component: () => import('@/views/Seguridad.vue'),
+    meta: { requiresAuth: true }
   },
   {
     path: '/direcciones',
     name: 'Direcciones',
-    component: () => import('@/views/Direcciones.vue')
+    component: () => import('@/views/Direcciones.vue'),
+    meta: { requiresAuth: true }
   },
   {
     path: '/lista-deseos',

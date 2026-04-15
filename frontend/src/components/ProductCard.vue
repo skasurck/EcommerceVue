@@ -103,15 +103,20 @@
     <button
       type="button"
       class="absolute bottom-2 right-2 rounded-full p-2 shadow-md transition-all duration-200"
-      :class="isOutOfStock
+      :class="isOutOfStock || isAdding
         ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed'
         : 'bg-yellow-400 hover:bg-yellow-300 text-slate-900 hover:scale-110 cursor-pointer'"
-      :disabled="isOutOfStock"
-      @click.stop="!isOutOfStock && emit('add-to-cart', producto)"
-      :aria-label="isOutOfStock ? 'Producto agotado' : 'Agregar al carrito'"
+      :disabled="isOutOfStock || isAdding"
+      @click.stop="!isOutOfStock && !isAdding && emit('add-to-cart', producto)"
+      :aria-label="isOutOfStock ? 'Producto agotado' : isAdding ? 'Agregando…' : 'Agregar al carrito'"
     >
+      <!-- Spinner mientras se agrega -->
+      <svg v-if="isAdding" class="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+      </svg>
       <!-- X icon when out of stock -->
-      <svg v-if="isOutOfStock" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-5 w-5">
+      <svg v-else-if="isOutOfStock" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-5 w-5">
         <path fill-rule="evenodd" d="M5.47 5.47a.75.75 0 0 1 1.06 0L12 10.94l5.47-5.47a.75.75 0 1 1 1.06 1.06L13.06 12l5.47 5.47a.75.75 0 1 1-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 0 1-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" />
       </svg>
       <!-- Plus icon when available -->
@@ -126,12 +131,14 @@
 import { computed } from 'vue'
 import { useWishlistStore } from '@/stores/wishlist'
 import { useAuthStore } from '@/stores/auth'
+import { useCarritoStore } from '@/stores/carrito'
 import { toProductTitle } from '@/utils/text'
 import StarRating from '@/components/StarRating.vue'
 
 const emit = defineEmits(['add-to-cart'])
 const wishlist = useWishlistStore()
 const auth = useAuthStore()
+const carritoStore = useCarritoStore()
 
 const props = defineProps({
   producto: { type: Object, required: true },
@@ -274,6 +281,9 @@ const isOutOfStock = computed(() => {
   const s = Number(rawStock)
   return Number.isFinite(s) && s <= 0
 })
+
+// true mientras el store está procesando la solicitud de este producto
+const isAdding = computed(() => carritoStore.addingProductId === p.value.id)
 
 const colors = computed(() => {
   const at = p.value.atributos || {}

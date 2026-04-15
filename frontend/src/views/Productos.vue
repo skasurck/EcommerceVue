@@ -351,10 +351,25 @@ import PriceSlider from '@/components/PriceSlider.vue'
 import CategoryTreeRadio from '@/components/CategoryTreeRadio.vue'
 import { ref, reactive, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
+import { useHead } from '@vueuse/head'
 import { obtenerProductos, obtenerMarcas, obtenerRangoPrecios, obtenerPromoBanners } from '@/services/api.js'
 import api from '@/axios'
 import { useCarritoStore } from '@/stores/carrito'
 defineOptions({ name: 'ProductosView' })
+
+// ── SEO ──────────────────────────────────────────────────────────────────────
+useHead({
+  title: 'Catálogo de productos — Mktska Digital',
+  meta: [
+    { name: 'description', content: 'Explora nuestro catálogo completo de tecnología y cómputo: computadoras, componentes, periféricos, impresoras y más. Envíos a todo México.' },
+    { property: 'og:type', content: 'website' },
+    { property: 'og:title', content: 'Catálogo de productos — Mktska Digital' },
+    { property: 'og:description', content: 'Tecnología y cómputo al mejor precio. Envíos a todo México.' },
+  ],
+  link: [
+    { rel: 'canonical', href: typeof window !== 'undefined' ? `${window.location.origin}/productos` : 'https://mktska.net/productos' },
+  ],
+})
 
 const route = useRoute()
 
