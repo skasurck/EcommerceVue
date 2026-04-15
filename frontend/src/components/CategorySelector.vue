@@ -113,6 +113,11 @@ export default {
     }, { deep: true });
 
     const updateSelection = () => {
+      // No emitir mientras se está inicializando para evitar el ciclo reactivo:
+      // setInitialSelection → watcher selectedLevel → updateSelection → emit →
+      // parent actualiza form.categorias (nueva referencia) → watcher modelValue → loop
+      if (isInitializing.value) return;
+
       const selection = [];
       if (selectedLevel3.value) {
         selection.push(Number(selectedLevel3.value));
@@ -121,6 +126,11 @@ export default {
       } else if (selectedLevel1.value) {
         selection.push(Number(selectedLevel1.value));
       }
+
+      // Evitar emitir si el contenido es idéntico al actual (previene renders innecesarios)
+      const current = props.modelValue ?? [];
+      if (selection.length === current.length && selection.every((v, i) => v === current[i])) return;
+
       emit('update:modelValue', selection);
     };
 
@@ -138,7 +148,7 @@ export default {
       }
       updateSelection();
     });
-    
+
     watch(selectedLevel3, () => {
         updateSelection();
     });

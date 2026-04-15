@@ -15,7 +15,12 @@ export const getRefreshToken = () => useAuthStore().refreshToken
 export const logout = () => {
   const auth = useAuthStore()
   auth.logout()
-  router.push('/login')
+  // Solo redirigir al login si la ruta actual requiere autenticación.
+  // En páginas públicas (producto, home, etc.) simplemente limpiamos los tokens
+  // sin interrumpir la navegación del usuario.
+  if (router.currentRoute.value.meta.requiresAuth) {
+    router.push({ name: 'login', query: { redirect: router.currentRoute.value.fullPath } })
+  }
 }
 
 export const refreshAccessToken = async () => {

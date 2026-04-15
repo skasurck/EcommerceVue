@@ -378,11 +378,6 @@ onMounted(async () => {
   isInitializing.value = false
 })
 
-watch(preciosEscalonados, val => {
-  if (productoStore.cache[id]) {
-    productoStore.cache[id].precios_escalonados = val
-  }
-}, { deep: true })
 
 
 const unwrap = (payload) => {
