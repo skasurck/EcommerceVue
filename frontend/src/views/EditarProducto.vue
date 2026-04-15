@@ -373,8 +373,7 @@ const schema = yup.object({
 })
 
 onMounted(async () => {
-  await fetchOpciones()
-  await fetchProducto()
+  await Promise.allSettled([fetchOpciones(), fetchProducto()])
   isInitializing.value = false
 })
 

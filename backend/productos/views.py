@@ -517,6 +517,14 @@ class ProductoViewSet(viewsets.ModelViewSet):
             cache.set(cache_key, response.data, timeout=60 * 5)  # 5 min
         return response
 
+    def get_object(self):
+        value = self.kwargs.get(self.lookup_field, '')
+        if str(value).isdigit():
+            obj = get_object_or_404(self.get_queryset(), pk=int(value))
+            self.check_object_permissions(self.request, obj)
+            return obj
+        return super().get_object()
+
     def get_serializer_class(self):
         if self.action == 'list':
             return ProductoListSerializer
