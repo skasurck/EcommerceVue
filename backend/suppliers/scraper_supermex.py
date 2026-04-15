@@ -384,7 +384,9 @@ def parse_pdp(html: str, url: str = "") -> dict:
     # --- CONSTANTES Y FUNCIONES DE AYUDA ---
     NEGATIVE_KEYWORDS = [
         "agotado", "sin existencias", "sin stock", "no disponible", "out of stock",
-        "no disponible por el momento", "producto no disponible", "Out of Stock",
+        "no disponible por el momento", "producto no disponible", "out of stock",
+        "no longer available", "this product is no longer available",
+        "product is no longer available", "ya no está disponible",
     ]
     POSITIVE_KEYWORDS = [
         "en existencia", "en stock", "disponible", "available", "in stock",
@@ -512,20 +514,20 @@ def parse_pdp(html: str, url: str = "") -> dict:
             price_txt = txt.strip()
             break
 
-    # Fallback genérico: buscar cualquier nodo con posible monto
+    # Fallback genérico: solo nodos que explícitamente muestren un precio con símbolo de moneda
     if not price_txt:
         for node in t.css("span, div, p, b, strong, h2, h3, h4"):
             txt = node.text(separator=" ", strip=True)
             if not txt:
-                continue
-            if not re.search(r"\d", txt):
                 continue
             if node.tag in {"del", "s", "strike"}:
                 continue
             parent = node.parent
             if parent and parent.tag in {"del", "s", "strike"}:
                 continue
-            if re.search(r"\$|mxn|\d", txt, re.I):
+            # Requiere símbolo de moneda ($, MXN) junto a dígitos para evitar
+            # capturar textos como "30-day guarantee" o "2-3 Business Days"
+            if re.search(r"(\$\s*[\d,]+|[\d,]+\s*mxn|mxn\s*[\d,]+)", txt, re.I):
                 price_node = node
                 price_txt = txt.strip()
                 break

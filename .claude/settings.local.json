@@ -40,7 +40,11 @@
       "Bash(python skills/ui-ux-pro-max/scripts/search.py \"ecommerce tech electronics dark modern professional\" --design-system -p \"Mktska Digital\" -f markdown)",
       "Bash(python /c/Users/skasu/Documents/Proyectos/EcommerceVue/EcommerceVue/.claude/skills/ui-ux-pro-max/scripts/search.py \"ecommerce tech electronics dark modern professional\" --design-system -p \"Mktska Digital\" -f markdown)",
       "Bash(python /c/Users/skasu/Documents/Proyectos/EcommerceVue/EcommerceVue/.claude/skills/ui-ux-pro-max/scripts/search.py \"hover animation loading accessibility\" --domain ux)",
-      "Bash(python /c/Users/skasu/Documents/Proyectos/EcommerceVue/EcommerceVue/.claude/skills/ui-ux-pro-max/scripts/search.py \"layout responsive ecommerce\" --stack vue)"
+      "Bash(python /c/Users/skasu/Documents/Proyectos/EcommerceVue/EcommerceVue/.claude/skills/ui-ux-pro-max/scripts/search.py \"layout responsive ecommerce\" --stack vue)",
+      "Bash(git ls-tree:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)",
+      "Bash(git push:*)"
     ]
   }
 }
