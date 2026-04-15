@@ -46,7 +46,10 @@
       "Bash(git commit -m ':*)",
       "Bash(git push:*)",
       "Bash(ls -la /c/Users/skasu/Documents/Proyectos/EcommerceVue/EcommerceVue/backend/.env*)",
-      "Bash(xargs ls:*)"
+      "Bash(xargs ls:*)",
+      "Bash(awk '{print $NF}')",
+      "Bash(xargs -I {} sh -c 'echo \"=== {} ===\" && grep \"^class \" {}')",
+      "Bash(find /c/Users/skasu/Documents/Proyectos/EcommerceVue/EcommerceVue/backend/productos -name \"*.py\" -exec grep -l \"seo\\\\|SEO\\\\|schema\" {} \\\\;)"
     ]
   }
 }

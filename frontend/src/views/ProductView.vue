@@ -1013,7 +1013,7 @@ useHead(computed(() => {
   const pr = p.value
   if (!pr.nombre) return { title: 'Mktska Digital — Tecnología y cómputo en México' }
   const origin = typeof window !== 'undefined' ? window.location.origin : 'https://mktska.net'
-  const productUrl = `${origin}/producto/${pr.id}`
+  const productUrl = `${origin}/producto/${pr.slug || pr.id}`
   const productImage = toMedia(pr.imagen_principal) || `${origin}/logo-mktska.png`
   const productDesc = (pr.descripcion_larga || pr.descripcion_corta || '').slice(0, 155)
   const productPrice = num(pr.precio_rebajado) ?? num(pr.precio_normal) ?? num(pr.precio)
@@ -1035,6 +1035,15 @@ useHead(computed(() => {
       availability: pr.stock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
       itemCondition: 'https://schema.org/NewCondition',
     },
+    ...(num(pr.total_resenas) > 0 ? {
+      aggregateRating: {
+        '@type': 'AggregateRating',
+        ratingValue: String(num(pr.rating_promedio) ?? 0),
+        reviewCount: String(num(pr.total_resenas)),
+        bestRating: '5',
+        worstRating: '1',
+      },
+    } : {}),
   }
 
   // BreadcrumbList: Inicio > Categoría > ... > Producto

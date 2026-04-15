@@ -69,7 +69,7 @@ def producto_seo_view(request, pk: int):
         producto = (
             Producto.objects
             .select_related('marca')
-            .only('id', 'nombre', 'descripcion_corta', 'descripcion_larga',
+            .only('id', 'slug', 'nombre', 'descripcion_corta', 'descripcion_larga',
                   'imagen_principal', 'precio_normal', 'precio_rebajado',
                   'stock', 'marca', 'sku')
             .get(pk=pk, visibilidad=True)
@@ -80,7 +80,7 @@ def producto_seo_view(request, pk: int):
 
     # Construir URLs absolutas
     origin = f"{request.scheme}://{request.get_host()}"
-    product_url = f"{origin}/producto/{producto.id}/"
+    product_url = f"{origin}/producto/{producto.slug}/"
 
     if producto.imagen_principal:
         image_url = request.build_absolute_uri(producto.imagen_principal.url)

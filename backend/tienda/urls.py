@@ -27,6 +27,7 @@ from rest_framework_simplejwt.views import (
 )
 from productos.views import editar_producto
 from productos.seo import producto_seo_view
+from productos.merchant_feed import merchant_feed_view
 from .sitemaps import StaticPagesSitemap, ProductoSitemap, CategoriaSitemap, MarcaSitemap
 
 
@@ -42,6 +43,7 @@ urlpatterns = [
     path('productos/editar/<int:pk>/', editar_producto, name='editar_producto'),
     path('producto/<int:pk>/', producto_seo_view, name='producto_seo'),
     path('api/sitemap.xml', sitemap, {'sitemaps': sitemaps}, name='django.contrib.sitemaps.views.sitemap'),
+    path('api/merchant-feed.xml', merchant_feed_view, name='merchant-feed'),
     path('api/', include('productos.urls')),
     path('api/', include('usuarios.urls')),
     path('api/', include('carrito.urls')),
