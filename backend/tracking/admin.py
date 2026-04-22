@@ -14,7 +14,7 @@ class EventoUsuarioAdmin(admin.ModelAdmin):
     list_filter = ('tipo', 'is_bot')
     search_fields = ('visitor_id', 'session_key', 'usuario__username', 'producto__nombre')
     date_hierarchy = 'created_at'
-    autocomplete_fields = ('producto', 'categoria', 'usuario')
+    raw_id_fields = ('producto', 'categoria', 'usuario')
 
 
 @admin.register(AgregadoDiarioProducto)
@@ -23,14 +23,14 @@ class AgregadoDiarioProductoAdmin(admin.ModelAdmin):
                     'wishlist_adds', 'purchases', 'clicks_rec', 'impressions_rec')
     list_filter = ('fecha',)
     date_hierarchy = 'fecha'
-    autocomplete_fields = ('producto',)
+    raw_id_fields = ('producto',)
 
 
 @admin.register(CoOcurrenciaProducto)
 class CoOcurrenciaProductoAdmin(admin.ModelAdmin):
     list_display = ('origen', 'destino', 'fuente', 'score', 'actualizado')
     list_filter = ('fuente',)
-    autocomplete_fields = ('origen', 'destino')
+    raw_id_fields = ('origen', 'destino')
 
 
 @admin.register(ConsentimientoTracking)
