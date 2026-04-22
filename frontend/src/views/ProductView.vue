@@ -425,6 +425,19 @@
           />
         </div>
 
+        <!-- Recomendaciones inteligentes (co-ocurrencia + fallbacks) -->
+        <div class="mt-10">
+          <RecommendationRow
+            v-if="p?.id"
+            scope="producto"
+            :producto-id="p.id"
+            title="También te puede interesar"
+            source="pdp_also_interest"
+            :limit="8"
+            :to="`/productos${categoryQueryString ? '?categoria=' + categoryQueryString : ''}`"
+          />
+        </div>
+
         <section class="mt-10 space-y-8" v-if="hasAnyRelacionados">
           <div v-if="relacionadosLoading || relacionados.length">
             <div class="flex items-center justify-between mb-4">
@@ -493,7 +506,9 @@ import ProductCard from '@/components/ProductCard.vue'
 import CategoryPathInput from '@/components/CategoryPathInput.vue'
 import StarRating from '@/components/StarRating.vue'
 import ProductResenas from '@/components/ProductResenas.vue'
+import RecommendationRow from '@/components/RecommendationRow.vue'
 import api from '@/axios'
+import { trackEvento } from '@/composables/useTracking'
 
 const route = useRoute()
 const producto = ref(null)
@@ -698,6 +713,11 @@ const agregar = async () => {
   }
 }
 
+const categoryQueryString = computed(() => {
+  const id = getPrimaryCategoryId(producto.value)
+  return id ?? ''
+})
+
 const comprarAhora = async () => {
   await agregar()
   // Aquí podrías redirigir a checkout
@@ -775,6 +795,12 @@ const registerProductVisit = (detail) => {
   const history = loadVisitHistory().filter((entry) => entry.id !== id)
   history.unshift({ id, categoriaId: categoriaId ?? null, ts: Date.now() })
   persistVisitHistory(history)
+  // Tracking Nivel 2: vista de producto
+  trackEvento('view', {
+    producto_id: id,
+    categoria_id: categoriaId ?? null,
+    metadata: { referrer: (document.referrer || '').slice(0, 200) },
+  })
 }
 const buildRecommendationCategories = (primaryCategoryId, currentProductId) => {
   const history = loadVisitHistory().filter((entry) => entry.id !== currentProductId)

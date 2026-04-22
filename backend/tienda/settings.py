@@ -80,6 +80,7 @@ REST_FRAMEWORK = {
         "login": "10/minute",       # máx 10 intentos de login por minuto por IP
         "registro": "5/hour",       # máx 5 registros por hora por IP
         "pedido_create": "30/hour", # máx 30 pedidos por hora por IP (evita DoS de stock)
+        "tracking": "600/hour",     # eventos de tracking por IP (≈ 10/min con batching)
     },
 
     # (Opcional) Paginación por defecto
@@ -119,6 +120,7 @@ INSTALLED_APPS = [
     'productos.apps.ProductosConfig',
     'promotions.apps.PromotionsConfig',
     'pagos',
+    'tracking.apps.TrackingConfig',
     # 2FA (TOTP para API de administradores)
     'django_otp',
     'django_otp.plugins.otp_totp',
@@ -251,6 +253,7 @@ SUPPLIER_MIN_VIRTUAL_QTY = 1     # cantidad mínima para considerar "en stock" u
 # Celery
 CELERY_BROKER_URL = "redis://127.0.0.1:6379/0"
 CELERY_RESULT_BACKEND = "redis://127.0.0.1:6379/1"
+TRACKING_REDIS_URL = "redis://127.0.0.1:6379/2"
 CELERY_TIMEZONE = "America/Mexico_City"
 # Con USE_TZ=True Django almacena fechas en UTC internamente.
 # Celery debe hacer lo mismo para evitar desfases horarios en tareas programadas.

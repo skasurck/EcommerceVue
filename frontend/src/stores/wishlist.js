@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { obtenerListaDeseos, agregarAListaDeseos, eliminarDeListaDeseos } from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
+import { trackEvento } from '@/composables/useTracking'
 
 export const useWishlistStore = defineStore('wishlist', {
   state: () => ({
@@ -43,10 +44,12 @@ export const useWishlistStore = defineStore('wishlist', {
         const id = this.itemId(productoId)
         await eliminarDeListaDeseos(id)
         this.items = this.items.filter((i) => i.id !== id)
+        trackEvento('wishlist_remove', { producto_id: productoId })
         return false
       } else {
         const { data } = await agregarAListaDeseos(productoId)
         this.items.push(data)
+        trackEvento('wishlist_add', { producto_id: productoId })
         return true
       }
     },

@@ -49,7 +49,16 @@
       "Bash(xargs ls:*)",
       "Bash(awk '{print $NF}')",
       "Bash(xargs -I {} sh -c 'echo \"=== {} ===\" && grep \"^class \" {}')",
-      "Bash(find /c/Users/skasu/Documents/Proyectos/EcommerceVue/EcommerceVue/backend/productos -name \"*.py\" -exec grep -l \"seo\\\\|SEO\\\\|schema\" {} \\\\;)"
+      "Bash(find /c/Users/skasu/Documents/Proyectos/EcommerceVue/EcommerceVue/backend/productos -name \"*.py\" -exec grep -l \"seo\\\\|SEO\\\\|schema\" {} \\\\;)",
+      "Bash(./venv/Scripts/python.exe manage.py makemigrations tracking)",
+      "Bash(DJANGO_SETTINGS_MODULE=tienda.settings_test ./venv/Scripts/python.exe manage.py check tracking)",
+      "Bash(./venv/Scripts/python.exe -m py_compile tracking/models.py tracking/views.py tracking/tasks.py tracking/signals.py tracking/urls.py tracking/admin.py tracking/apps.py tracking/migrations/0001_initial.py)",
+      "Bash(./venv/Scripts/python.exe -c \"import redis; print\\(redis.__version__\\)\")",
+      "Bash(./venv/Scripts/python.exe -c \"import celery; print\\('celery', celery.__version__\\)\")",
+      "Bash(npx --no-install vite build)",
+      "Bash(npx --no-install eslint src/composables/useTracking.js src/components/ConsentBanner.vue src/stores/carrito.js src/stores/wishlist.js)",
+      "Bash(./venv/Scripts/python.exe -m py_compile productos/recomendaciones.py productos/urls.py)",
+      "Bash(npx --no-install eslint src/components/RecommendationRow.vue src/services/api.js)"
     ]
   }
 }

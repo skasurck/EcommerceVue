@@ -42,4 +42,20 @@ app.conf.beat_schedule = {
         "task": "promotions.create_daily_offers",
         "schedule": crontab(minute=0, hour=0),  # cada día a medianoche
     },
+    "tracking-drenar-cola": {
+        "task": "tracking.drenar_cola_eventos",
+        "schedule": 5.0,  # cada 5 segundos
+    },
+    "tracking-agregar-diario": {
+        "task": "tracking.actualizar_agregado_diario",
+        "schedule": crontab(minute='*/30'),
+    },
+    "tracking-recalcular-co-ocurrencia": {
+        "task": "tracking.recalcular_co_ocurrencia",
+        "schedule": crontab(hour=4, minute=0),  # diario 4 AM
+    },
+    "tracking-purgar-eventos-antiguos": {
+        "task": "tracking.purgar_eventos_antiguos",
+        "schedule": crontab(hour=5, minute=0, day_of_week=0),  # semanal domingo
+    },
 }

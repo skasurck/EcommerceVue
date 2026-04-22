@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import api from '@/axios'
+import { trackEvento } from '@/composables/useTracking'
 
 /** Normaliza la forma del carrito devuelto por la API */
 function normalizeItems(data) {
@@ -108,6 +109,13 @@ export const useCarritoStore = defineStore('carrito', {
         this.error = null
         this.lastAdded = { ...producto, cantidadAgregada: Number(cantidad || 1) }
         this.drawerOpen = true
+        trackEvento('add_cart', {
+          producto_id: producto.id,
+          metadata: {
+            cantidad: Number(cantidad || 1),
+            precio: Number(producto.precio_rebajado ?? producto.precio_normal ?? 0),
+          },
+        })
       } catch (err) {
         console.error('[carrito] Error al agregar:', err)
         const msg = err?.response?.data?.detail || err?.response?.data?.non_field_errors?.[0] || 'No se pudo agregar el producto al carrito.'
@@ -139,9 +147,19 @@ export const useCarritoStore = defineStore('carrito', {
 
     async eliminar(id) {
       await this.ensureSession()
+      const items = Array.isArray(this.items) ? this.items : []
+      const item = items.find(i => i.id === id)
+      const productoId = item?.producto?.id ?? null
+      const cantidadPrevia = Number(item?.cantidad ?? 0)
       try {
         await api.delete(`carrito/${id}/`)
         await this.cargar()
+        if (productoId) {
+          trackEvento('remove_cart', {
+            producto_id: productoId,
+            metadata: { cantidad: cantidadPrevia },
+          })
+        }
       } catch (err) {
         console.error('[carrito] Error al eliminar:', err)
         this._setError('No se pudo eliminar el producto del carrito.')

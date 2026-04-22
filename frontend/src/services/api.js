@@ -17,6 +17,31 @@ export const eliminarHomeSlide = (id) => api.delete(`home-slider/${id}/`)
 
 export const obtenerProductosDestacados = (params = {}) => api.get('productos-destacados/', { params })
 
+// ── Recomendaciones (Nivel 1+2) ──
+import { getVisitorId } from '@/composables/useTracking'
+
+export const obtenerRecomendacionesProducto = (productoId, { limit = 8 } = {}) =>
+  api.get(`productos/${productoId}/recomendaciones/`, {
+    params: { limit },
+    headers: { 'X-Visitor-Id': getVisitorId() },
+  })
+
+export const obtenerRecomendacionesHome = ({
+  limit = 12,
+  recientes = [],
+  categorias = [],
+  exclude = [],
+} = {}) =>
+  api.get('recomendaciones/home/', {
+    params: {
+      limit,
+      ...(recientes.length ? { recientes: recientes.join(',') } : {}),
+      ...(categorias.length ? { categorias: categorias.join(',') } : {}),
+      ...(exclude.length ? { exclude: exclude.join(',') } : {}),
+    },
+    headers: { 'X-Visitor-Id': getVisitorId() },
+  })
+
 export const obtenerPromoBanners = (params = {}) => api.get('promo-banners/', { params })
 export const crearPromoBanner = (payload) =>
   api.post('promo-banners/', payload, {

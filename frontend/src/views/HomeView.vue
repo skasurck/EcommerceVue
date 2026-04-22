@@ -3,6 +3,7 @@ import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
 import { useHead } from '@vueuse/head'
 import ProductRow from '@/components/ProductRow.vue'
 import ProductCard from '@/components/ProductCard.vue'
+import RecommendationRow from '@/components/RecommendationRow.vue'
 import { obtenerProductos, obtenerHomeSlider, obtenerPromoBanners, obtenerProductosDestacados } from '@/services/api.js'
 import api from '@/axios'
 import { useCarritoStore } from '@/stores/carrito'
@@ -45,6 +46,34 @@ const promoBanners = ref([])
 const currentSlide = ref(0)
 const allLoaded = ref(false)
 let autoplayTimer = null
+
+// Historial local de productos vistos (lo escribe ProductView).
+// Se usa como hint para personalizar la sección "Recomendados para ti"
+// cuando el visitor todavía no tiene eventos en backend.
+const VISIT_HISTORY_KEY = 'product_visit_history'
+const recientesIds = ref([])
+const recientesCategorias = ref([])
+const loadHistorialLocal = () => {
+  try {
+    const raw = localStorage.getItem(VISIT_HISTORY_KEY)
+    const arr = raw ? JSON.parse(raw) : []
+    if (!Array.isArray(arr)) return
+    recientesIds.value = arr
+      .map((e) => Number(e?.id))
+      .filter((n) => Number.isFinite(n))
+      .slice(0, 12)
+    const cats = []
+    const seen = new Set()
+    for (const e of arr) {
+      const c = Number(e?.categoriaId)
+      if (Number.isFinite(c) && !seen.has(c)) {
+        seen.add(c)
+        cats.push(c)
+      }
+    }
+    recientesCategorias.value = cats.slice(0, 6)
+  } catch { /* silencioso */ }
+}
 
 // ── Secciones por categoría ──────────────────────────────────────────────────
 // Cada entrada define el label visible, el slug de la categoría en la DB,
@@ -200,6 +229,7 @@ const fetchBloque = async (params) => {
 }
 
 onMounted(async () => {
+  loadHistorialLocal()
   await fetchHomeSlider()
   startAutoplay()
 
@@ -457,6 +487,17 @@ onBeforeUnmount(() => {
     <div class="max-w-7xl mx-auto px-4 py-6 space-y-8" :class="allLoaded ? '' : 'min-h-[4000px]'">
       <ProductRow title="Ofertas del día" :productos="ofertas" to="/productos?en_oferta=true" @add-to-cart="handleAddToCart" />
       <ProductRow title="Novedades" :productos="nuevos" to="/productos" @add-to-cart="handleAddToCart" />
+
+      <RecommendationRow
+        scope="home"
+        title="Recomendados para ti"
+        source="home_for_you"
+        :limit="12"
+        :recientes="recientesIds"
+        :categorias="recientesCategorias"
+        to="/productos"
+        @add-to-cart="handleAddToCart"
+      />
 
       <section>
         <div class="flex items-center justify-between mb-4 px-2">

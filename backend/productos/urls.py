@@ -24,6 +24,10 @@ from .views import (
     ListaDeseosViewSet,
     ResenaViewSet,
 )
+from .recomendaciones import (
+    RecomendacionesProductoAPIView,
+    RecomendacionesHomeAPIView,
+)
 
 router = DefaultRouter()
 router.register(r'productos', ProductoViewSet, basename='productos')
@@ -38,6 +42,17 @@ router.register(r'lista-deseos', ListaDeseosViewSet, basename='lista-deseos')
 router.register(r'resenas', ResenaViewSet, basename='resenas')
 
 urlpatterns = [
+    # Recomendaciones (público)
+    path(
+        'productos/<int:producto_id>/recomendaciones/',
+        RecomendacionesProductoAPIView.as_view(),
+        name='producto-recomendaciones',
+    ),
+    path(
+        'recomendaciones/home/',
+        RecomendacionesHomeAPIView.as_view(),
+        name='recomendaciones-home',
+    ),
     # Productos destacados (público)
     path('productos-destacados/', ProductosDestacadosAPIView.as_view(), name='productos-destacados'),
     # Gestión admin de destacados (forzar recálculo)
