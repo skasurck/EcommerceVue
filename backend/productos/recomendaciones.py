@@ -51,6 +51,10 @@ def _optimizar_queryset_lista(qs):
 def _hidratar_productos(ids, request):
     """Carga los productos visibles preservando el orden de `ids`.
 
+    Filtra solo por `visibilidad=True` para mantener consistencia con el resto
+    del sitio (Destacados, Ofertas, Novedades). Productos sin stock se incluyen
+    porque ProductCard ya muestra el badge "Agotado".
+
     Devuelve la lista serializada con `ProductoListSerializer`.
     """
     if not ids:
@@ -59,11 +63,7 @@ def _hidratar_productos(ids, request):
     preserved = Case(*[When(pk=pk, then=pos) for pos, pk in enumerate(ids)])
     qs = (
         _optimizar_queryset_lista(
-            Producto.objects.filter(
-                pk__in=ids,
-                visibilidad=True,
-                estado='publicado',
-            )
+            Producto.objects.filter(pk__in=ids, visibilidad=True)
         )
         .order_by(preserved)
     )
@@ -93,7 +93,6 @@ def _ids_por_co_ocurrencia(origen_ids, fuentes, exclude_ids, limit):
                 origen_id__in=origen_ids,
                 fuente=fuente,
                 destino__visibilidad=True,
-                destino__estado='publicado',
             )
             .exclude(destino_id__in=vistos)
             .values('destino_id')
@@ -119,12 +118,7 @@ def _ids_misma_categoria(producto, exclude_ids, limit):
         return []
     qs = (
         Producto.objects
-        .filter(
-            categorias__in=cat_ids,
-            visibilidad=True,
-            estado='publicado',
-            stock__gt=0,
-        )
+        .filter(categorias__in=cat_ids, visibilidad=True)
         .exclude(pk__in=exclude_ids)
         .order_by('-rating_promedio', '-fecha_creacion')
         .distinct()
@@ -138,12 +132,7 @@ def _ids_por_categorias(cat_ids, exclude_ids, limit):
         return []
     qs = (
         Producto.objects
-        .filter(
-            categorias__in=cat_ids,
-            visibilidad=True,
-            estado='publicado',
-            stock__gt=0,
-        )
+        .filter(categorias__in=cat_ids, visibilidad=True)
         .exclude(pk__in=exclude_ids)
         .order_by('-rating_promedio', '-fecha_creacion')
         .distinct()
@@ -198,10 +187,10 @@ def _ids_populares_recientes(exclude_ids, limit):
     except Exception:
         pass
 
-    # Fallback total: recientes en stock
+    # Fallback total: productos recientes visibles
     qs = (
         Producto.objects
-        .filter(visibilidad=True, estado='publicado', stock__gt=0)
+        .filter(visibilidad=True)
         .exclude(pk__in=exclude_ids)
         .order_by('-fecha_creacion')
         .values_list('id', flat=True)[:limit]
@@ -247,7 +236,7 @@ class RecomendacionesProductoAPIView(APIView):
             producto = (
                 Producto.objects
                 .prefetch_related('categorias')
-                .get(pk=producto_id, visibilidad=True, estado='publicado')
+                .get(pk=producto_id, visibilidad=True)
             )
         except Producto.DoesNotExist:
             return Response([])

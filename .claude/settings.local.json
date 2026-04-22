@@ -59,7 +59,8 @@
       "Bash(npx --no-install eslint src/composables/useTracking.js src/components/ConsentBanner.vue src/stores/carrito.js src/stores/wishlist.js)",
       "Bash(./venv/Scripts/python.exe -m py_compile productos/recomendaciones.py productos/urls.py)",
       "Bash(npx --no-install eslint src/components/RecommendationRow.vue src/services/api.js)",
-      "Bash(./venv/Scripts/python.exe -m py_compile tracking/admin.py)"
+      "Bash(./venv/Scripts/python.exe -m py_compile tracking/admin.py)",
+      "Bash(./venv/Scripts/python.exe -m py_compile productos/recomendaciones.py)"
     ]
   }
 }
